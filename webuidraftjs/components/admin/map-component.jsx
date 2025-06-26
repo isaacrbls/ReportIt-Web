@@ -1,0 +1,336 @@
+"use client"
+
+import { useState, useEffect, useRef } from "react"
+import L from "leaflet"
+
+// Sample data for crime incidents
+const crimeIncidents = [
+  {
+    id: 1,
+    location: [14.8527, 120.816], // Bulihan coordinates
+    title: "Smartphone theft",
+    description: "Victim reported smartphone snatched while shopping at the public market",
+    category: "Theft",
+    risk: "High",
+    date: "May 15, 2023",
+    time: "2:30 PM",
+  },
+  {
+    id: 2,
+    location: [14.858, 120.814], // Mojon coordinates
+    title: "Wallet snatching",
+    description: "Wallet stolen from backpack while victim was riding a jeepney",
+    category: "Theft",
+    risk: "High",
+    date: "May 14, 2023",
+    time: "6:45 PM",
+  },
+  {
+    id: 3,
+    location: [14.855, 120.812], // Dakila coordinates
+    title: "Motorcycle theft",
+    description: "Motorcycle stolen from parking area near the market",
+    category: "Vehicle Theft",
+    risk: "Medium",
+    date: "May 14, 2023",
+    time: "9:15 AM",
+  },
+  {
+    id: 4,
+    location: [14.851, 120.818], // Look 1st coordinates
+    title: "Store robbery",
+    description: "Armed individuals robbed a convenience store",
+    category: "Robbery",
+    risk: "Medium",
+    date: "May 13, 2023",
+    time: "10:10 PM",
+  },
+  {
+    id: 5,
+    location: [14.849, 120.813], // Longos coordinates
+    title: "Phone snatching",
+    description: "Phone snatched while victim was texting near the plaza",
+    category: "Theft",
+    risk: "Low",
+    date: "May 13, 2023",
+    time: "4:20 PM",
+  },
+  {
+    id: 6,
+    location: [14.847, 120.815], // Pinagbakahan coordinates
+    title: "Attempted break-in",
+    description: "Attempted break-in at a residential property",
+    category: "Burglary",
+    risk: "Low",
+    date: "May 12, 2023",
+    time: "2:15 AM",
+  },
+  {
+    id: 7,
+    location: [14.8535, 120.8165], // Bulihan area
+    title: "Bag snatching",
+    description: "Bag snatched from pedestrian near the market",
+    category: "Theft",
+    risk: "High",
+    date: "May 11, 2023",
+    time: "5:30 PM",
+  },
+  {
+    id: 8,
+    location: [14.8575, 120.8145], // Mojon area
+    title: "Shop theft",
+    description: "Items stolen from a convenience store",
+    category: "Theft",
+    risk: "High",
+    date: "May 10, 2023",
+    time: "8:20 PM",
+  },
+]
+
+// Hotspot data - areas with high crime rates
+const hotspots = [
+  {
+    id: 1,
+    center: [14.8527, 120.816], // Bulihan center
+    radius: 300,
+    name: "Bulihan Market Area",
+    risk: "High",
+    incidents: 24,
+    color: "#ef4444", // Red for high risk
+  },
+  {
+    id: 2,
+    center: [14.858, 120.814], // Mojon center
+    radius: 250,
+    name: "Mojon Shopping District",
+    risk: "High",
+    incidents: 19,
+    color: "#ef4444", // Red for high risk
+  },
+  {
+    id: 3,
+    center: [14.855, 120.812], // Dakila center
+    radius: 200,
+    name: "Dakila Bus Terminal",
+    risk: "Medium",
+    incidents: 12,
+    color: "#eab308", // Yellow for medium risk
+  },
+  {
+    id: 4,
+    center: [14.851, 120.818], // Look 1st center
+    radius: 180,
+    name: "Look 1st Commercial Zone",
+    risk: "Medium",
+    incidents: 10,
+    color: "#eab308", // Yellow for medium risk
+  },
+  {
+    id: 5,
+    center: [14.849, 120.813], // Longos center
+    radius: 150,
+    name: "Longos Residential Area",
+    risk: "Low",
+    incidents: 5,
+    color: "#22c55e", // Green for low risk
+  },
+  {
+    id: 6,
+    center: [14.847, 120.815], // Pinagbakahan center
+    radius: 120,
+    name: "Pinagbakahan Community",
+    risk: "Low",
+    incidents: 4,
+    color: "#22c55e", // Green for low risk
+  },
+]
+
+// Fix for Leaflet marker icons in Next.js
+const fixLeafletIcons = () => {
+  // Delete the default icon
+  delete L.Icon.Default.prototype._getIconUrl
+
+  // Set up the default icon paths
+  L.Icon.Default.mergeOptions({
+    iconRetinaUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png",
+    iconUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png",
+    shadowUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png",
+  })
+}
+
+// Custom icons for different risk levels
+const createCustomIcon = (riskLevel) => {
+  return new L.Icon({
+    iconUrl:
+      riskLevel === "High"
+        ? "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png"
+        : riskLevel === "Medium"
+          ? "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-gold.png"
+          : "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png",
+    shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png",
+    iconSize: [25, 41],
+    iconAnchor: [12, 41],
+    popupAnchor: [1, -34],
+    shadowSize: [41, 41],
+  })
+}
+
+export default function MapComponent({
+  onMapClick,
+  onMarkerClick,
+  addingIncident,
+  newIncidentLocation,
+  newIncidentRisk,
+}) {
+  const [incidents, setIncidents] = useState(crimeIncidents)
+  const mapRef = useRef(null)
+  const mapInstanceRef = useRef(null)
+  const markersRef = useRef([])
+  const hotspotsRef = useRef([])
+  const newMarkerRef = useRef(null)
+
+  // Initialize map
+  useEffect(() => {
+    // Import Leaflet CSS
+    require("leaflet/dist/leaflet.css")
+
+    // Fix Leaflet icons
+    fixLeafletIcons()
+
+    // Create map instance
+    const mapInstance = L.map(mapRef.current).setView([14.8527, 120.816], 15)
+    mapInstanceRef.current = mapInstance
+
+    // Add tile layer
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    }).addTo(mapInstance)
+
+    // Add click event listener
+    mapInstance.on("click", (e) => {
+      if (addingIncident) {
+        const { lat, lng } = e.latlng
+        onMapClick([lat, lng])
+      }
+    })
+
+    // Add hotspots
+    hotspots.forEach((hotspot) => {
+      const circle = L.circle(hotspot.center, {
+        radius: hotspot.radius,
+        fillColor: hotspot.color,
+        fillOpacity: 0.3,
+        color: hotspot.color,
+        weight: 1,
+      }).addTo(mapInstance)
+
+      const popupContent = `
+        <div class="p-1">
+          <h3 class="font-medium">${hotspot.name}</h3>
+          <div class="mt-1 rounded-full px-2 py-0.5 text-center text-xs font-medium bg-${
+            hotspot.risk === "High" ? "red" : hotspot.risk === "Medium" ? "yellow" : "green"
+          }-100 text-${hotspot.risk === "High" ? "red" : hotspot.risk === "Medium" ? "yellow" : "green"}-800">
+            ${hotspot.risk} Risk Area
+          </div>
+          <p class="mt-1 text-sm">
+            <strong>${hotspot.incidents}</strong> incidents reported
+          </p>
+        </div>
+      `
+
+      circle.bindPopup(popupContent)
+      hotspotsRef.current.push(circle)
+    })
+
+    // Add incident markers
+    incidents.forEach((incident) => {
+      const marker = L.marker(incident.location, {
+        icon: createCustomIcon(incident.risk),
+      }).addTo(mapInstance)
+
+      const popupContent = `
+        <div class="p-1">
+          <h3 class="font-medium">${incident.title}</h3>
+          <p class="text-xs text-muted-foreground">
+            ${incident.date} at ${incident.time}
+          </p>
+          <div class="mt-1 rounded-full px-2 py-0.5 text-center text-xs font-medium bg-${
+            incident.risk === "High" ? "red" : incident.risk === "Medium" ? "yellow" : "green"
+          }-100 text-${incident.risk === "High" ? "red" : incident.risk === "Medium" ? "yellow" : "green"}-800">
+            ${incident.risk} Risk
+          </div>
+          <p class="mt-1 text-sm">${incident.description}</p>
+        </div>
+      `
+
+      marker.bindPopup(popupContent)
+      marker.on("click", () => {
+        onMarkerClick(incident)
+      })
+
+      markersRef.current.push({ marker, incident })
+    })
+
+    // Listen for new incidents
+    const handleAddIncident = (e) => {
+      const newIncident = e.detail
+      setIncidents((prev) => [...prev, newIncident])
+
+      const marker = L.marker(newIncident.location, {
+        icon: createCustomIcon(newIncident.risk),
+      }).addTo(mapInstance)
+
+      const popupContent = `
+        <div class="p-1">
+          <h3 class="font-medium">${newIncident.title}</h3>
+          <p class="text-xs text-muted-foreground">
+            ${newIncident.date} at ${newIncident.time}
+          </p>
+          <div class="mt-1 rounded-full px-2 py-0.5 text-center text-xs font-medium bg-${
+            newIncident.risk === "High" ? "red" : newIncident.risk === "Medium" ? "yellow" : "green"
+          }-100 text-${newIncident.risk === "High" ? "red" : newIncident.risk === "Medium" ? "yellow" : "green"}-800">
+            ${newIncident.risk} Risk
+          </div>
+          <p class="mt-1 text-sm">${newIncident.description}</p>
+        </div>
+      `
+
+      marker.bindPopup(popupContent)
+      marker.on("click", () => {
+        onMarkerClick(newIncident)
+      })
+
+      markersRef.current.push({ marker, incident: newIncident })
+    }
+
+    window.addEventListener("addIncident", handleAddIncident)
+
+    // Cleanup
+    return () => {
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.remove()
+      }
+      window.removeEventListener("addIncident", handleAddIncident)
+    }
+  }, [])
+
+  // Handle new incident location
+  useEffect(() => {
+    if (!mapInstanceRef.current) return
+
+    // Remove previous new marker if exists
+    if (newMarkerRef.current) {
+      newMarkerRef.current.remove()
+      newMarkerRef.current = null
+    }
+
+    // Add new marker if location exists
+    if (newIncidentLocation) {
+      newMarkerRef.current = L.marker(newIncidentLocation, {
+        icon: createCustomIcon(newIncidentRisk || "Medium"),
+      }).addTo(mapInstanceRef.current)
+    }
+  }, [newIncidentLocation, newIncidentRisk])
+
+  return <div ref={mapRef} className="h-full w-full" />
+}

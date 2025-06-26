@@ -1,0 +1,18 @@
+.btn-verify {
+  color: #16a34a !important;
+  background-color: #fff !important;
+  border: 1.5px solid #16a34a !important;
+  transition: background 0.2s, color 0.2s;
+}
+.btn-verify:hover {
+  background-color: #fff !important;
+  color: #16a34a !important;
+  filter: brightness(0.97);
+}
+.btn-reject {
+  color: #F14B51 !important;
+}
+.btn-reject:hover {
+  background-color: #fef2f2 !important;
+  color: #F14B51 !important;
+}
