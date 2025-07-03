@@ -4,7 +4,7 @@ import Link from "next/link";
 import { ShieldAlert, LayoutDashboard, BarChart2, FileText, LogOut } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BubbleChart } from "@/components/admin/bubble-chart";
+import { CrimeMap } from "@/components/admin/crime-map";
 import { RecentReports } from "@/components/admin/recent-reports";
 import { StatsCards } from "@/components/admin/stats-cards";
 import { HighRiskAreasDialog } from "../../components/admin/high-risk-areas-dialog.jsx";
@@ -115,10 +115,10 @@ export default function AdminDashboard() {
         <HighRiskAreasDialog open={showHighRiskDialog} onOpenChange={setShowHighRiskDialog} />
 
         {/* Incident Distribution (Bubble Chart) */}
-        <div className="mb-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+        <div className={`mb-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm${showHighRiskDialog ? ' blur-sm pointer-events-none select-none' : ''}`}>
           <div className="text-2xl font-bold text-red-600 mb-1">Incident Distribution</div>
           <div className="text-xs text-gray-500 mb-4">Bubble size represents incident frequency, color indicates risk levels</div>
-          <BubbleChart />
+          <CrimeMap />
         </div>
 
         {/* Recent Reports */}

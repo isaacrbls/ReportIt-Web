@@ -1,16 +1,33 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { X, MapPin } from "lucide-react";
-
-const locations = [
-  { name: "Golden Ville Estates", top: "18%", left: "22%" },
-  { name: "Phase 7F Cactus 2st", top: "38%", left: "38%" },
-  { name: "Casa Hips", top: "48%", left: "44%" },
-  { name: "Humel Heritage Homes", top: "68%", left: "54%" },
-  { name: "Longos II Elementary School", top: "78%", left: "18%" },
-];
+import { collection, getDocs } from "firebase/firestore";
+import { db } from "@/firebase";
 
 export const HighRiskAreasDialog = ({ open, onOpenChange }) => {
+  const [highRiskBarangays, setHighRiskBarangays] = useState([]);
+
+  useEffect(() => {
+    if (!open) return;
+    const fetchHighRisk = async () => {
+      const querySnapshot = await getDocs(collection(db, "reports"));
+      const barangayCounts = {};
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        const barangay = data.barangay || data.Barangay || data.location || "Unknown";
+        if (!barangayCounts[barangay]) barangayCounts[barangay] = 0;
+        barangayCounts[barangay]++;
+      });
+      // Sort barangays by incident count descending
+      const sorted = Object.entries(barangayCounts)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5) // Top 5 high risk
+        .map(([name, count]) => ({ name, count }));
+      setHighRiskBarangays(sorted);
+    };
+    fetchHighRisk();
+  }, [open]);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl p-0 bg-transparent border-none shadow-none">
@@ -43,17 +60,17 @@ export const HighRiskAreasDialog = ({ open, onOpenChange }) => {
                   High Risk Overview
                 </div>
                 {/* Overlay markers */}
-                {locations.map((loc) => (
+                {highRiskBarangays.map((loc, idx) => (
                   <div
                     key={loc.name}
                     className="absolute flex items-center gap-2"
-                    style={{ top: loc.top, left: loc.left }}
+                    style={{ top: `${18 + idx * 15}%`, left: `${22 + (idx % 2) * 16}%` }}
                   >
                     <span className="w-7 h-7 bg-white border-4 border-[#b6c7d6] rounded-full flex items-center justify-center shadow-md">
                       <MapPin className="w-4 h-4 text-[#6b8ba4]" />
                     </span>
                     <span className="bg-white/80 px-2 py-0.5 rounded text-sm font-medium text-[#3a4a5a] shadow-sm">
-                      {loc.name}
+                      {loc.name} <span className="text-xs text-gray-400">({loc.count})</span>
                     </span>
                   </div>
                 ))}
