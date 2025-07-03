@@ -11,11 +11,33 @@ import { HighRiskAreasDialog } from "../../components/admin/high-risk-areas-dial
 import LogoutConfirmationModal from "@/components/admin/LogoutConfirmationModal";
 import { useRouter } from "next/navigation";
 import React from "react";
+import { collection, getDocs } from "firebase/firestore";
+import { db } from "@/firebase";
 
 export default function AdminDashboard() {
   const [showHighRiskDialog, setShowHighRiskDialog] = React.useState(false);
   const [showLogoutModal, setShowLogoutModal] = React.useState(false);
+  const [totalReports, setTotalReports] = React.useState(0);
+  const [pendingReports, setPendingReports] = React.useState(0);
   const router = useRouter();
+
+  React.useEffect(() => {
+    const fetchReportStats = async () => {
+      const querySnapshot = await getDocs(collection(db, "reports"));
+      setTotalReports(querySnapshot.size);
+      let pending = 0;
+      querySnapshot.forEach(doc => {
+        if (
+          doc.data().status?.toLowerCase() === "pending" ||
+          doc.data().Status?.toLowerCase() === "pending"
+        ) {
+          pending++;
+        }
+      });
+      setPendingReports(pending);
+    };
+    fetchReportStats();
+  }, []);
 
   const handleLogout = () => {
     setShowLogoutModal(false);
@@ -69,12 +91,12 @@ export default function AdminDashboard() {
           {/* Total Reports */}
           <div className="rounded-lg bg-red-500 text-white shadow-md p-6 flex flex-col items-start">
             <div className="text-sm font-medium mb-2">Total Reports</div>
-            <div className="text-3xl font-bold">6,731</div>
+            <div className="text-3xl font-bold">{totalReports.toLocaleString()}</div>
           </div>
           {/* Pending Verification */}
           <Link href="/admin/reports" className="rounded-lg bg-red-500 text-white shadow-md p-6 flex flex-col items-start transition-transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-red-400">
             <div className="text-sm font-medium mb-2">Pending Verification</div>
-            <div className="text-3xl font-bold">18</div>
+            <div className="text-3xl font-bold">{pendingReports}</div>
           </Link>
           {/* High Risk Areas */}
           <button
