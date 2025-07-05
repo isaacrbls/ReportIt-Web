@@ -13,6 +13,7 @@ import { useRouter } from "next/navigation";
 import React from "react";
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "@/firebase";
+import { useCurrentUser } from "@/hooks/use-current-user";
 
 export default function AdminDashboard() {
   const [showHighRiskDialog, setShowHighRiskDialog] = React.useState(false);
@@ -20,6 +21,7 @@ export default function AdminDashboard() {
   const [totalReports, setTotalReports] = React.useState(0);
   const [pendingReports, setPendingReports] = React.useState(0);
   const router = useRouter();
+  const user = useCurrentUser();
 
   React.useEffect(() => {
     const fetchReportStats = async () => {
@@ -41,8 +43,16 @@ export default function AdminDashboard() {
 
   const handleLogout = () => {
     setShowLogoutModal(false);
-    router.push("/login");
+    router.push("/");
   };
+
+  // Map email to barangay
+  let barangay = null;
+  if (user?.email) {
+    if (user.email.includes("bulihan")) barangay = "Bulihan";
+    else if (user.email.includes("tiaong")) barangay = "Tiaong";
+    // Add more mappings here if needed
+  }
 
   return (
     <div className="flex min-h-screen bg-white">
@@ -115,10 +125,10 @@ export default function AdminDashboard() {
         <HighRiskAreasDialog open={showHighRiskDialog} onOpenChange={setShowHighRiskDialog} />
 
         {/* Incident Distribution (Bubble Chart) */}
-        <div className={`mb-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm${showHighRiskDialog ? ' blur-sm pointer-events-none select-none' : ''}`}>
+        <div className="mb-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
           <div className="text-2xl font-bold text-red-600 mb-1">Incident Distribution</div>
           <div className="text-xs text-gray-500 mb-4">Bubble size represents incident frequency, color indicates risk levels</div>
-          <CrimeMap />
+          <CrimeMap barangay={barangay} />
         </div>
 
         {/* Recent Reports */}

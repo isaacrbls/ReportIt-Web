@@ -1,10 +1,44 @@
 import React, { useState } from "react";
 import { Dialog, DialogContent, DialogTitle } from "../ui/dialog";
+import dynamic from "next/dynamic";
+import { useCurrentUser } from "@/hooks/use-current-user";
+
+// Dynamically import the map component (no SSR)
+const MapWithNoSSR = dynamic(() => import("./map-component"), {
+  ssr: false,
+  loading: () => <div className="flex h-[220px] w-full items-center justify-center bg-gray-100">Loading map...</div>,
+});
 
 export default function AddReportDialog({ open, onClose }) {
   const [incidentType, setIncidentType] = useState("");
   const [description, setDescription] = useState("");
-  // Placeholder handlers for photo/video
+  const [mediaFile, setMediaFile] = useState(null);
+  const [mediaType, setMediaType] = useState("");
+  const [incidentLocation, setIncidentLocation] = useState(null);
+  const [addingIncident, setAddingIncident] = useState(false);
+
+  const user = useCurrentUser();
+  let barangay = null;
+  if (user?.email) {
+    if (user.email.includes("bulihan")) barangay = "Bulihan";
+    else if (user.email.includes("mojon")) barangay = "Mojon";
+    else if (user.email.includes("dakila")) barangay = "Dakila";
+    else if (user.email.includes("look")) barangay = "Look 1st";
+    else if (user.email.includes("longos")) barangay = "Longos";
+    else if (user.email.includes("tiaong")) barangay = "Tiaong";
+    // Add more mappings as needed
+  }
+
+  const handleFileChange = (e) => {
+    if (e.target.files && e.target.files[0]) {
+      setMediaFile(e.target.files[0]);
+      setMediaType(e.target.accept.includes("video") ? "video" : "photo");
+    }
+  };
+
+  const handleMapClick = (latlng) => {
+    setIncidentLocation(latlng);
+  };
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -32,24 +66,35 @@ export default function AddReportDialog({ open, onClose }) {
           <div className="mb-4">
             <label className="block text-sm font-medium mb-2">Add photo or video</label>
             <div className="flex gap-4 justify-center">
-              <button className="flex flex-col items-center justify-center border rounded-lg px-12 py-8 text-red-500 border-red-200 bg-red-50 hover:bg-red-100">
+              <label className="flex flex-col items-center justify-center border rounded-lg px-12 py-8 text-red-500 border-red-200 bg-red-50 hover:bg-red-100 cursor-pointer">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-12 h-12 mb-1">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M3 7.5V6a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 6v1.5M3 7.5h18M3 7.5v10.125A2.625 2.625 0 0 0 5.625 20.25h12.75A2.625 2.625 0 0 0 21 17.625V7.5M7.5 11.25l2.25 2.25 3-3.75 4.5 6" />
                 </svg>
                 <span className="font-medium text-base">Photo</span>
-              </button>
-              <button className="flex flex-col items-center justify-center border rounded-lg px-12 py-8 text-red-500 border-red-200 bg-red-50 hover:bg-red-100">
+                <input type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
+              </label>
+              <label className="flex flex-col items-center justify-center border rounded-lg px-12 py-8 text-red-500 border-red-200 bg-red-50 hover:bg-red-100 cursor-pointer">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-12 h-12 mb-1">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V6.75A2.25 2.25 0 0 0 13.5 4.5h-3A2.25 2.25 0 0 0 8.25 6.75V9m7.5 0v6m0-6h1.5A2.25 2.25 0 0 1 19.5 11.25v1.5A2.25 2.25 0 0 1 18 15h-1.5m-7.5-6v6m0-6H6.75A2.25 2.25 0 0 0 4.5 11.25v1.5A2.25 2.25 0 0 0 6 15h1.5" />
                 </svg>
                 <span className="font-medium text-base">Video</span>
-              </button>
+                <input type="file" accept="video/*" className="hidden" onChange={handleFileChange} />
+              </label>
             </div>
+            {mediaFile && (
+              <div className="mt-2 text-xs text-gray-600 text-center">
+                Selected: {mediaFile.name}
+              </div>
+            )}
           </div>
           <div className="mb-6 flex justify-center">
-            {/* Placeholder for map */}
             <div className="w-[400px] h-[220px] bg-[#F8E3DE] rounded-lg flex items-center justify-center overflow-hidden">
-              <img src="/placeholder-map.png" alt="Map" className="object-cover w-full h-full" />
+              <MapWithNoSSR
+                addingIncident={true}
+                onMapClick={handleMapClick}
+                newIncidentLocation={incidentLocation}
+                barangay={barangay}
+              />
             </div>
           </div>
           <div className="flex justify-between gap-4">

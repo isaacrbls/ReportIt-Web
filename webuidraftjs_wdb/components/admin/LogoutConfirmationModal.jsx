@@ -3,7 +3,7 @@ import React from "react";
 export default function LogoutConfirmationModal({ open, onConfirm, onCancel }) {
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-20">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black bg-opacity-20">
       <div className="bg-white rounded-2xl shadow-lg p-10 flex flex-col items-center w-[420px]">
         <div className="text-2xl font-bold text-center mb-8 text-black">
           Are you sure you<br />want to log out?

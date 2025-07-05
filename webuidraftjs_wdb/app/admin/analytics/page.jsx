@@ -13,7 +13,7 @@ export default function AnalyticsPage() {
 
   const handleLogout = () => {
     setShowLogoutModal(false);
-    router.push("/login");
+    router.push("/");
   };
 
   return (

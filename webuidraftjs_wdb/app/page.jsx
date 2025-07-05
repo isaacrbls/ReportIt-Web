@@ -2,22 +2,21 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { auth } from "@/firebase";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
-  // Test account credentials
-  const TEST_EMAIL = "test@example.com";
-  const TEST_PASSWORD = "test1234";
-
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (email === TEST_EMAIL && password === TEST_PASSWORD) {
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
       window.location.href = "/admin";
-    } else {
-      setError("Invalid credentials. Use test@example.com / test1234.");
+    } catch (err) {
+      setError("Invalid credentials. Please check your email and password.");
     }
   };
 

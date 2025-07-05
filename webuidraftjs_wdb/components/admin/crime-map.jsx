@@ -16,7 +16,7 @@ const MapWithNoSSR = dynamic(() => import("./map-component"), {
   loading: () => <div className="flex h-[500px] w-full items-center justify-center bg-gray-100">Loading map...</div>,
 });
 
-export function CrimeMap() {
+export function CrimeMap({ barangay }) {
   const [selectedIncident, setSelectedIncident] = useState(null);
   const [addingIncident, setAddingIncident] = useState(false);
   const [newIncidentLocation, setNewIncidentLocation] = useState(null);
@@ -136,6 +136,7 @@ export function CrimeMap() {
         addingIncident={addingIncident}
         newIncidentLocation={newIncidentLocation}
         newIncidentRisk={newIncident.risk}
+        barangay={barangay}
       />
 
       {/* Add Incident Button */}
