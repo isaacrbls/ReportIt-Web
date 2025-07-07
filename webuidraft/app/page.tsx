@@ -27,8 +27,7 @@ export default function LoginPage() {
       <div className="hidden md:flex flex-col justify-center items-center w-1/2 bg-[#F14B51] text-white p-12">
         <div className="flex flex-col items-start w-full max-w-md">
           <div className="flex items-center mb-8">
-            <Image src="/placeholder-logo.svg" alt="ReportIt Logo" width={56} height={56} className="mr-2" />
-            <span className="text-6xl font-extrabold leading-none">ReportIt</span>
+            <Image src="/logo-fix.png" alt="ReportIt Logo" width={600} height={600} className="mr-2" />
           </div>
           <h2 className="text-3xl md:text-4xl font-extrabold mb-4">Advance Incident<br />Analysis Platform</h2>
           <p className="text-lg font-medium mb-2">

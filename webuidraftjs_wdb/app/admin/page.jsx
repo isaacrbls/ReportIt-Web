@@ -11,8 +11,10 @@ import { HighRiskAreasDialog } from "../../components/admin/high-risk-areas-dial
 import LogoutConfirmationModal from "@/components/admin/LogoutConfirmationModal";
 import { useRouter } from "next/navigation";
 import React from "react";
+import Image from "next/image";
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "@/firebase";
+import Sidebar from "@/components/admin/Sidebar";
 import { useCurrentUser } from "@/hooks/use-current-user";
 
 export default function AdminDashboard() {
@@ -53,46 +55,12 @@ export default function AdminDashboard() {
     else if (user.email.includes("tiaong")) barangay = "Tiaong";
     // Add more mappings here if needed
   }
+  
 
   return (
     <div className="flex min-h-screen bg-white">
       {/* Sidebar */}
-      <aside className="flex flex-col w-64 bg-red-600 text-white min-h-screen justify-between fixed left-0 top-0 z-20">
-        <div>
-          {/* Logo */}
-          <div className="flex items-center gap-2 h-16 px-6 border-b border-red-500">
-            <ShieldAlert className="h-7 w-7 text-white" />
-            <span className="text-2xl font-bold tracking-tight">ReportIt</span>
-          </div>
-          {/* Menu */}
-          <nav className="flex flex-col gap-2 mt-8 px-6">
-            <Link href="/admin" className="py-2 px-3 rounded-md text-lg font-medium bg-white/10 hover:bg-white/20 transition-colors flex items-center gap-2">
-              <LayoutDashboard className="w-5 h-5" /> Dashboard
-            </Link>
-            <Link
-              href="/admin/analytics"
-              className="py-2 px-3 rounded-md text-lg font-medium hover:bg-white/10 transition-colors flex items-center gap-2"
-            >
-              <BarChart2 className="w-5 h-5" /> Analytics
-            </Link>
-            <Link
-              href="/admin/reports"
-              className="py-2 px-3 rounded-md text-lg font-medium hover:bg-white/10 transition-colors flex items-center gap-2"
-            >
-              <FileText className="w-5 h-5" /> Manage Reports
-            </Link>
-          </nav>
-        </div>
-        {/* Logout */}
-        <div className="mb-8 px-6">
-          <button
-            className="w-full py-2 px-3 rounded-md text-lg font-medium bg-white/10 hover:bg-white/20 transition-colors flex items-center gap-2"
-            onClick={() => setShowLogoutModal(true)}
-          >
-            <LogOut className="w-5 h-5" /> Log out
-          </button>
-        </div>
-      </aside>
+      <Sidebar onLogout={() => setShowLogoutModal(true)} />
       {/* Main Content */}
       <main className="flex-1 ml-64 p-8 bg-white min-h-screen">
         <h1 className="text-3xl font-bold text-red-600 mb-6">Dashboard</h1>

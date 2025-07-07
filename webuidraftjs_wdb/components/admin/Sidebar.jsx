@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { LogOut, LayoutDashboard, BarChart2, FileText, ShieldAlert } from "lucide-react";
 
 export default function Sidebar({ onLogout }) {
@@ -6,9 +7,8 @@ export default function Sidebar({ onLogout }) {
     <aside className="flex flex-col w-64 bg-red-600 text-white min-h-screen justify-between fixed left-0 top-0 z-20">
       <div>
         {/* Logo */}
-        <div className="flex items-center gap-2 h-16 px-6 border-b border-red-500">
-          <ShieldAlert className="h-7 w-7 text-white" />
-          <span className="text-2xl font-bold tracking-tight">ReportIt</span>
+        <div className="flex items-center justify-center gap-2 h-[120px] px-6 border-b border-red-500">
+          <Image src="/logo-fix.png" alt="ReportIt Logo" width={120} height={120} />
         </div>
         {/* Menu */}
         <nav className="flex flex-col gap-2 mt-8 px-6">

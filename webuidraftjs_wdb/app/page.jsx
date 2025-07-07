@@ -4,6 +4,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "@/firebase";
+import Sidebar from "@/components/admin/Sidebar";
+
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -26,8 +28,9 @@ export default function LoginPage() {
       <div className="hidden md:flex flex-col justify-center items-center w-1/2 bg-[#F14B51] text-white p-12">
         <div className="flex flex-col items-start w-full max-w-md">
           <div className="flex items-center mb-8">
-            <Image src="/placeholder-logo.svg" alt="ReportIt Logo" width={56} height={56} className="mr-2" />
-            <span className="text-6xl font-extrabold leading-none">ReportIt</span>
+            <div className="flex items-center justify-center w-500 h-500 mr-4">
+              <Image src="/logo-fix.png" alt="ReportIt Logo" width={500} height={500} />
+            </div>
           </div>
           <h2 className="text-3xl md:text-4xl font-extrabold mb-4">Advance Incident<br />Analysis Platform</h2>
           <p className="text-lg font-medium mb-2">

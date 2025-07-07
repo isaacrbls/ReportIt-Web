@@ -42,9 +42,13 @@ export default function ReportsPageClient() {
 
   const filteredReports = reports.filter((report) => {
     const matchesSearch =
-      report.id.toLowerCase().includes(search.toLowerCase()) ||
-      report.title.toLowerCase().includes(search.toLowerCase());
-    const matchesStatus = statusFilter === "all" || report.status === statusFilter;
+      (report.id?.toLowerCase().includes(search.toLowerCase()) ||
+        report.IncidentType?.toLowerCase().includes(search.toLowerCase()) ||
+        report.Description?.toLowerCase().includes(search.toLowerCase()) ||
+        report.Barangay?.toLowerCase().includes(search.toLowerCase()));
+    const normalizedStatus = (report.Status || "").toLowerCase().trim();
+    const matchesStatus =
+      statusFilter === "all" || normalizedStatus === statusFilter;
     return matchesSearch && matchesStatus;
   });
 
@@ -113,7 +117,7 @@ export default function ReportsPageClient() {
             <ReportList
               reports={filteredReports}
               onVerify={handleVerify}
-              onReject={(id) => setReports(reports.map((r) => r.id === id ? { ...r, status: "rejected" } : r))}
+              onReject={handleReject}
               onViewDetails={(report) => {
                 setSelectedReport(report);
                 setIsDialogOpen(true);
