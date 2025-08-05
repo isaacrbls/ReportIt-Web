@@ -3,11 +3,11 @@ import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyBE0CnuoABFzKi3YraHwOWZ-ARx1gEht58",
-  authDomain: "admin-46251.firebaseapp.com",
-  projectId: "admin-46251",
-  storageBucket: "admin-46251.appspot.com",
-  messagingSenderId: "619048161769",
+  apiKey: "AIzaSyAOz81U2qnC2MEq-P1yMbUiQW8qAPTh9OU",  
+  authDomain: "admin-76567.firebaseapp.com",         
+  projectId: "admin-76567",                           
+  storageBucket: "admin-76567.appspot.com",        
+  messagingSenderId: "189749622351",   
   appId: "1:619048161769:web:b187fce60ba1e109bdfb78"
 };
 
