@@ -9,7 +9,6 @@ import LogoutConfirmationModal from "@/components/admin/LogoutConfirmationModal"
 import { useRouter } from "next/navigation";
 import Sidebar from "@/components/admin/Sidebar";
 
-
 export default function AnalyticsPage() {
   const [showLogoutModal, setShowLogoutModal] = React.useState(false);
   const router = useRouter();

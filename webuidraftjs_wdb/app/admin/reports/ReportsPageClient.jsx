@@ -18,6 +18,7 @@ import LogoutConfirmationModal from "@/components/admin/LogoutConfirmationModal"
 import Sidebar from "@/components/admin/Sidebar";
 import ReportList from "@/components/admin/ReportList";
 import { db } from "@/firebase";
+import { useCurrentUser } from "@/hooks/use-current-user";
 
 export default function ReportsPageClient() {
   const [reports, setReports] = useState([]);
@@ -30,6 +31,7 @@ export default function ReportsPageClient() {
   const [categories, setCategories] = useState([]);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const router = useRouter();
+  const user = useCurrentUser();
 
   useEffect(() => {
     const fetchReports = async () => {
@@ -41,6 +43,12 @@ export default function ReportsPageClient() {
   }, []);
 
   const filteredReports = reports.filter((report) => {
+    // Restrict Brgy Bulihan reports to testbulihan@example.com only
+    const isBulihanReport =
+      report.barangay === "Bulihan" || report.Barangay === "Bulihan";
+    if (isBulihanReport && user?.email !== "testbulihan@example.com") {
+      return false;
+    }
     const matchesSearch =
       (report.id?.toLowerCase().includes(search.toLowerCase()) ||
         report.IncidentType?.toLowerCase().includes(search.toLowerCase()) ||
