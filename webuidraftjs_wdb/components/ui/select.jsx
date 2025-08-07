@@ -29,4 +29,7 @@ const SelectTrigger = React.forwardRef(({ className, children, ...props }, ref) 
 ))
 SelectTrigger.displayName = SelectPrimitive.Trigger.displayName
 
-// ...rest of the component remains unchanged...
+const SelectContent = SelectPrimitive.Content;
+const SelectItem = SelectPrimitive.Item;
+
+export { Select, SelectTrigger, SelectValue, SelectContent, SelectItem };

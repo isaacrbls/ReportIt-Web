@@ -197,13 +197,17 @@ export default function MapComponent({
 		fixLeafletIcons()
 
 		// Determine map center based on barangay
-		let center = [14.8527, 120.816]; // Default: Bulihan
+		let center = [14.8447, 120.8102]; // Updated: Pinagbakahan, Malolos, Bulacan
 		let zoom = barangay ? 16 : 15;
 		if (barangay === "Bulihan") center = [14.8527, 120.816];
 		else if (barangay === "Mojon") center = [14.858, 120.814];
 		else if (barangay === "Dakila") center = [14.855, 120.812];
 		else if (barangay === "Look 1st") center = [14.851, 120.818];
 		else if (barangay === "Longos") center = [14.849, 120.813];
+		else if (barangay === "Pinagbakahan") {
+			center = [14.8447, 120.8102]; // Pinagbakahan, Malolos, Bulacan
+			zoom = 16;
+		}
 		else if (barangay === "Tiaong") {
 			center = [14.9502, 120.9002]; // Tiaong, Baliuag, Bulacan
 			zoom = 16;
@@ -227,32 +231,7 @@ export default function MapComponent({
 		})
 
 		// Add hotspots
-		hotspots.forEach((hotspot) => {
-			const circle = L.circle(hotspot.center, {
-				radius: hotspot.radius,
-				fillColor: hotspot.color,
-				fillOpacity: 0.3,
-				color: hotspot.color,
-				weight: 1,
-			}).addTo(mapInstance)
-
-			const popupContent = `
-				<div class="p-1">
-					<h3 class="font-medium">${hotspot.name}</h3>
-					<div class="mt-1 rounded-full px-2 py-0.5 text-center text-xs font-medium bg-${
-						hotspot.risk === "High" ? "red" : hotspot.risk === "Medium" ? "yellow" : "green"
-					}-100 text-${hotspot.risk === "High" ? "red" : hotspot.risk === "Medium" ? "yellow" : "green"}-800">
-						${hotspot.risk} Risk Area
-					</div>
-					<p class="mt-1 text-sm">
-						<strong>${hotspot.incidents}</strong> incidents reported
-					</p>
-				</div>
-			`
-
-			circle.bindPopup(popupContent)
-			hotspotsRef.current.push(circle)
-		})
+		// Hotspots removed
 
 		// Filter incidents by barangay if provided
 		const filteredIncidents = barangay
@@ -341,13 +320,17 @@ export default function MapComponent({
 	// Recenter map when barangay changes
 	useEffect(() => {
 		if (!mapInstanceRef.current) return;
-		let center = [14.8527, 120.816]; // Default: Bulihan
+		let center = [14.8447, 120.8102]; // Updated: Pinagbakahan, Malolos, Bulacan
 		let zoom = barangay ? 16 : 15;
 		if (barangay === "Bulihan") center = [14.8527, 120.816];
 		else if (barangay === "Mojon") center = [14.858, 120.814];
 		else if (barangay === "Dakila") center = [14.855, 120.812];
 		else if (barangay === "Look 1st") center = [14.851, 120.818];
 		else if (barangay === "Longos") center = [14.849, 120.813];
+		else if (barangay === "Pinagbakahan") {
+			center = [14.8447, 120.8102]; // Pinagbakahan, Malolos, Bulacan
+			zoom = 16;
+		}
 		else if (barangay === "Tiaong") {
 			center = [14.9502, 120.9002]; // Tiaong, Baliuag, Bulacan
 			zoom = 16;

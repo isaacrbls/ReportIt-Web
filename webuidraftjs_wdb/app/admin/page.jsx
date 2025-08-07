@@ -24,6 +24,13 @@ export default function AdminDashboard() {
   const [pendingReports, setPendingReports] = React.useState(0);
   const router = useRouter();
   const user = useCurrentUser();
+  // Map email to barangay name
+  const userBarangayMap = {
+    "testpinagbakahan@example.com": "Pinagbakahan",
+    // Add more accounts and their barangay names here
+  };
+  const userEmail = user?.email || "";
+  const userBarangay = userBarangayMap[userEmail] || "";
 
   React.useEffect(() => {
     const fetchReportStats = async () => {
@@ -96,7 +103,7 @@ export default function AdminDashboard() {
         <div className="mb-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
           <div className="text-2xl font-bold text-red-600 mb-1">Incident Distribution</div>
           <div className="text-xs text-gray-500 mb-4">Bubble size represents incident frequency, color indicates risk levels</div>
-          <CrimeMap barangay={barangay} />
+          <CrimeMap barangay={userBarangay} zoom={15} />
         </div>
         {/* High Risk Areas Dialog (ensure it overlays the map) */}
         <HighRiskAreasDialog 

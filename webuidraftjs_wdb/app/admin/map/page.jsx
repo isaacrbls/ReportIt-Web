@@ -1,19 +1,20 @@
-import type { Metadata } from "next"
 import Link from "next/link"
 import { ChevronLeft, Download, Filter, Layers, ShieldAlert } from "lucide-react"
-
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { useCurrentUser } from "@/hooks/use-current-user"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { CrimeMap } from "@/components/admin/crime-map"
 
-export const metadata: Metadata = {
-  title: "Crime Map - ReportIt Admin",
-  description: "Interactive crime mapping and hotspot analysis",
-}
 
-export default function CrimeMapPage() {
+  const user = useCurrentUser();
+  const pinagbakahanCenter = [14.847, 120.815];
+  const userEmail = user?.email || "";
+  const mapCenter = userEmail === "testpinagbakahan@example.com" ? pinagbakahanCenter : undefined;
+  // Default values for required props
+  const defaultBarangay = "";
+  const defaultZoom = 15;
   return (
     <div className="flex min-h-screen flex-col bg-white">
       <header className="sticky top-0 z-10 border-b bg-red-600 text-white">
@@ -154,7 +155,7 @@ export default function CrimeMapPage() {
                     Layers
                   </Button>
                 </div>
-                <CrimeMap />
+                <CrimeMap center={mapCenter} barangay={defaultBarangay} zoom={defaultZoom} />
                 <div className="mt-4 text-sm text-muted-foreground">
                   <p>
                     <strong>Instructions:</strong> Click the "Pin Incident" button to add a new incident. Click on
@@ -171,7 +172,7 @@ export default function CrimeMapPage() {
                 <CardDescription>Individual crime incidents plotted on the map</CardDescription>
               </CardHeader>
               <CardContent>
-                <CrimeMap />
+                <CrimeMap center={mapCenter} barangay={defaultBarangay} zoom={defaultZoom} />
               </CardContent>
             </Card>
           </TabsContent>
@@ -184,7 +185,7 @@ export default function CrimeMapPage() {
               <CardContent>
                 <div className="grid gap-6 md:grid-cols-2">
                   <div>
-                    <CrimeMap />
+                    <CrimeMap center={mapCenter} barangay={defaultBarangay} zoom={defaultZoom} />
                   </div>
                   <div className="space-y-4">
                     <div className="rounded-lg border p-4">
