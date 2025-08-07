@@ -16,7 +16,7 @@ const MapWithNoSSR = dynamic(() => import("./map-component"), {
   loading: () => <div className="flex h-[500px] w-full items-center justify-center bg-gray-100">Loading map...</div>,
 });
 
-export function CrimeMap({ barangay }) {
+export function CrimeMap({ barangay, showPins = true, showHotspots = true, showControls = true, center, zoom }) {
   const [selectedIncident, setSelectedIncident] = useState(null);
   const [addingIncident, setAddingIncident] = useState(false);
   const [newIncidentLocation, setNewIncidentLocation] = useState(null);
@@ -118,7 +118,8 @@ export function CrimeMap({ barangay }) {
 
   return (
     <div className="relative h-[500px] w-full">
-      {addingIncident && (
+      {/* Only show incident controls, pins, and overlays if showPins/hotspots/controls are true */}
+      {showControls && addingIncident && (
         <div className="absolute left-0 right-0 top-0 z-[1000] bg-red-600 py-2 text-center text-sm font-medium text-white">
           Click on the map to place an incident marker
           <button
@@ -131,16 +132,18 @@ export function CrimeMap({ barangay }) {
       )}
 
       <MapWithNoSSR
-        onMapClick={handleMapClick}
-        onMarkerClick={handleMarkerClick}
-        addingIncident={addingIncident}
-        newIncidentLocation={newIncidentLocation}
-        newIncidentRisk={newIncident.risk}
+        onMapClick={showControls ? handleMapClick : undefined}
+        onMarkerClick={showPins ? handleMarkerClick : undefined}
+        addingIncident={showControls ? addingIncident : false}
+        newIncidentLocation={showPins ? newIncidentLocation : null}
+        newIncidentRisk={showPins ? newIncident.risk : null}
         barangay={barangay}
+        center={center}
+        zoom={zoom}
       />
 
       {/* Add Incident Button */}
-      {!addingIncident && !showIncidentForm && (
+      {showControls && !addingIncident && !showIncidentForm && (
         <Button
           className="absolute bottom-4 left-4 z-[1000] flex items-center gap-2 bg-red-600 hover:bg-red-700"
           onClick={handleAddIncident}
@@ -151,7 +154,7 @@ export function CrimeMap({ barangay }) {
       )}
 
       {/* New Incident Form */}
-      {showIncidentForm && newIncidentLocation && (
+      {showControls && showIncidentForm && newIncidentLocation && (
         <Card className="absolute bottom-4 left-4 z-[1000] w-80 bg-white shadow-lg">
           <CardHeader className="pb-2">
             <CardTitle className="text-lg">Add New Incident</CardTitle>
@@ -256,7 +259,7 @@ export function CrimeMap({ barangay }) {
       )}
 
       {/* Selected incident details */}
-      {selectedIncident && !showIncidentForm && (
+      {showPins && selectedIncident && !showIncidentForm && (
         <Card className="absolute bottom-4 right-4 z-[1000] w-72 bg-white shadow-lg">
           <CardContent className="p-4">
             <div className="flex justify-between">
