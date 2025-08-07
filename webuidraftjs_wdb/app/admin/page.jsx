@@ -31,10 +31,7 @@ export default function AdminDashboard() {
       setTotalReports(querySnapshot.size);
       let pending = 0;
       querySnapshot.forEach(doc => {
-        if (
-          doc.data().status?.toLowerCase() === "pending" ||
-          doc.data().Status?.toLowerCase() === "pending"
-        ) {
+        if (doc.data().Status?.toLowerCase() === "pending") {
           pending++;
         }
       });
@@ -77,20 +74,23 @@ export default function AdminDashboard() {
             <div className="text-3xl font-bold">{pendingReports}</div>
           </Link>
           {/* High Risk Areas */}
-          <button
+          <div
+            role="button"
+            tabIndex={0}
             className="rounded-lg bg-red-500 text-white shadow-md p-6 flex flex-col items-start transition-transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-red-400 cursor-pointer"
             onClick={() => setShowHighRiskDialog(true)}
+            onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') setShowHighRiskDialog(true); }}
+            aria-label="Show High Risk Areas"
           >
             <div className="text-sm font-medium mb-2">High Risk Areas</div>
             <div className="text-3xl font-bold">4</div>
-          </button>
+          </div>
           {/* ML Prediction Accuracy */}
           <div className="rounded-lg bg-red-500 text-white shadow-md p-6 flex flex-col items-start">
             <div className="text-sm font-medium mb-2">ML Prediction Accuracy</div>
             <div className="text-3xl font-bold">81%</div>
           </div>
         </div>
-        <HighRiskAreasDialog open={showHighRiskDialog} onOpenChange={setShowHighRiskDialog} />
 
         {/* Incident Distribution (Bubble Chart) */}
         <div className="mb-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
@@ -98,6 +98,12 @@ export default function AdminDashboard() {
           <div className="text-xs text-gray-500 mb-4">Bubble size represents incident frequency, color indicates risk levels</div>
           <CrimeMap barangay={barangay} />
         </div>
+        {/* High Risk Areas Dialog (ensure it overlays the map) */}
+        <HighRiskAreasDialog 
+          open={showHighRiskDialog} 
+          onOpenChange={setShowHighRiskDialog} 
+          dialogClassName="relative z-[9999] overflow-hidden"
+        />
 
         {/* Recent Reports */}
         <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">

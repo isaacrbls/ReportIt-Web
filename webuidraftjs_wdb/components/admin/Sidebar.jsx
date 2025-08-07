@@ -18,7 +18,7 @@ export default function Sidebar({ onLogout }) {
           <Link href="/admin/analytics" className="py-2 px-3 rounded-md text-lg font-medium hover:bg-white/10 transition-colors flex items-center gap-2">
             <BarChart2 className="w-5 h-5" /> Analytics
           </Link>
-          <Link href="/admin/reports" className="py-2 px-3 rounded-md text-lg font-medium bg-white/10 flex items-center gap-2">
+          <Link href="/admin/reports" className="py-2 px-3 rounded-md text-lg font-medium hover:bg-white/10 transition-colors flex items-center gap-2">
             <FileText className="w-5 h-5" /> Manage Reports
           </Link>
         </nav>
