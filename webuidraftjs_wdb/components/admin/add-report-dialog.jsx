@@ -2,6 +2,9 @@ import React, { useState } from "react";
 import { Dialog, DialogContent, DialogTitle } from "../ui/dialog";
 import dynamic from "next/dynamic";
 import { useCurrentUser } from "@/hooks/use-current-user";
+import { db, storage } from "@/firebase";
+import { collection, addDoc, serverTimestamp, GeoPoint } from "firebase/firestore";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
 // Dynamically import the map component (no SSR)
 const MapWithNoSSR = dynamic(() => import("./map-component"), {
@@ -16,6 +19,7 @@ export default function AddReportDialog({ open, onClose }) {
   const [mediaType, setMediaType] = useState("");
   const [incidentLocation, setIncidentLocation] = useState(null);
   const [addingIncident, setAddingIncident] = useState(false);
+  const [error, setError] = useState("");
 
   const user = useCurrentUser();
   let barangay = null;
@@ -38,6 +42,70 @@ export default function AddReportDialog({ open, onClose }) {
 
   const handleMapClick = (latlng) => {
     setIncidentLocation(latlng);
+  };
+
+  const handleSubmit = async () => {
+    setError("");
+    if (!incidentType.trim()) {
+      setError("Please enter the type of incident.");
+      return;
+    }
+    if (!description.trim()) {
+      setError("Please enter a description.");
+      return;
+    }
+    if (!incidentLocation || incidentLocation.length !== 2) {
+      setError("Please pin the incident location on the map.");
+      return;
+    }
+
+    try {
+      setAddingIncident(true);
+
+      let mediaUrl = null;
+      let uploadedMediaType = null;
+
+      if (mediaFile) {
+        const timestamp = Date.now();
+        const extension = mediaFile.name?.split(".").pop() || "bin";
+        const path = `reports/${timestamp}_${mediaType || "file"}.${extension}`;
+        const storageRef = ref(storage, path);
+        await uploadBytes(storageRef, mediaFile, { contentType: mediaFile.type });
+        mediaUrl = await getDownloadURL(storageRef);
+        uploadedMediaType = mediaType || (mediaFile.type?.startsWith("video") ? "video" : "photo");
+      }
+
+      const [lat, lng] = incidentLocation;
+      const payload = {
+        IncidentType: incidentType.trim(),
+        Description: description.trim(),
+        Barangay: barangay || "",
+        Latitude: lat,
+        Longitude: lng,
+        GeoLocation: new GeoPoint(lat, lng),
+        DateTime: serverTimestamp(),
+        Status: "Pending",
+        hasMedia: !!mediaUrl,
+        MediaType: uploadedMediaType,
+        MediaURL: mediaUrl,
+        SubmittedByEmail: user?.email || null,
+      };
+
+      await addDoc(collection(db, "reports"), payload);
+
+      // Reset and close
+      setIncidentType("");
+      setDescription("");
+      setMediaFile(null);
+      setMediaType("");
+      setIncidentLocation(null);
+      onClose?.(false);
+    } catch (e) {
+      console.error(e);
+      setError("Failed to submit report. Please try again.");
+    } finally {
+      setAddingIncident(false);
+    }
   };
 
   return (
@@ -97,9 +165,18 @@ export default function AddReportDialog({ open, onClose }) {
               />
             </div>
           </div>
+          {error && (
+            <div className="mb-4 text-sm text-red-600">{error}</div>
+          )}
           <div className="flex justify-between gap-4">
             <button className="border border-red-400 text-red-500 px-8 py-2 rounded-md" onClick={onClose}>Back</button>
-            <button className="bg-red-500 text-white px-8 py-2 rounded-md">Submit</button>
+            <button
+              className="bg-red-500 text-white px-8 py-2 rounded-md disabled:opacity-60"
+              onClick={handleSubmit}
+              disabled={addingIncident}
+            >
+              {addingIncident ? "Submitting..." : "Submit"}
+            </button>
           </div>
         </div>
       </DialogContent>

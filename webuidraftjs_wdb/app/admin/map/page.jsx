@@ -1,20 +1,22 @@
+"use client"
+
 import Link from "next/link"
 import { ChevronLeft, Download, Filter, Layers, ShieldAlert } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useCurrentUser } from "@/hooks/use-current-user"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { CrimeMap } from "@/components/admin/crime-map"
 
+export default function Page() {
+  const user = useCurrentUser()
+  const pinagbakahanCenter = [14.847, 120.815]
+  const userEmail = user?.email || ""
+  const mapCenter = userEmail === "testpinagbakahan@example.com" ? pinagbakahanCenter : undefined
+  const defaultBarangay = ""
+  const defaultZoom = 15
 
-  const user = useCurrentUser();
-  const pinagbakahanCenter = [14.847, 120.815];
-  const userEmail = user?.email || "";
-  const mapCenter = userEmail === "testpinagbakahan@example.com" ? pinagbakahanCenter : undefined;
-  // Default values for required props
-  const defaultBarangay = "";
-  const defaultZoom = 15;
   return (
     <div className="flex min-h-screen flex-col bg-white">
       <header className="sticky top-0 z-10 border-b bg-red-600 text-white">

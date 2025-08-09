@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { Search, Plus, LogOut, CheckCircle, XCircle, LayoutDashboard, BarChart2, FileText, ShieldAlert } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { collection, getDocs } from "firebase/firestore";
+import { collection, getDocs, onSnapshot, query, orderBy } from "firebase/firestore";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -34,29 +34,26 @@ export default function ReportsPageClient() {
   const user = useCurrentUser();
 
   useEffect(() => {
-    const fetchReports = async () => {
-      const querySnapshot = await getDocs(collection(db, "reports"));
-      const reportsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    const q = query(collection(db, "reports"), orderBy("DateTime", "desc"));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const reportsData = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
       setReports(reportsData);
-    };
-    fetchReports();
+    });
+    return () => unsubscribe();
   }, []);
 
   const filteredReports = reports.filter((report) => {
-    // Restrict Brgy Bulihan reports to testbulihan@example.com only
-    const isBulihanReport =
-      report.barangay === "Bulihan" || report.Barangay === "Bulihan";
-    if (isBulihanReport && user?.email !== "testbulihan@example.com") {
-      return false;
-    }
+    const searchTerm = search.trim().toLowerCase();
     const matchesSearch =
-      (report.id?.toLowerCase().includes(search.toLowerCase()) ||
-        report.IncidentType?.toLowerCase().includes(search.toLowerCase()) ||
-        report.Description?.toLowerCase().includes(search.toLowerCase()) ||
-        report.Barangay?.toLowerCase().includes(search.toLowerCase()));
-    const normalizedStatus = (report.Status || "").toLowerCase().trim();
-    const matchesStatus =
-      statusFilter === "all" || normalizedStatus === statusFilter;
+      report?.id?.toString?.().toLowerCase?.().includes(searchTerm) ||
+      report?.IncidentType?.toString?.().toLowerCase?.().includes(searchTerm) ||
+      report?.Description?.toString?.().toLowerCase?.().includes(searchTerm) ||
+      report?.Barangay?.toString?.().toLowerCase?.().includes(searchTerm);
+
+    const normalizedStatus = (report?.Status ?? "").toString().toLowerCase().trim();
+    const effectiveStatus = normalizedStatus || "pending";
+    const matchesStatus = statusFilter === "all" || effectiveStatus === statusFilter;
+
     return matchesSearch && matchesStatus;
   });
 
@@ -130,6 +127,7 @@ export default function ReportsPageClient() {
                 setSelectedReport(report);
                 setIsDialogOpen(true);
               }}
+              statusFilter={statusFilter}
             />
             <ReportDetailDialog
               report={{

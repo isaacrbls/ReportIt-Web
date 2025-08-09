@@ -17,3 +17,11 @@ export function CardContent({ children, ...props }) {
 export function CardTitle({ children, ...props }) {
   return <h2 className="text-xl font-bold mb-2" {...props}>{children}</h2>;
 }
+
+export function CardDescription({ children, ...props }) {
+  return <p className="text-sm text-gray-500" {...props}>{children}</p>;
+}
+
+export function CardFooter({ children, ...props }) {
+  return <div className="mt-2 pt-2 border-t" {...props}>{children}</div>;
+}

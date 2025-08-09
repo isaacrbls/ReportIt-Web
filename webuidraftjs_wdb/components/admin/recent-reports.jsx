@@ -13,28 +13,27 @@ export function RecentReports({ singleReport, onVerify, onReject, onViewDetails,
 	const [reports, setReports] = useState(singleReport ? [singleReport] : []);
 	const [actionStatus, setActionStatus] = useState({}); // { [id]: 'verified' | 'rejected' }
 
-	useEffect(() => {
-		if (!singleReport) {
-			const fetchReports = async () => {
-				let queryRef = collection(db, "reports");
-				if (statusFilter && statusFilter !== "All Reports") {
-					// Capitalize first letter for Firestore match, but also trim and check for extra spaces
-					const statusValue = statusFilter.trim().charAt(0).toUpperCase() + statusFilter.trim().slice(1).toLowerCase();
-					queryRef = fsQuery(queryRef, where("Status", "==", statusValue));
-				}
-				const querySnapshot = await getDocs(queryRef);
-				const reportsData = querySnapshot.docs.map((doc) => ({
-					id: doc.id,
-					...doc.data(),
-				}));
-				console.log('Fetched reports:', reportsData); // Debug: see what is fetched
-				setReports(reportsData);
-			};
-			fetchReports();
-		} else {
-			setReports([singleReport]);
-		}
-	}, [singleReport, statusFilter]);
+    useEffect(() => {
+        if (!singleReport) {
+            const fetchReports = async () => {
+                let queryRef = collection(db, "reports");
+                const normalized = (statusFilter || "").toString().trim().toLowerCase();
+                if (normalized && normalized !== "all") {
+                    const statusValue = normalized.charAt(0).toUpperCase() + normalized.slice(1);
+                    queryRef = fsQuery(queryRef, where("Status", "==", statusValue));
+                }
+                const querySnapshot = await getDocs(queryRef);
+                const reportsData = querySnapshot.docs.map((doc) => ({
+                    id: doc.id,
+                    ...doc.data(),
+                }));
+                setReports(reportsData);
+            };
+            fetchReports();
+        } else {
+            setReports([singleReport]);
+        }
+    }, [singleReport, statusFilter]);
 
 	const formatDate = (dateValue) => {
 		if (!dateValue) return "-";
