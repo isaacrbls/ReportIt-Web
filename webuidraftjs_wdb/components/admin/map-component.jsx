@@ -186,6 +186,33 @@ export default function MapComponent({
 	const [incidents, setIncidents] = useState(crimeIncidents)
 	const mapRef = useRef(null)
 	const mapInstanceRef = useRef(null)
+	
+	// Add CSS to ensure proper z-index layering
+	useEffect(() => {
+		const style = document.createElement('style')
+		style.textContent = `
+			.leaflet-map-pane {
+				z-index: 1 !important;
+			}
+			.leaflet-popup-pane {
+				z-index: 999 !important;
+			}
+			.leaflet-control-container {
+				z-index: 1 !important;
+			}
+			.leaflet-top {
+				z-index: 1 !important;
+			}
+			.leaflet-bottom {
+				z-index: 1 !important;
+			}
+			.leaflet-control {
+				z-index: 1 !important;
+			}
+		`
+		document.head.appendChild(style)
+		return () => document.head.removeChild(style)
+	}, [])
 	const markersRef = useRef([])
 	const hotspotsRef = useRef([])
 	const newMarkerRef = useRef(null)

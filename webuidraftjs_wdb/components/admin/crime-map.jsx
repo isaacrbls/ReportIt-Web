@@ -145,7 +145,7 @@ export function CrimeMap({ barangay, showPins = true, showHotspots = true, showC
       {/* Add Incident Button */}
       {showControls && !addingIncident && !showIncidentForm && (
         <Button
-          className="absolute bottom-4 left-4 z-[1000] flex items-center gap-2 bg-red-600 hover:bg-red-700"
+          className="absolute bottom-4 left-4 z-[1] flex items-center gap-2 bg-red-600 hover:bg-red-700"
           onClick={handleAddIncident}
         >
           <MapPin className="h-4 w-4" />
@@ -155,7 +155,7 @@ export function CrimeMap({ barangay, showPins = true, showHotspots = true, showC
 
       {/* New Incident Form */}
       {showControls && showIncidentForm && newIncidentLocation && (
-        <Card className="absolute bottom-4 left-4 z-[1000] w-80 bg-white shadow-lg">
+        <Card className="absolute bottom-4 left-4 z-[1] w-80 bg-white shadow-lg">
           <CardHeader className="pb-2">
             <CardTitle className="text-lg">Add New Incident</CardTitle>
           </CardHeader>
