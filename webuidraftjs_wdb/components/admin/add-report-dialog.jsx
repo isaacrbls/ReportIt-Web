@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState } from "react";
 import { Dialog, DialogContent, DialogTitle } from "../ui/dialog";
 import dynamic from "next/dynamic";
@@ -62,6 +64,7 @@ export default function AddReportDialog({ open, onClose }) {
     try {
       setAddingIncident(true);
 
+      // Always write to Firestore first
       let mediaUrl = null;
       let uploadedMediaType = null;
 
@@ -90,8 +93,24 @@ export default function AddReportDialog({ open, onClose }) {
         MediaURL: mediaUrl,
         SubmittedByEmail: user?.email || null,
       };
-
       await addDoc(collection(db, "reports"), payload);
+
+      // Optionally mirror to Django if configured (best-effort)
+      const apiBase = process.env.NEXT_PUBLIC_API_URL;
+      if (apiBase) {
+        const formData = new FormData();
+        formData.append("incident_type", incidentType.trim());
+        formData.append("description", description.trim());
+        formData.append("barangay", barangay || "");
+        formData.append("latitude", String(lat));
+        formData.append("longitude", String(lng));
+        if (mediaFile) {
+          formData.append("media", mediaFile);
+          formData.append("media_type", uploadedMediaType || "");
+        }
+        if (user?.email) formData.append("submitted_by_email", user.email);
+        fetch(`${apiBase}/api/reports/`, { method: "POST", body: formData }).catch(() => {});
+      }
 
       // Reset and close
       setIncidentType("");
@@ -169,7 +188,15 @@ export default function AddReportDialog({ open, onClose }) {
             <div className="mb-4 text-sm text-red-600">{error}</div>
           )}
           <div className="flex justify-between gap-4">
-            <button className="border border-red-400 text-red-500 px-8 py-2 rounded-md" onClick={onClose}>Back</button>
+            <button
+              className="border border-red-400 text-red-500 px-8 py-2 rounded-md"
+              onClick={() => {
+                setError("");
+                onClose?.();
+              }}
+            >
+              Back
+            </button>
             <button
               className="bg-red-500 text-white px-8 py-2 rounded-md disabled:opacity-60"
               onClick={handleSubmit}
