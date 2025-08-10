@@ -27,6 +27,7 @@ export default function AdminDashboard() {
   // Map email to barangay name
   const userBarangayMap = {
     "testpinagbakahan@example.com": "Pinagbakahan",
+    "testbulihan@example.com": "Bulihan",
     // Add more accounts and their barangay names here
   };
   const userEmail = user?.email || "";
@@ -35,17 +36,22 @@ export default function AdminDashboard() {
   React.useEffect(() => {
     const fetchReportStats = async () => {
       const querySnapshot = await getDocs(collection(db, "reports"));
-      setTotalReports(querySnapshot.size);
+      let total = 0;
       let pending = 0;
       querySnapshot.forEach(doc => {
-        if (doc.data().Status?.toLowerCase() === "pending") {
-          pending++;
+        const data = doc.data();
+        if (!userBarangay || data.Barangay === userBarangay) {
+          total++;
+          if ((data.Status ?? "").toLowerCase() === "pending") {
+            pending++;
+          }
         }
       });
+      setTotalReports(total);
       setPendingReports(pending);
     };
     fetchReportStats();
-  }, []);
+  }, [userBarangay]);
 
   const handleLogout = () => {
     setShowLogoutModal(false);
@@ -121,7 +127,7 @@ export default function AdminDashboard() {
             </div>
             <Link href="/admin/reports" className="text-sm font-medium text-red-600 hover:underline">View All</Link>
           </div>
-          <RecentReports />
+          <RecentReports barangay={userBarangay} />
         </div>
       </main>
       <LogoutConfirmationModal

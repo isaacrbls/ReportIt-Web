@@ -42,6 +42,12 @@ export default function ReportsPageClient() {
     return () => unsubscribe();
   }, []);
 
+  // Map user email to barangay
+  let userBarangay = null;
+  if (user?.email === "testbulihan@example.com") {
+    userBarangay = "Bulihan";
+  }
+
   const filteredReports = reports.filter((report) => {
     const searchTerm = search.trim().toLowerCase();
     const matchesSearch =
@@ -54,7 +60,10 @@ export default function ReportsPageClient() {
     const effectiveStatus = normalizedStatus || "pending";
     const matchesStatus = statusFilter === "all" || effectiveStatus === statusFilter;
 
-    return matchesSearch && matchesStatus;
+    // If userBarangay is set, only show reports for that barangay
+    const matchesBarangay = userBarangay ? report?.Barangay === userBarangay : true;
+
+    return matchesSearch && matchesStatus && matchesBarangay;
   });
 
   const handleVerify = (id) => {

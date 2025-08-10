@@ -9,31 +9,38 @@ import { collection, getDocs, doc, updateDoc, query as fsQuery, where } from "fi
 import { db } from "@/firebase";
 import "@/styles/recent-reports-custom.css";
 
-export function RecentReports({ singleReport, onVerify, onReject, onViewDetails, statusFilter }) {
+export function RecentReports({ singleReport, onVerify, onReject, onViewDetails, statusFilter, barangay }) {
 	const [reports, setReports] = useState(singleReport ? [singleReport] : []);
 	const [actionStatus, setActionStatus] = useState({}); // { [id]: 'verified' | 'rejected' }
 
     useEffect(() => {
-        if (!singleReport) {
-            const fetchReports = async () => {
-                let queryRef = collection(db, "reports");
-                const normalized = (statusFilter || "").toString().trim().toLowerCase();
-                if (normalized && normalized !== "all") {
-                    const statusValue = normalized.charAt(0).toUpperCase() + normalized.slice(1);
-                    queryRef = fsQuery(queryRef, where("Status", "==", statusValue));
-                }
-                const querySnapshot = await getDocs(queryRef);
-                const reportsData = querySnapshot.docs.map((doc) => ({
-                    id: doc.id,
-                    ...doc.data(),
-                }));
-                setReports(reportsData);
-            };
-            fetchReports();
-        } else {
-            setReports([singleReport]);
-        }
-    }, [singleReport, statusFilter]);
+		if (!singleReport) {
+			const fetchReports = async () => {
+				let queryRef = collection(db, "reports");
+				const normalized = (statusFilter || "").toString().trim().toLowerCase();
+				let filters = [];
+				if (normalized && normalized !== "all") {
+					const statusValue = normalized.charAt(0).toUpperCase() + normalized.slice(1);
+					filters.push(where("Status", "==", statusValue));
+				}
+				if (barangay) {
+					filters.push(where("Barangay", "==", barangay));
+				}
+				if (filters.length > 0) {
+					queryRef = fsQuery(queryRef, ...filters);
+				}
+				const querySnapshot = await getDocs(queryRef);
+				const reportsData = querySnapshot.docs.map((doc) => ({
+					id: doc.id,
+					...doc.data(),
+				}));
+				setReports(reportsData);
+			};
+			fetchReports();
+		} else {
+			setReports([singleReport]);
+		}
+	}, [singleReport, statusFilter, barangay]);
 
 	const formatDate = (dateValue) => {
 		if (!dateValue) return "-";
