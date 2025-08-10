@@ -46,6 +46,10 @@ export default function ReportsPageClient() {
   let userBarangay = null;
   if (user?.email === "testbulihan@example.com") {
     userBarangay = "Bulihan";
+  } else if (user?.email === "testpinagbakahan@example.com") {
+    userBarangay = "Pinagbakahan";
+  } else if (user?.email === "testtiaong@example.com") {
+    userBarangay = "Tiaong";
   }
 
   const filteredReports = reports.filter((report) => {
@@ -60,8 +64,8 @@ export default function ReportsPageClient() {
     const effectiveStatus = normalizedStatus || "pending";
     const matchesStatus = statusFilter === "all" || effectiveStatus === statusFilter;
 
-    // If userBarangay is set, only show reports for that barangay
-    const matchesBarangay = userBarangay ? report?.Barangay === userBarangay : true;
+    // Only show reports for the user's barangay if mapped
+    const matchesBarangay = userBarangay ? report?.Barangay === userBarangay : false;
 
     return matchesSearch && matchesStatus && matchesBarangay;
   });
@@ -126,18 +130,28 @@ export default function ReportsPageClient() {
             </select>
           </div>
           <div className="bg-white rounded-2xl border p-6 shadow-sm">
-            <h2 className="text-2xl font-bold text-red-600 mb-1">All Reports</h2>
-            <p className="text-gray-400 mb-6">Showing all incident reports from all barangays</p>
-            <ReportList
-              reports={filteredReports}
-              onVerify={handleVerify}
-              onReject={handleReject}
-              onViewDetails={(report) => {
-                setSelectedReport(report);
-                setIsDialogOpen(true);
-              }}
-              statusFilter={statusFilter}
-            />
+            <h2 className="text-2xl font-bold text-red-600 mb-1">
+              {userBarangay ? `${userBarangay} Reports` : "No Reports"}
+            </h2>
+            <p className="text-gray-400 mb-6">
+              {userBarangay
+                ? `Showing incident reports for barangay: ${userBarangay}`
+                : "No reports available for your account. Please contact admin if you think this is an error."}
+            </p>
+            {userBarangay ? (
+              <ReportList
+                reports={filteredReports}
+                onVerify={handleVerify}
+                onReject={handleReject}
+                onViewDetails={(report) => {
+                  setSelectedReport(report);
+                  setIsDialogOpen(true);
+                }}
+                statusFilter={statusFilter}
+              />
+            ) : (
+              <div className="text-center text-gray-500 py-10">No reports to show.</div>
+            )}
             <ReportDetailDialog
               report={{
                 ...selectedReport,

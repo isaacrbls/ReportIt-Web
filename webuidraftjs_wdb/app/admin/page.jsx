@@ -28,6 +28,7 @@ export default function AdminDashboard() {
   const userBarangayMap = {
     "testpinagbakahan@example.com": "Pinagbakahan",
     "testbulihan@example.com": "Bulihan",
+    "testtiaong@example.com": "Tiaong",
     // Add more accounts and their barangay names here
   };
   const userEmail = user?.email || "";
@@ -58,13 +59,7 @@ export default function AdminDashboard() {
     router.push("/");
   };
 
-  // Map email to barangay
-  let barangay = null;
-  if (user?.email) {
-    if (user.email.includes("bulihan")) barangay = "Bulihan";
-    else if (user.email.includes("tiaong")) barangay = "Tiaong";
-    // Add more mappings here if needed
-  }
+  // Remove duplicate mapping logic, use userBarangay from above
   
 
   return (

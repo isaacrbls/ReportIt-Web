@@ -224,9 +224,13 @@ export default function MapComponent({
 		fixLeafletIcons()
 
 		// Determine map center based on barangay
-		let center = [14.8447, 120.8102]; // Updated: Pinagbakahan, Malolos, Bulacan
+		let center = [14.8447, 120.8102]; // Default: Pinagbakahan, Malolos, Bulacan
 		let zoom = barangay ? 16 : 15;
-		if (barangay === "Bulihan") center = [14.8527, 120.816];
+		if (barangay === "Bulihan") {
+			// Center on Bulihan, Malolos, Bulacan (based on screenshot)
+			center = [14.8575, 120.8145];
+			zoom = 16;
+		}
 		else if (barangay === "Mojon") center = [14.858, 120.814];
 		else if (barangay === "Dakila") center = [14.855, 120.812];
 		else if (barangay === "Look 1st") center = [14.851, 120.818];
