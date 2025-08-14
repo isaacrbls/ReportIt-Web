@@ -1,5 +1,7 @@
 "use client";
-import { useState } from "react";
+import { useState, useRef } from "react";
+import Script from "next/script";
+import { RECAPTCHA_SITE_KEY } from "../../lib/recaptcha";
 import Image from "next/image";
 
 export default function ForgotPasswordPage() {
@@ -10,9 +12,44 @@ export default function ForgotPasswordPage() {
   const [newPassword, setNewPassword] = useState("");
   const [resetDone, setResetDone] = useState(false);
 
-  const handleEmailSubmit = (e) => {
+
+  const recaptchaRef = useRef();
+  const [captchaToken, setCaptchaToken] = useState("");
+
+  const handleCaptcha = (token) => {
+    setCaptchaToken(token);
+  };
+
+  const [captchaError, setCaptchaError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const handleEmailSubmit = async (e) => {
     e.preventDefault();
-    setSent(true);
+    setCaptchaError("");
+    if (!captchaToken) {
+      setCaptchaError("Please complete the CAPTCHA.");
+      return;
+    }
+    setLoading(true);
+    // Verify captcha on backend
+    try {
+      const res = await fetch("/api/verify-captcha", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: captchaToken }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setCaptchaError("CAPTCHA verification failed. Please try again.");
+        setLoading(false);
+        return;
+      }
+      setSent(true);
+    } catch (err) {
+      setCaptchaError("CAPTCHA verification error. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleCodeSubmit = (e) => {
@@ -42,7 +79,7 @@ export default function ForgotPasswordPage() {
       </div>
       {/* Right Side */}
       <div className="flex flex-1 flex-col justify-center items-center bg-white p-8">
-        {!sent ? (
+  {!sent ? (
           <form onSubmit={handleEmailSubmit} className="w-full max-w-md space-y-8">
             <div>
               <h2 className="text-2xl font-bold mb-1">Forgot your password?</h2>
@@ -62,11 +99,30 @@ export default function ForgotPasswordPage() {
                 />
               </div>
             </div>
+            <div className="flex justify-center">
+              <div
+                ref={recaptchaRef}
+                className="g-recaptcha"
+                data-sitekey={RECAPTCHA_SITE_KEY}
+                data-callback="onRecaptchaSuccess"
+              ></div>
+            </div>
+            <Script
+              src="https://www.google.com/recaptcha/api.js"
+              strategy="afterInteractive"
+              onReady={() => {
+                window.onRecaptchaSuccess = (token) => handleCaptcha(token);
+              }}
+            />
+            {captchaError && (
+              <div className="text-red-500 font-semibold mb-2">{captchaError}</div>
+            )}
             <button
               type="submit"
               className="w-full rounded-md bg-[#F14B51] py-2 text-lg font-medium text-white transition-colors hover:bg-[#e13a47] focus:outline-none focus:ring-2 focus:ring-[#F14B51] focus:ring-offset-2"
+              disabled={loading}
             >
-              Send Verification code
+              {loading ? "Verifying..." : "Send Verification code"}
             </button>
             <div className="rounded-md border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700">
               <div className="font-semibold mb-1">Need immediate assistance?</div>

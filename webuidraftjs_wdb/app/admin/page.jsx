@@ -29,6 +29,8 @@ export default function AdminDashboard() {
     "testpinagbakahan@example.com": "Pinagbakahan",
     "testbulihan@example.com": "Bulihan",
     "testtiaong@example.com": "Tiaong",
+    "testdakila@example.com": "Dakila",
+    "testmojon@example.com": "Mojon",
     // Add more accounts and their barangay names here
   };
   const userEmail = user?.email || "";
