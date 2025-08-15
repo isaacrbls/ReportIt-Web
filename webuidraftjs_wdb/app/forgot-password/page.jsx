@@ -1,7 +1,7 @@
 "use client";
 import { useState, useRef } from "react";
-import Script from "next/script";
 import { RECAPTCHA_SITE_KEY } from "../../lib/recaptcha";
+import ReCAPTCHA from "react-google-recaptcha";
 import Image from "next/image";
 
 export default function ForgotPasswordPage() {
@@ -13,11 +13,12 @@ export default function ForgotPasswordPage() {
   const [resetDone, setResetDone] = useState(false);
 
 
-  const recaptchaRef = useRef();
+  const recaptchaRef = useRef(null);
   const [captchaToken, setCaptchaToken] = useState("");
 
   const handleCaptcha = (token) => {
     setCaptchaToken(token);
+    setCaptchaError("");
   };
 
   const [captchaError, setCaptchaError] = useState("");
@@ -100,20 +101,12 @@ export default function ForgotPasswordPage() {
               </div>
             </div>
             <div className="flex justify-center">
-              <div
+              <ReCAPTCHA
                 ref={recaptchaRef}
-                className="g-recaptcha"
-                data-sitekey={RECAPTCHA_SITE_KEY}
-                data-callback="onRecaptchaSuccess"
-              ></div>
+                sitekey={RECAPTCHA_SITE_KEY}
+                onChange={handleCaptcha}
+              />
             </div>
-            <Script
-              src="https://www.google.com/recaptcha/api.js"
-              strategy="afterInteractive"
-              onReady={() => {
-                window.onRecaptchaSuccess = (token) => handleCaptcha(token);
-              }}
-            />
             {captchaError && (
               <div className="text-red-500 font-semibold mb-2">{captchaError}</div>
             )}
