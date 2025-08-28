@@ -8,6 +8,7 @@ import { CrimeMap } from "@/components/admin/crime-map";
 import { RecentReports } from "@/components/admin/recent-reports";
 import { StatsCards } from "@/components/admin/stats-cards";
 import { HighRiskAreasDialog } from "../../components/admin/high-risk-areas-dialog.jsx";
+import { ReportDetailDialog } from "@/components/admin/report-detail-dialog.jsx";
 import LogoutConfirmationModal from "@/components/admin/LogoutConfirmationModal";
 import { useRouter } from "next/navigation";
 import React from "react";
@@ -16,12 +17,15 @@ import { collection, getDocs } from "firebase/firestore";
 import { db } from "@/firebase";
 import Sidebar from "@/components/admin/Sidebar";
 import { useCurrentUser } from "@/hooks/use-current-user";
+import { updateReportStatus } from "@/lib/reportUtils";
 
 export default function AdminDashboard() {
   const [showHighRiskDialog, setShowHighRiskDialog] = React.useState(false);
   const [showLogoutModal, setShowLogoutModal] = React.useState(false);
   const [totalReports, setTotalReports] = React.useState(0);
   const [pendingReports, setPendingReports] = React.useState(0);
+  const [selectedReport, setSelectedReport] = React.useState(null);
+  const [isDialogOpen, setIsDialogOpen] = React.useState(false);
   const router = useRouter();
   const user = useCurrentUser();
   // Map email to barangay name
@@ -37,28 +41,47 @@ export default function AdminDashboard() {
   const userBarangay = userBarangayMap[userEmail] || "";
 
   React.useEffect(() => {
-    const fetchReportStats = async () => {
-      const querySnapshot = await getDocs(collection(db, "reports"));
-      let total = 0;
-      let pending = 0;
-      querySnapshot.forEach(doc => {
-        const data = doc.data();
-        if (!userBarangay || data.Barangay === userBarangay) {
-          total++;
-          if ((data.Status ?? "").toLowerCase() === "pending") {
-            pending++;
-          }
-        }
-      });
-      setTotalReports(total);
-      setPendingReports(pending);
-    };
     fetchReportStats();
   }, [userBarangay]);
 
   const handleLogout = () => {
     setShowLogoutModal(false);
     router.push("/");
+  };
+
+  const handleVerify = async (id) => {
+    const success = await updateReportStatus(id, "Verified");
+    if (success) {
+      console.log("Report verified successfully");
+      // Refresh the stats
+      fetchReportStats();
+    }
+  };
+
+  const handleReject = async (id) => {
+    const success = await updateReportStatus(id, "Rejected");
+    if (success) {
+      console.log("Report rejected successfully");
+      // Refresh the stats
+      fetchReportStats();
+    }
+  };
+
+  const fetchReportStats = async () => {
+    const querySnapshot = await getDocs(collection(db, "reports"));
+    let total = 0;
+    let pending = 0;
+    querySnapshot.forEach(doc => {
+      const data = doc.data();
+      if (!userBarangay || data.Barangay === userBarangay) {
+        total++;
+        if ((data.Status ?? "").toLowerCase() === "pending") {
+          pending++;
+        }
+      }
+    });
+    setTotalReports(total);
+    setPendingReports(pending);
   };
 
   // Remove duplicate mapping logic, use userBarangay from above
@@ -124,9 +147,24 @@ export default function AdminDashboard() {
             </div>
             <Link href="/admin/reports" className="text-sm font-medium text-red-600 hover:underline">View All</Link>
           </div>
-          <RecentReports barangay={userBarangay} />
+          <RecentReports 
+            barangay={userBarangay} 
+            onVerify={handleVerify}
+            onReject={handleReject}
+            onViewDetails={(report) => {
+              setSelectedReport(report);
+              setIsDialogOpen(true);
+            }}
+          />
         </div>
       </main>
+      <ReportDetailDialog
+        report={selectedReport}
+        open={isDialogOpen}
+        onOpenChange={setIsDialogOpen}
+        onVerify={handleVerify}
+        onReject={handleReject}
+      />
       <LogoutConfirmationModal
         open={showLogoutModal}
         onConfirm={handleLogout}

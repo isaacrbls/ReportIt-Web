@@ -19,6 +19,7 @@ import Sidebar from "@/components/admin/Sidebar";
 import ReportList from "@/components/admin/ReportList";
 import { db } from "@/firebase";
 import { useCurrentUser } from "@/hooks/use-current-user";
+import { updateReportStatus, formatReportForDisplay } from "@/lib/reportUtils";
 
 export default function ReportsPageClient() {
   const [reports, setReports] = useState([]);
@@ -65,17 +66,25 @@ export default function ReportsPageClient() {
     const matchesStatus = statusFilter === "all" || effectiveStatus === statusFilter;
 
     // Only show reports for the user's barangay if mapped
-    const matchesBarangay = userBarangay ? report?.Barangay === userBarangay : false;
+    const matchesBarangay = userBarangay ? report?.Barangay === userBarangay : true; // Changed to true for admin access
 
     return matchesSearch && matchesStatus && matchesBarangay;
   });
 
-  const handleVerify = (id) => {
-    setReports(reports.map((r) => (r.id === id ? { ...r, status: "verified" } : r)));
+  const handleVerify = async (id) => {
+    const success = await updateReportStatus(id, "Verified");
+    if (success) {
+      // The reports will be updated automatically through the onSnapshot listener
+      console.log("Report verified successfully");
+    }
   };
 
-  const handleReject = (id, reason) => {
-    setReports(reports.map((r) => (r.id === id ? { ...r, status: "rejected", rejectionReason: reason } : r)));
+  const handleReject = async (id, reason) => {
+    const success = await updateReportStatus(id, "Rejected", reason);
+    if (success) {
+      // The reports will be updated automatically through the onSnapshot listener
+      console.log("Report rejected successfully");
+    }
   };
 
   const handleLogout = () => {
@@ -153,14 +162,7 @@ export default function ReportsPageClient() {
               <div className="text-center text-gray-500 py-10">No reports to show.</div>
             )}
             <ReportDetailDialog
-              report={{
-                ...selectedReport,
-                category: selectedReport?.category || categories[0]?.name,
-                keywords:
-                  selectedReport?.category
-                    ? categories.find((cat) => cat.name === selectedReport.category)?.keywords || []
-                    : categories[0]?.keywords || [],
-              }}
+              report={selectedReport}
               open={isDialogOpen}
               onOpenChange={setIsDialogOpen}
               onVerify={handleVerify}

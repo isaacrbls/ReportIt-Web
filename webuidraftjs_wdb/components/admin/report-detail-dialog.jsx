@@ -15,41 +15,49 @@ import { Badge } from "@/components/ui/badge"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { EditCategoryDialog } from "@/components/admin/edit-category-dialog"
+import { updateReportStatus, formatReportForDisplay } from "@/lib/reportUtils"
 
 export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onReject }) {
   const [rejectionReason, setRejectionReason] = useState("")
   const [isRejecting, setIsRejecting] = useState(false)
   const [isVerifying, setIsVerifying] = useState(false)
   const [isEditingCategory, setIsEditingCategory] = useState(false)
-  const [editedCategory, setEditedCategory] = useState(report?.category || "")
+
+  // Format the report data to match Firebase structure
+  const formattedReport = formatReportForDisplay(report)
+  const [editedCategory, setEditedCategory] = useState(formattedReport?.category || "")
   const [categoryKeywords, setCategoryKeywords] = useState(report?.keywords || ["Steal", "pickpocket", "snatched"])
 
+  // Early return after all hooks
   if (!report) return null
 
   const handleVerify = async () => {
     setIsVerifying(true)
     try {
-      // In a real app, you would make an API call here
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-      onVerify?.(report.id)
-      onOpenChange(false)
+      const success = await updateReportStatus(report.id, "Verified")
+      if (success) {
+        onVerify?.(report.id)
+        onOpenChange(false)
+      }
+    } catch (error) {
+      console.error("Error verifying report:", error)
     } finally {
       setIsVerifying(false)
     }
   }
 
   const handleReject = async () => {
-    if (!rejectionReason.trim()) return
-
     setIsRejecting(true)
     try {
-      // In a real app, you would make an API call here
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-      onReject?.(report.id, rejectionReason)
-      onOpenChange(false)
+      const success = await updateReportStatus(report.id, "Rejected")
+      if (success) {
+        onReject?.(report.id)
+        onOpenChange(false)
+      }
+    } catch (error) {
+      console.error("Error rejecting report:", error)
     } finally {
       setIsRejecting(false)
-      setRejectionReason("")
     }
   }
 
@@ -61,31 +69,33 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
             {/* Left: Details */}
             <div className="flex-1 min-w-[320px]">
               <h2 className="text-[#F14B51] text-2xl font-bold mb-1">Report Details</h2>
-              <div className="text-gray-500 text-sm mb-4">ID - {report.id} • Submitted on {report.timestamp}</div>
-              <div className="text-2xl font-bold text-[#F14B51] mb-2">{report.title}</div>
+              <div className="text-gray-500 text-sm mb-4">
+                ID - {report.id} • Submitted on {formattedReport?.date} at {formattedReport?.time}
+              </div>
+              <div className="text-2xl font-bold text-[#F14B51] mb-2">{formattedReport?.title}</div>
               <div className="flex items-center gap-2 mb-2">
                 <Tag className="w-5 h-5 text-[#F14B51]" />
-                <span className="font-semibold text-[#F14B51]">{report.category}</span>
+                <span className="font-semibold text-[#F14B51]">{formattedReport?.category}</span>
                 <button className="ml-2 px-2 py-0.5 text-xs rounded bg-gray-100 border border-gray-300 text-gray-600 hover:bg-gray-200 flex items-center gap-1" onClick={() => setIsEditingCategory(true)}>
                   <Edit className="w-3 h-3" /> Edit
                 </button>
               </div>
               <div className="flex items-center gap-2 mb-2">
                 <MapPin className="w-5 h-5 text-[#F14B51]" />
-                <span>{report.location}</span>
+                <span>{formattedReport?.location}</span>
               </div>
               <div className="flex items-center gap-2 mb-2">
                 <Calendar className="w-5 h-5 text-[#F14B51]" />
-                <span>{report.timestamp?.split(" - ")[0]}</span>
+                <span>{formattedReport?.date}</span>
               </div>
               <div className="flex items-center gap-2 mb-4">
                 <Clock className="w-5 h-5 text-[#F14B51]" />
-                <span>{report.timestamp?.split(" - ")[1]}</span>
+                <span>{formattedReport?.time}</span>
               </div>
               <div className="mb-2 font-semibold">Description</div>
               <Textarea
                 className="w-full border rounded-lg px-4 py-2 focus:outline-none min-h-[80px] mb-4"
-                value={report.description}
+                value={formattedReport?.description || "No description provided"}
                 readOnly
               />
               <div className="font-bold text-[#F14B51] mb-2 mt-6">Media Attachments</div>
@@ -100,12 +110,21 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
                 </div>
               </div>
               <div className="text-xs text-gray-400">Click on the image to view full size</div>
+              
               <div className="flex gap-4 mt-8">
-                <button className="border border-[#F14B51] text-[#F14B51] px-8 py-2 rounded-md flex items-center gap-2 btn-reject" onClick={() => onReject && onReject(report.id)}>
-                  <XCircle className="w-5 h-5" /> Reject
+                <button 
+                  className="border border-[#F14B51] text-[#F14B51] px-8 py-2 rounded-md flex items-center gap-2 btn-reject disabled:opacity-50" 
+                  onClick={handleReject}
+                  disabled={isRejecting}
+                >
+                  <XCircle className="w-5 h-5" /> {isRejecting ? "Rejecting..." : "Reject"}
                 </button>
-                <button className="bg-green-500 text-white px-8 py-2 rounded-md flex items-center gap-2 btn-verify" onClick={() => onVerify && onVerify(report.id)}>
-                  <CheckCircle className="w-5 h-5" /> Verify
+                <button 
+                  className="bg-green-500 text-white px-8 py-2 rounded-md flex items-center gap-2 btn-verify disabled:opacity-50" 
+                  onClick={handleVerify}
+                  disabled={isVerifying}
+                >
+                  <CheckCircle className="w-5 h-5" /> {isVerifying ? "Verifying..." : "Verify"}
                 </button>
               </div>
             </div>
@@ -115,7 +134,9 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
               <div className="w-[350px] h-[250px] bg-[#F8E3DE] rounded-lg flex items-center justify-center overflow-hidden mb-2">
                 <img src="/placeholder-map.png" alt="Map" className="object-cover w-full h-full" />
               </div>
-              <div className="w-full text-right text-gray-500 text-sm mt-2">Submitted by: <span className="font-semibold text-black">Erika Mae</span></div>
+              <div className="w-full text-right text-gray-500 text-sm mt-2">
+                Submitted by: <span className="font-semibold text-black">{formattedReport?.submittedBy}</span>
+              </div>
             </div>
           </div>
           <button className="self-end border border-gray-400 text-black px-6 py-2 rounded-md" onClick={() => onOpenChange(false)}>Close</button>
@@ -124,7 +145,7 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
       <EditCategoryDialog
         open={isEditingCategory}
         onOpenChange={setIsEditingCategory}
-        category={{ name: report.category, keywords: report.keywords }}
+        category={{ name: formattedReport?.category, keywords: report?.keywords }}
         onSave={({ name, keywords }) => {
           setIsEditingCategory(false)
           // Optionally update the category in parent state here
