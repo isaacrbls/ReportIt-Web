@@ -7,7 +7,7 @@ export default function ReportList({ reports, onVerify, onReject, onViewDetails,
   return (
     <div className="flex flex-col gap-4">
       {reports.length === 0 ? (
-        <RecentReports singleReport={null} onVerify={onVerify} onReject={onReject} onViewDetails={onViewDetails} statusFilter={statusFilter} />
+        <div className="text-center text-gray-500 py-10">No reports found for this barangay.</div>
       ) : (
         reports.map((report) => (
           <div key={report.id}>

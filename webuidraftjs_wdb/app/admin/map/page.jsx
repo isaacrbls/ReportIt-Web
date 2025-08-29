@@ -12,8 +12,32 @@ import { CrimeMap } from "@/components/admin/crime-map"
 export default function Page() {
   const user = useCurrentUser()
   const pinagbakahanCenter = [14.847, 120.815]
+  const bulihanCenter = [14.8527, 120.8160] // Bulihan, Malolos, Bulacan
+  const dakilaCenter = [14.8527, 120.8160] // Placeholder for Dakila center
+  const mojonCenter = [14.8527, 120.8160] // Placeholder for Mojon center 
+  const tiaongCenter = [14.8527, 120.8160] // Placeholder for Tiaong center
+  const lookCenter = [14.8527, 120.8160] // Placeholder for Look 1st center
+  const longosCenter = [14.8527, 120.8160] // Placeholder for Longos center
   const userEmail = user?.email || ""
-  const mapCenter = userEmail === "testpinagbakahan@example.com" ? pinagbakahanCenter : undefined
+  
+  // Determine map center based on user email
+  let mapCenter = undefined
+  if (userEmail === "testpinagbakahan@example.com") {
+    mapCenter = pinagbakahanCenter
+  } else if (userEmail === "testbulihan@example.com") {
+    mapCenter = bulihanCenter
+  } else if (userEmail === "testdakila@example.com") {
+    mapCenter = dakilaCenter
+  } else if (userEmail === "testmojon@example.com") {
+    mapCenter = mojonCenter
+  } else if (userEmail === "testtiaong@example.com") {
+    mapCenter = tiaongCenter
+  } else if (userEmail === "testlook@example.com") {
+    mapCenter = lookCenter
+  } else if (userEmail === "testlongos@example.com") {
+    mapCenter = longosCenter
+  }
+  
   const defaultBarangay = ""
   const defaultZoom = 15
 

@@ -44,14 +44,23 @@ export default function ReportsPageClient() {
   }, []);
 
   // Map user email to barangay
-  let userBarangay = null;
-  if (user?.email === "testbulihan@example.com") {
-    userBarangay = "Bulihan";
-  } else if (user?.email === "testpinagbakahan@example.com") {
-    userBarangay = "Pinagbakahan";
-  } else if (user?.email === "testtiaong@example.com") {
-    userBarangay = "Tiaong";
-  }
+  const userBarangayMap = {
+    "testpinagbakahan@example.com": "Pinagbakahan",
+    "testbulihan@example.com": "Bulihan", 
+    "testtiaong@example.com": "Tiaong",
+    "testdakila@example.com": "Dakila",
+    "testmojon@example.com": "Mojon",
+    "testlook@example.com": "Look 1st",
+    "testlongos@example.com": "Longos",
+    // Add more accounts and their barangay names here
+  };
+  const userEmail = user?.email || "";
+  const userBarangay = userBarangayMap[userEmail] || null;
+
+  console.log("👤 Reports page - Current user:", user);
+  console.log("📧 Reports page - User email:", userEmail);
+  console.log("🏘️ Reports page - Mapped barangay:", userBarangay);
+  console.log("📊 Reports page - Total reports loaded:", reports.length);
 
   const filteredReports = reports.filter((report) => {
     const searchTerm = search.trim().toLowerCase();
@@ -65,11 +74,20 @@ export default function ReportsPageClient() {
     const effectiveStatus = normalizedStatus || "pending";
     const matchesStatus = statusFilter === "all" || effectiveStatus === statusFilter;
 
-    // Only show reports for the user's barangay if mapped
-    const matchesBarangay = userBarangay ? report?.Barangay === userBarangay : true; // Changed to true for admin access
+    // Only show reports for the user's barangay - strict filtering
+    const matchesBarangay = userBarangay ? report?.Barangay === userBarangay : false;
+    
+    // Debug logging for each report
+    if (report?.id) {
+      console.log(`🔍 Report ${report.id}: Barangay="${report?.Barangay}" vs UserBarangay="${userBarangay}" = ${matchesBarangay}`);
+    }
 
     return matchesSearch && matchesStatus && matchesBarangay;
   });
+
+  console.log("🔍 Reports page - Filtered reports count:", filteredReports.length);
+  console.log("🔍 Reports page - All reports:", reports.map(r => ({ id: r.id, barangay: r.Barangay, status: r.Status })));
+  console.log("🔍 Reports page - Filtered reports:", filteredReports.map(r => ({ id: r.id, barangay: r.Barangay, status: r.Status })));
 
   const handleVerify = async (id) => {
     const success = await updateReportStatus(id, "Verified");

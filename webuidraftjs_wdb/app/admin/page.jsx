@@ -35,10 +35,17 @@ export default function AdminDashboard() {
     "testtiaong@example.com": "Tiaong",
     "testdakila@example.com": "Dakila",
     "testmojon@example.com": "Mojon",
+    "testlook@example.com": "Look 1st",
+    "testlongos@example.com": "Longos",
     // Add more accounts and their barangay names here
   };
   const userEmail = user?.email || "";
   const userBarangay = userBarangayMap[userEmail] || "";
+
+  console.log("👤 Admin page - Current user:", user);
+  console.log("📧 Admin page - User email:", userEmail);
+  console.log("🏘️ Admin page - Mapped barangay:", userBarangay);
+  console.log("🗺️ Available barangay mappings:", userBarangayMap);
 
   React.useEffect(() => {
     fetchReportStats();
@@ -129,7 +136,7 @@ export default function AdminDashboard() {
         <div className="mb-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
           <div className="text-2xl font-bold text-red-600 mb-1">Incident Distribution</div>
           <div className="text-xs text-gray-500 mb-4">Bubble size represents incident frequency, color indicates risk levels</div>
-          <CrimeMap barangay={userBarangay} zoom={15} />
+          <CrimeMap barangay={userBarangay} />
         </div>
         {/* High Risk Areas Dialog (ensure it overlays the map) */}
         <HighRiskAreasDialog 

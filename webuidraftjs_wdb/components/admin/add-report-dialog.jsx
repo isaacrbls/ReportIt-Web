@@ -29,6 +29,7 @@ export default function AddReportDialog({ open, onClose }) {
     if (user.email.includes("bulihan")) barangay = "Bulihan";
     else if (user.email.includes("mojon")) barangay = "Mojon";
     else if (user.email.includes("dakila")) barangay = "Dakila";
+    else if (user.email.includes("pinagbakahan")) barangay = "Pinagbakahan";
     else if (user.email.includes("look")) barangay = "Look 1st";
     else if (user.email.includes("longos")) barangay = "Longos";
     else if (user.email.includes("tiaong")) barangay = "Tiaong";

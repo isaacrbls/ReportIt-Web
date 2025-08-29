@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useRef } from "react"
 import L from "leaflet"
+import { collection, getDocs } from "firebase/firestore"
+import { db } from "@/firebase"
 
 // Sample data for crime incidents
 const crimeIncidents = [
@@ -182,10 +184,104 @@ export default function MapComponent({
 	newIncidentLocation,
 	newIncidentRisk,
 	barangay,
+	center: propCenter,
+	zoom: propZoom,
 }) {
-	const [incidents, setIncidents] = useState(crimeIncidents)
+	const [incidents, setIncidents] = useState([]) // Will be populated from database
 	const mapRef = useRef(null)
 	const mapInstanceRef = useRef(null)
+	
+	// Fetch reports from Firebase and convert to incident format
+	const fetchReports = async () => {
+		try {
+			console.log("🔄 Fetching reports from database...");
+			const querySnapshot = await getDocs(collection(db, "reports"));
+			const reportsData = [];
+			
+			querySnapshot.forEach((doc) => {
+				const data = doc.data();
+				console.log("📄 Processing report:", data);
+				
+				// Check if the report has geolocation data
+				if (data.Latitude && data.Longitude) {
+					const incident = {
+						id: doc.id,
+						location: [data.Latitude, data.Longitude],
+						title: data.IncidentType || "Incident",
+						description: data.Description || "No description available",
+						category: data.IncidentType || "Other",
+						risk: determineRiskLevel(data.IncidentType),
+						date: formatDate(data.DateTime),
+						time: formatTime(data.DateTime),
+						barangay: data.Barangay || "Unknown",
+						status: data.Status || "Pending"
+					};
+					
+					// Filter by barangay if specified
+					if (!barangay || data.Barangay === barangay) {
+						reportsData.push(incident);
+					}
+				}
+			});
+			
+			console.log("📍 Found reports with geolocation:", reportsData.length);
+			setIncidents(reportsData);
+		} catch (error) {
+			console.error("❌ Error fetching reports:", error);
+		}
+	};
+	
+	// Helper function to determine risk level based on incident type
+	const determineRiskLevel = (incidentType) => {
+		if (!incidentType) return "Medium";
+		const type = incidentType.toLowerCase();
+		if (type.includes("robbery") || type.includes("assault") || type.includes("violence")) {
+			return "High";
+		} else if (type.includes("theft") || type.includes("burglary")) {
+			return "High";
+		} else if (type.includes("vandalism") || type.includes("disturbance")) {
+			return "Medium";
+		}
+		return "Medium";
+	};
+	
+	// Helper function to format date
+	const formatDate = (dateValue) => {
+		if (!dateValue) return "Unknown date";
+		try {
+			let date;
+			if (dateValue.seconds) {
+				// Firestore Timestamp
+				date = new Date(dateValue.seconds * 1000);
+			} else if (dateValue.toDate) {
+				// Firestore Timestamp with toDate method
+				date = dateValue.toDate();
+			} else {
+				date = new Date(dateValue);
+			}
+			return date.toLocaleDateString();
+		} catch (error) {
+			return "Unknown date";
+		}
+	};
+	
+	// Helper function to format time
+	const formatTime = (dateValue) => {
+		if (!dateValue) return "Unknown time";
+		try {
+			let date;
+			if (dateValue.seconds) {
+				date = new Date(dateValue.seconds * 1000);
+			} else if (dateValue.toDate) {
+				date = dateValue.toDate();
+			} else {
+				date = new Date(dateValue);
+			}
+			return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+		} catch (error) {
+			return "Unknown time";
+		}
+	};
 	
 	// Add CSS to ensure proper z-index layering
 	useEffect(() => {
@@ -213,6 +309,59 @@ export default function MapComponent({
 		document.head.appendChild(style)
 		return () => document.head.removeChild(style)
 	}, [])
+	
+	// Fetch reports when component mounts or barangay changes
+	useEffect(() => {
+		fetchReports();
+	}, [barangay]);
+	
+	// Update markers when incidents change
+	useEffect(() => {
+		if (!mapInstanceRef.current || incidents.length === 0) return;
+		
+		// Clear existing markers
+		markersRef.current.forEach(markerData => {
+			if (markerData.marker) {
+				markerData.marker.remove();
+			}
+		});
+		markersRef.current = [];
+		
+		// Add new markers for incidents
+		console.log("🔄 Updating markers for", incidents.length, "incidents");
+		incidents.forEach((incident) => {
+			const marker = L.marker(incident.location, {
+				icon: createCustomIcon(incident.risk),
+			}).addTo(mapInstanceRef.current)
+
+			const popupContent = `
+				<div class="p-2">
+					<h3 class="font-medium text-sm">${incident.title}</h3>
+					<p class="text-xs text-gray-600 mb-1">
+						${incident.date} at ${incident.time}
+					</p>
+					<p class="text-xs text-gray-600 mb-1">
+						📍 ${incident.barangay} • Status: ${incident.status}
+					</p>
+					<div class="mt-1 rounded-full px-2 py-0.5 text-center text-xs font-medium bg-${
+						incident.risk === "High" ? "red" : incident.risk === "Medium" ? "yellow" : "green"
+					}-100 text-${incident.risk === "High" ? "red" : incident.risk === "Medium" ? "yellow" : "green"}-800">
+						${incident.risk} Risk
+					</div>
+					<p class="mt-1 text-xs">${incident.description}</p>
+				</div>
+			`
+
+			marker.bindPopup(popupContent)
+			marker.on("click", () => {
+				if (onMarkerClick) {
+					onMarkerClick(incident)
+				}
+			})
+
+			markersRef.current.push({ marker, incident })
+		});
+	}, [incidents]);
 	const markersRef = useRef([])
 	const hotspotsRef = useRef([])
 	const newMarkerRef = useRef(null)
@@ -223,26 +372,54 @@ export default function MapComponent({
 		require("leaflet/dist/leaflet.css")
 		fixLeafletIcons()
 
-		// Determine map center based on barangay
-		let center = [14.8447, 120.8102]; // Default: Pinagbakahan, Malolos, Bulacan
-		let zoom = barangay ? 16 : 15;
-		if (barangay === "Bulihan") {
-			// Center on Bulihan, Malolos, Bulacan (based on screenshot)
-			center = [14.8575, 120.8145];
-			zoom = 16;
+		console.log("MapComponent received barangay:", barangay);
+		console.log("Prop center:", propCenter, "Prop zoom:", propZoom);
+
+		// Use prop center/zoom if provided, otherwise determine based on barangay
+		let center = propCenter || [14.8447, 120.8102]; // Default: Pinagbakahan, Malolos, Bulacan
+		let zoom = propZoom || (barangay ? 16 : 15);
+		
+		// Only override with barangay-based coordinates if no prop center is provided
+		if (!propCenter && barangay) {
+			console.log("Checking barangay:", barangay);
+			if (barangay === "Bulihan") {
+				// Center on Bulihan, Malolos, Bulacan - Updated coordinates for better focus
+				center = [14.8527, 120.8160]; // More accurate Bulihan coordinates
+				zoom = 17; // Increased zoom for better focus
+				console.log("✅ Setting Bulihan center:", center, "zoom:", zoom);
+			}
+			else if (barangay === "Mojon") {
+				center = [14.858, 120.814];
+				console.log("✅ Setting Mojon center:", center);
+			}
+			else if (barangay === "Dakila") {
+				center = [14.855, 120.812];
+				console.log("✅ Setting Dakila center:", center);
+			}
+			else if (barangay === "Look 1st") {
+				center = [14.851, 120.818];
+				console.log("✅ Setting Look 1st center:", center);
+			}
+			else if (barangay === "Longos") {
+				center = [14.849, 120.813];
+				console.log("✅ Setting Longos center:", center);
+			}
+			else if (barangay === "Pinagbakahan") {
+				center = [14.8447, 120.8102]; // Pinagbakahan, Malolos, Bulacan
+				zoom = 16;
+				console.log("✅ Setting Pinagbakahan center:", center);
+			}
+			else if (barangay === "Tiaong") {
+				center = [14.9502, 120.9002]; // Tiaong, Baliuag, Bulacan
+				zoom = 16;
+				console.log("✅ Setting Tiaong center:", center);
+			}
+			else {
+				console.log("❌ No matching barangay found for:", barangay);
+			}
 		}
-		else if (barangay === "Mojon") center = [14.858, 120.814];
-		else if (barangay === "Dakila") center = [14.855, 120.812];
-		else if (barangay === "Look 1st") center = [14.851, 120.818];
-		else if (barangay === "Longos") center = [14.849, 120.813];
-		else if (barangay === "Pinagbakahan") {
-			center = [14.8447, 120.8102]; // Pinagbakahan, Malolos, Bulacan
-			zoom = 16;
-		}
-		else if (barangay === "Tiaong") {
-			center = [14.9502, 120.9002]; // Tiaong, Baliuag, Bulacan
-			zoom = 16;
-		}
+		
+		console.log("🗺️ Final map center:", center, "zoom:", zoom);
 		// Add more as needed
 
 		const mapInstance = L.map(mapRef.current).setView(center, zoom);
@@ -264,36 +441,29 @@ export default function MapComponent({
 		// Add hotspots
 		// Hotspots removed
 
-		// Filter incidents by barangay if provided
-		const filteredIncidents = barangay
-			? incidents.filter((i) => {
-					if (barangay === "Bulihan") return i.location[0] >= 14.85 && i.location[0] <= 14.86 && i.location[1] >= 120.81 && i.location[1] <= 120.82;
-					if (barangay === "Mojon") return i.location[0] >= 14.857 && i.location[0] <= 14.86 && i.location[1] >= 120.813 && i.location[1] <= 120.815;
-					if (barangay === "Dakila") return i.location[0] >= 14.854 && i.location[0] <= 14.856 && i.location[1] >= 120.811 && i.location[1] <= 120.813;
-					if (barangay === "Look 1st") return i.location[0] >= 14.85 && i.location[0] <= 14.852 && i.location[1] >= 120.817 && i.location[1] <= 120.819;
-					if (barangay === "Longos") return i.location[0] >= 14.848 && i.location[0] <= 14.85 && i.location[1] >= 120.812 && i.location[1] <= 120.814;
-					if (barangay === "Tiaong") return i.location[0] >= 14.945 && i.location[0] <= 14.955 && i.location[1] >= 120.895 && i.location[1] <= 120.905;
-					return false;
-				})
-			: incidents;
-
-		filteredIncidents.forEach((incident) => {
+		// Use incidents from database (already filtered by barangay in fetchReports)
+		console.log("📍 Rendering incidents on map:", incidents.length);
+		
+		incidents.forEach((incident) => {
 			const marker = L.marker(incident.location, {
 				icon: createCustomIcon(incident.risk),
 			}).addTo(mapInstance)
 
 			const popupContent = `
-				<div class="p-1">
-					<h3 class="font-medium">${incident.title}</h3>
-					<p class="text-xs text-muted-foreground">
+				<div class="p-2">
+					<h3 class="font-medium text-sm">${incident.title}</h3>
+					<p class="text-xs text-gray-600 mb-1">
 						${incident.date} at ${incident.time}
+					</p>
+					<p class="text-xs text-gray-600 mb-1">
+						📍 ${incident.barangay} • Status: ${incident.status}
 					</p>
 					<div class="mt-1 rounded-full px-2 py-0.5 text-center text-xs font-medium bg-${
 						incident.risk === "High" ? "red" : incident.risk === "Medium" ? "yellow" : "green"
 					}-100 text-${incident.risk === "High" ? "red" : incident.risk === "Medium" ? "yellow" : "green"}-800">
 						${incident.risk} Risk
 					</div>
-					<p class="mt-1 text-sm">${incident.description}</p>
+					<p class="mt-1 text-xs">${incident.description}</p>
 				</div>
 			`
 
@@ -351,9 +521,14 @@ export default function MapComponent({
 	// Recenter map when barangay changes
 	useEffect(() => {
 		if (!mapInstanceRef.current) return;
-		let center = [14.8447, 120.8102]; // Updated: Pinagbakahan, Malolos, Bulacan
+		let center = [14.8447, 120.8102]; // Default: Pinagbakahan, Malolos, Bulacan
 		let zoom = barangay ? 16 : 15;
-		if (barangay === "Bulihan") center = [14.8527, 120.816];
+		
+		if (barangay === "Bulihan") {
+			center = [14.8527, 120.8160]; // Updated Bulihan coordinates
+			zoom = 17; // Increased zoom for better focus
+			console.log("🔄 Re-centering to Bulihan:", center, "zoom:", zoom);
+		}
 		else if (barangay === "Mojon") center = [14.858, 120.814];
 		else if (barangay === "Dakila") center = [14.855, 120.812];
 		else if (barangay === "Look 1st") center = [14.851, 120.818];
@@ -366,7 +541,8 @@ export default function MapComponent({
 			center = [14.9502, 120.9002]; // Tiaong, Baliuag, Bulacan
 			zoom = 16;
 		}
-		// Add more as needed
+		
+		console.log("🔄 Final re-center:", center, "zoom:", zoom);
 		mapInstanceRef.current.setView(center, zoom);
 	}, [barangay]);
 
