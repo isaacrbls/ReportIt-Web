@@ -186,6 +186,7 @@ export default function MapComponent({
 	barangay,
 	center: propCenter,
 	zoom: propZoom,
+	hotspots = [], // Add hotspots prop
 }) {
 	const [incidents, setIncidents] = useState([]) // Will be populated from database
 	const mapRef = useRef(null)
@@ -517,6 +518,56 @@ export default function MapComponent({
 			window.removeEventListener("addIncident", handleAddIncident)
 		}
 	}, [])
+
+	// Handle hotspots visualization
+	useEffect(() => {
+		if (!mapInstanceRef.current || !hotspots || hotspots.length === 0) return;
+
+		// Clear existing hotspot circles
+		hotspotsRef.current.forEach(circle => {
+			if (circle) {
+				circle.remove();
+			}
+		});
+		hotspotsRef.current = [];
+
+		// Add new hotspot circles
+		console.log("🔥 Adding", hotspots.length, "hotspots to map");
+		hotspots.forEach((hotspot, index) => {
+			const color = hotspot.riskLevel === 'high' ? '#ef4444' : 
+						  hotspot.riskLevel === 'medium' ? '#eab308' : '#f97316';
+			
+			const circle = L.circle([hotspot.lat, hotspot.lng], {
+				color: color,
+				fillColor: color,
+				fillOpacity: 0.3,
+				radius: hotspot.radius || 100, // Use calculated radius or default
+				weight: 2,
+			}).addTo(mapInstanceRef.current);
+
+			// Add popup to hotspot
+			const popupContent = `
+				<div class="p-2">
+					<h3 class="font-medium text-sm">🔥 Crime Hotspot</h3>
+					<p class="text-xs text-gray-600 mb-1">
+						Risk Level: <span class="font-medium ${
+							hotspot.riskLevel === 'high' ? 'text-red-600' :
+							hotspot.riskLevel === 'medium' ? 'text-yellow-600' : 'text-orange-600'
+						}">${hotspot.riskLevel.toUpperCase()}</span>
+					</p>
+					<p class="text-xs text-gray-600 mb-1">
+						📊 ${hotspot.incidentCount} incidents in this area
+					</p>
+					<p class="text-xs text-gray-500">
+						📍 ${hotspot.lat.toFixed(4)}, ${hotspot.lng.toFixed(4)}
+					</p>
+				</div>
+			`;
+
+			circle.bindPopup(popupContent);
+			hotspotsRef.current.push(circle);
+		});
+	}, [hotspots]);
 
 	// Recenter map when barangay changes
 	useEffect(() => {

@@ -182,6 +182,7 @@ export default function AddReportDialog({ open, onClose }) {
                 onMapClick={handleMapClick}
                 newIncidentLocation={incidentLocation}
                 barangay={barangay}
+                hotspots={[]} // No hotspots needed in add report dialog
               />
             </div>
           </div>
