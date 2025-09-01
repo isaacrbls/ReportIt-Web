@@ -534,8 +534,13 @@ export default function MapComponent({
 		// Add new hotspot circles
 		console.log("🔥 Adding", hotspots.length, "hotspots to map");
 		hotspots.forEach((hotspot, index) => {
-			const color = hotspot.riskLevel === 'high' ? '#ef4444' : 
-						  hotspot.riskLevel === 'medium' ? '#eab308' : '#f97316';
+			// Risk level colors:
+			// Low risk (2 incidents) = Yellow circles 🟡
+			// Medium risk (3-4 incidents) = Orange circles 🟠  
+			// High risk (5+ incidents) = Red circles 🔴
+			const color = hotspot.riskLevel === 'high' ? '#ef4444' :     // Red 🔴
+						  hotspot.riskLevel === 'medium' ? '#f97316' :   // Orange 🟠
+						  '#eab308';                                     // Yellow 🟡
 			
 			const circle = L.circle([hotspot.lat, hotspot.lng], {
 				color: color,

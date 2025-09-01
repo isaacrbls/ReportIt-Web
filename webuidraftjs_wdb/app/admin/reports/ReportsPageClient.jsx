@@ -109,6 +109,10 @@ export default function ReportsPageClient() {
         lat: location.lat,
         lng: location.lng,
         incidentCount: location.count,
+        // Risk level classification:
+        // Low risk (2 incidents) = Yellow circles 🟡
+        // Medium risk (3-4 incidents) = Orange circles 🟠
+        // High risk (5+ incidents) = Red circles 🔴
         riskLevel: location.count >= 5 ? 'high' : location.count >= 3 ? 'medium' : 'low',
         incidents: location.incidents,
         radius: Math.min(location.count * 50, 200) // Dynamic radius based on incident count
