@@ -48,7 +48,7 @@ export function CrimeMap({ barangay, showPins = true, showHotspots = true, showC
   const calculateBarangayHotspots = (reports, targetBarangay) => {
     if (!targetBarangay || !reports.length) return [];
     
-    const barangayReports = reports.filter(r => r.Barangay === targetBarangay);
+    const barangayReports = reports.filter(r => r.Barangay === targetBarangay && r.Status === "Verified");
     
     // Simple density-based hotspot detection
     const gridSize = 0.002; // ~200m grid cells

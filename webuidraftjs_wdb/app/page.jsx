@@ -81,7 +81,6 @@ export default function LoginPage() {
           >
             Login
           </button>
-          <div className="text-xs text-gray-400 pt-2">Test account: test@example.com / testexample</div>
         </form>
       </div>
     </div>

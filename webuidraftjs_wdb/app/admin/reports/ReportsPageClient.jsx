@@ -251,54 +251,6 @@ export default function ReportsPageClient() {
                   }}
                   statusFilter={statusFilter}
                 />
-                
-                {/* Hotspots Section */}
-                {hotspots.length > 0 && (
-                  <div className="mt-8 p-4 bg-red-50 rounded-lg border-l-4 border-red-500">
-                    <h3 className="text-lg font-semibold text-red-700 mb-3">
-                      🔥 Crime Hotspots in {userBarangay}
-                    </h3>
-                    <div className="grid gap-3">
-                      {hotspots.map((hotspot, index) => (
-                        <div 
-                          key={index} 
-                          className={`p-3 rounded-md border ${
-                            hotspot.riskLevel === 'high' ? 'bg-red-100 border-red-300' :
-                            hotspot.riskLevel === 'medium' ? 'bg-yellow-100 border-yellow-300' :
-                            'bg-orange-100 border-orange-300'
-                          }`}
-                        >
-                          <div className="flex justify-between items-center">
-                            <div>
-                              <span className={`px-2 py-1 rounded text-sm font-medium ${
-                                hotspot.riskLevel === 'high' ? 'bg-red-200 text-red-800' :
-                                hotspot.riskLevel === 'medium' ? 'bg-yellow-200 text-yellow-800' :
-                                'bg-orange-200 text-orange-800'
-                              }`}>
-                                {hotspot.riskLevel.toUpperCase()} RISK
-                              </span>
-                              <div className="text-sm text-gray-600 mt-1">
-                                Location: {hotspot.lat.toFixed(4)}, {hotspot.lng.toFixed(4)}
-                              </div>
-                            </div>
-                            <div className="text-right">
-                              <div className="font-bold text-lg">
-                                {hotspot.incidentCount} incidents
-                              </div>
-                              <div className="text-sm text-gray-500">
-                                in this area
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                    <div className="mt-3 text-sm text-gray-600">
-                      💡 <strong>Note:</strong> Hotspots are calculated based on incident density. 
-                      Areas with 2+ incidents within a 200-meter radius are considered hotspots.
-                    </div>
-                  </div>
-                )}
               </>
             ) : (
               <div className="text-center text-gray-500 py-10">No reports to show.</div>

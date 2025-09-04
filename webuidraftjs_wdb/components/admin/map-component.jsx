@@ -187,6 +187,7 @@ export default function MapComponent({
 	center: propCenter,
 	zoom: propZoom,
 	hotspots = [], // Add hotspots prop
+	preloadedIncidents = null, // Add prop for pre-loaded incidents
 }) {
 	const [incidents, setIncidents] = useState([]) // Will be populated from database
 	const mapRef = useRef(null)
@@ -218,8 +219,8 @@ export default function MapComponent({
 						status: data.Status || "Pending"
 					};
 					
-					// Filter by barangay if specified
-					if (!barangay || data.Barangay === barangay) {
+					// Filter by barangay if specified and only show verified reports
+					if ((!barangay || data.Barangay === barangay) && data.Status === "Verified") {
 						reportsData.push(incident);
 					}
 				}
@@ -311,10 +312,27 @@ export default function MapComponent({
 		return () => document.head.removeChild(style)
 	}, [])
 	
-	// Fetch reports when component mounts or barangay changes
+	// Fetch reports when component mounts or barangay changes, unless preloaded incidents are provided
 	useEffect(() => {
-		fetchReports();
-	}, [barangay]);
+		if (preloadedIncidents) {
+			// Convert preloaded incidents to the expected format
+			const formattedIncidents = preloadedIncidents.map(report => ({
+				id: report.id,
+				location: [report.Latitude, report.Longitude],
+				title: report.IncidentType || "Incident",
+				description: report.Description || "No description available",
+				category: report.IncidentType || "Other",
+				risk: determineRiskLevel(report.IncidentType),
+				date: formatDate(report.DateTime),
+				time: formatTime(report.DateTime),
+				barangay: report.Barangay || "Unknown",
+				status: report.Status || "Pending"
+			}));
+			setIncidents(formattedIncidents);
+		} else {
+			fetchReports();
+		}
+	}, [barangay, preloadedIncidents]);
 	
 	// Update markers when incidents change
 	useEffect(() => {
@@ -330,6 +348,7 @@ export default function MapComponent({
 		
 		// Add new markers for incidents
 		console.log("🔄 Updating markers for", incidents.length, "incidents");
+		const newMarkers = [];
 		incidents.forEach((incident) => {
 			const marker = L.marker(incident.location, {
 				icon: createCustomIcon(incident.risk),
@@ -361,8 +380,23 @@ export default function MapComponent({
 			})
 
 			markersRef.current.push({ marker, incident })
+			newMarkers.push(marker);
 		});
-	}, [incidents]);
+		
+		// If we have preloaded incidents (like in report detail dialog), center map on markers
+		if (preloadedIncidents && newMarkers.length > 0) {
+			if (newMarkers.length === 1) {
+				// For single marker, center on it with good zoom level
+				mapInstanceRef.current.setView(newMarkers[0].getLatLng(), 17);
+				console.log("🎯 Centering map on single marker:", newMarkers[0].getLatLng());
+			} else {
+				// For multiple markers, fit bounds to show all
+				const group = new L.featureGroup(newMarkers);
+				mapInstanceRef.current.fitBounds(group.getBounds(), { padding: [20, 20] });
+				console.log("🎯 Fitting map bounds to show all markers");
+			}
+		}
+	}, [incidents, preloadedIncidents]);
 	const markersRef = useRef([])
 	const hotspotsRef = useRef([])
 	const newMarkerRef = useRef(null)

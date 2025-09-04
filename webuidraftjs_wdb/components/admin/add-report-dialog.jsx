@@ -22,6 +22,7 @@ export default function AddReportDialog({ open, onClose }) {
   const [incidentLocation, setIncidentLocation] = useState(null);
   const [addingIncident, setAddingIncident] = useState(false);
   const [error, setError] = useState("");
+  const [uploadFailed, setUploadFailed] = useState(false);
 
   const user = useCurrentUser();
   let barangay = null;
@@ -38,8 +39,10 @@ export default function AddReportDialog({ open, onClose }) {
 
   const handleFileChange = (e) => {
     if (e.target.files && e.target.files[0]) {
-      setMediaFile(e.target.files[0]);
-      setMediaType(e.target.accept.includes("video") ? "video" : "photo");
+      const file = e.target.files[0];
+      setMediaFile(file);
+      // Determine media type based on the actual file type
+      setMediaType(file.type.startsWith("video") ? "video" : "photo");
     }
   };
 
@@ -49,6 +52,7 @@ export default function AddReportDialog({ open, onClose }) {
 
   const handleSubmit = async () => {
     setError("");
+    setUploadFailed(false);
     if (!incidentType.trim()) {
       setError("Please enter the type of incident.");
       return;
@@ -62,21 +66,66 @@ export default function AddReportDialog({ open, onClose }) {
       return;
     }
 
+    await submitReport(false);
+  };
+
+  const handleSubmitWithoutMedia = async () => {
+    await submitReport(true);
+  };
+
+  const submitReport = async (skipMedia = false) => {
+
     try {
       setAddingIncident(true);
+      console.log("🚀 Starting report submission...");
+      console.log("📁 Media file:", mediaFile?.name, "Type:", mediaFile?.type);
 
       // Always write to Firestore first
       let mediaUrl = null;
       let uploadedMediaType = null;
 
-      if (mediaFile) {
+      if (mediaFile && !skipMedia) {
+        console.log("📤 Uploading media file...");
+        console.log("📊 File size:", (mediaFile.size / 1024 / 1024).toFixed(2), "MB");
+        
+        // Check file size limit (10MB)
+        if (mediaFile.size > 10 * 1024 * 1024) {
+          throw new Error("File size too large. Please select a file smaller than 10MB.");
+        }
+        
         const timestamp = Date.now();
         const extension = mediaFile.name?.split(".").pop() || "bin";
         const path = `reports/${timestamp}_${mediaType || "file"}.${extension}`;
+        console.log("📍 Upload path:", path);
+        
         const storageRef = ref(storage, path);
-        await uploadBytes(storageRef, mediaFile, { contentType: mediaFile.type });
-        mediaUrl = await getDownloadURL(storageRef);
-        uploadedMediaType = mediaType || (mediaFile.type?.startsWith("video") ? "video" : "photo");
+        
+        // Add upload with timeout and retry logic
+        try {
+          console.log("🔄 Attempting upload...");
+          await uploadBytes(storageRef, mediaFile, { 
+            contentType: mediaFile.type,
+            customMetadata: {
+              'uploadedBy': user?.email || 'unknown',
+              'timestamp': timestamp.toString()
+            }
+          });
+          
+          mediaUrl = await getDownloadURL(storageRef);
+          uploadedMediaType = mediaType || (mediaFile.type?.startsWith("video") ? "video" : "photo");
+          console.log("✅ Media uploaded successfully:", mediaUrl);
+        } catch (uploadError) {
+          console.error("❌ Upload failed:", uploadError);
+          if (uploadError.code === 'storage/retry-limit-exceeded') {
+            throw new Error("Upload timeout. Please check your internet connection and try again with a smaller file.");
+          } else if (uploadError.code === 'storage/unauthorized') {
+            throw new Error("Upload permission denied. Please contact administrator.");
+          } else if (uploadError.code === 'storage/quota-exceeded') {
+            throw new Error("Storage quota exceeded. Please contact administrator.");
+          } else {
+            throw new Error(`Upload failed: ${uploadError.message}`);
+          }
+        }
       }
 
       const [lat, lng] = incidentLocation;
@@ -88,13 +137,15 @@ export default function AddReportDialog({ open, onClose }) {
         Longitude: lng,
         GeoLocation: new GeoPoint(lat, lng),
         DateTime: serverTimestamp(),
-        Status: "Pending",
+        Status: "Verified",
         hasMedia: !!mediaUrl,
         MediaType: uploadedMediaType,
         MediaURL: mediaUrl,
         SubmittedByEmail: user?.email || null,
       };
+      console.log("💾 Saving to Firestore:", payload);
       await addDoc(collection(db, "reports"), payload);
+      console.log("✅ Report saved successfully!");
 
       // Optionally mirror to Django if configured (best-effort)
       const apiBase = process.env.NEXT_PUBLIC_API_URL;
@@ -121,8 +172,16 @@ export default function AddReportDialog({ open, onClose }) {
       setIncidentLocation(null);
       onClose?.(false);
     } catch (e) {
-      console.error(e);
-      setError("Failed to submit report. Please try again.");
+      console.error("❌ Error submitting report:", e);
+      console.error("❌ Error details:", e.message);
+      
+      // If it's an upload error and we have media, offer to submit without media
+      if (mediaFile && !skipMedia && e.message.includes("Upload")) {
+        setUploadFailed(true);
+        setError(`${e.message} Would you like to submit the report without media?`);
+      } else {
+        setError(`Failed to submit report: ${e.message}`);
+      }
     } finally {
       setAddingIncident(false);
     }
@@ -194,18 +253,30 @@ export default function AddReportDialog({ open, onClose }) {
               className="border border-red-400 text-red-500 px-8 py-2 rounded-md"
               onClick={() => {
                 setError("");
+                setUploadFailed(false);
                 onClose?.();
               }}
             >
               Back
             </button>
-            <button
-              className="bg-red-500 text-white px-8 py-2 rounded-md disabled:opacity-60"
-              onClick={handleSubmit}
-              disabled={addingIncident}
-            >
-              {addingIncident ? "Submitting..." : "Submit"}
-            </button>
+            <div className="flex gap-2">
+              {uploadFailed && (
+                <button
+                  className="bg-orange-500 text-white px-6 py-2 rounded-md disabled:opacity-60"
+                  onClick={handleSubmitWithoutMedia}
+                  disabled={addingIncident}
+                >
+                  {addingIncident ? "Submitting..." : "Submit without media"}
+                </button>
+              )}
+              <button
+                className="bg-red-500 text-white px-8 py-2 rounded-md disabled:opacity-60"
+                onClick={handleSubmit}
+                disabled={addingIncident}
+              >
+                {addingIncident ? "Submitting..." : "Submit"}
+              </button>
+            </div>
           </div>
         </div>
       </DialogContent>

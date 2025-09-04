@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import dynamic from "next/dynamic"
 import { Calendar, CheckCircle, Clock, ImageIcon, MapPin, Tag, XCircle, Edit } from "lucide-react"
 import {
   Dialog,
@@ -16,6 +17,12 @@ import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { EditCategoryDialog } from "@/components/admin/edit-category-dialog"
 import { updateReportStatus, formatReportForDisplay } from "@/lib/reportUtils"
+
+// Dynamically import the map component with no SSR
+const MapWithNoSSR = dynamic(() => import("./map-component"), {
+  ssr: false,
+  loading: () => <div className="flex h-[250px] w-full items-center justify-center bg-gray-100 rounded-lg">Loading map...</div>,
+});
 
 export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onReject }) {
   const [rejectionReason, setRejectionReason] = useState("")
@@ -68,10 +75,7 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
           <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-8">
             {/* Left: Details */}
             <div className="flex-1 min-w-[320px]">
-              <h2 className="text-[#F14B51] text-2xl font-bold mb-1">Report Details</h2>
-              <div className="text-gray-500 text-sm mb-4">
-                ID - {report.id} • Submitted on {formattedReport?.date} at {formattedReport?.time}
-              </div>
+              <h2 className="text-[#F14B51] text-2xl font-bold mb-4">Report Details</h2>
               <div className="text-2xl font-bold text-[#F14B51] mb-2">{formattedReport?.title}</div>
               <div className="flex items-center gap-2 mb-2">
                 <Tag className="w-5 h-5 text-[#F14B51]" />
@@ -111,28 +115,45 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
               </div>
               <div className="text-xs text-gray-400">Click on the image to view full size</div>
               
-              <div className="flex gap-4 mt-8">
-                <button 
-                  className="border border-[#F14B51] text-[#F14B51] px-8 py-2 rounded-md flex items-center gap-2 btn-reject disabled:opacity-50" 
-                  onClick={handleReject}
-                  disabled={isRejecting}
-                >
-                  <XCircle className="w-5 h-5" /> {isRejecting ? "Rejecting..." : "Reject"}
-                </button>
-                <button 
-                  className="bg-green-500 text-white px-8 py-2 rounded-md flex items-center gap-2 btn-verify disabled:opacity-50" 
-                  onClick={handleVerify}
-                  disabled={isVerifying}
-                >
-                  <CheckCircle className="w-5 h-5" /> {isVerifying ? "Verifying..." : "Verify"}
-                </button>
-              </div>
+              {/* Only show verify/reject buttons if report is not already verified */}
+              {report?.Status !== "Verified" && (
+                <div className="flex gap-4 mt-8">
+                  <button 
+                    className="border border-[#F14B51] text-[#F14B51] px-8 py-2 rounded-md flex items-center gap-2 btn-reject disabled:opacity-50" 
+                    onClick={handleReject}
+                    disabled={isRejecting}
+                  >
+                    <XCircle className="w-5 h-5" /> {isRejecting ? "Rejecting..." : "Reject"}
+                  </button>
+                  <button 
+                    className="bg-green-500 text-white px-8 py-2 rounded-md flex items-center gap-2 btn-verify disabled:opacity-50" 
+                    onClick={handleVerify}
+                    disabled={isVerifying}
+                  >
+                    <CheckCircle className="w-5 h-5" /> {isVerifying ? "Verifying..." : "Verify"}
+                  </button>
+                </div>
+              )}
             </div>
             {/* Right: Map */}
             <div className="flex-1 min-w-[320px] flex flex-col items-center">
               <div className="font-bold text-[#F14B51] text-xl mb-2">Incident Location</div>
               <div className="w-[350px] h-[250px] bg-[#F8E3DE] rounded-lg flex items-center justify-center overflow-hidden mb-2">
-                <img src="/placeholder-map.png" alt="Map" className="object-cover w-full h-full" />
+                {report?.Latitude && report?.Longitude ? (
+                  <MapWithNoSSR
+                    center={[report.Latitude, report.Longitude]}
+                    zoom={16}
+                    showPins={true}
+                    showHotspots={false}
+                    showControls={false}
+                    preloadedIncidents={[report]}
+                  />
+                ) : (
+                  <div className="text-gray-500 text-center">
+                    <MapPin className="w-12 h-12 mx-auto mb-2 text-gray-400" />
+                    <p>No location data available</p>
+                  </div>
+                )}
               </div>
               <div className="w-full text-right text-gray-500 text-sm mt-2">
                 Submitted by: <span className="font-semibold text-black">{formattedReport?.submittedBy}</span>
