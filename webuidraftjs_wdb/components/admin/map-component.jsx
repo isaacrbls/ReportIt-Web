@@ -411,16 +411,16 @@ export default function MapComponent({
 		console.log("Prop center:", propCenter, "Prop zoom:", propZoom);
 
 		// Use prop center/zoom if provided, otherwise determine based on barangay
-		let center = propCenter || [14.8447, 120.8102]; // Default: Pinagbakahan, Malolos, Bulacan
+		let center = propCenter || [14.8612, 120.8067]; // Default: Use exact Bulihan coordinates for smooth experience
 		let zoom = propZoom || (barangay ? 16 : 15);
 		
-		// Only override with barangay-based coordinates if no prop center is provided
+		// Override with barangay-specific coordinates if no prop center is provided
 		if (!propCenter && barangay) {
 			console.log("Checking barangay:", barangay);
 			if (barangay === "Bulihan") {
-				// Center on Bulihan, Malolos, Bulacan - Updated coordinates for better focus
-				center = [14.8527, 120.8160]; // More accurate Bulihan coordinates
-				zoom = 17; // Increased zoom for better focus
+				// Center on Bulihan, Malolos, Bulacan - Use exact coordinates
+				center = [14.8612, 120.8067]; // Exact Bulihan coordinates for smooth experience
+				zoom = 16; // Consistent zoom level
 				console.log("✅ Setting Bulihan center:", center, "zoom:", zoom);
 			}
 			else if (barangay === "Mojon") {
@@ -457,7 +457,22 @@ export default function MapComponent({
 		console.log("🗺️ Final map center:", center, "zoom:", zoom);
 		// Add more as needed
 
-		const mapInstance = L.map(mapRef.current).setView(center, zoom);
+		const mapInstance = L.map(mapRef.current, {
+			minZoom: 16, // Minimum zoom level (can't zoom out beyond this)
+			maxZoom: 19, // Maximum zoom level (can zoom in up to this)
+			dragging: true, // Enable map dragging/panning for better UX
+			scrollWheelZoom: true, // Keep zoom with mouse wheel
+			doubleClickZoom: true, // Keep double-click zoom
+			boxZoom: false, // Disable box zoom
+			keyboard: true, // Enable keyboard navigation for accessibility
+			zoomControl: true, // Keep zoom buttons
+			// Set bounds to restrict panning area around Bulihan (larger area for zoomed-in panning)
+			maxBounds: [
+				[14.8550, 120.8000], // Southwest corner (expanded)
+				[14.8680, 120.8140]  // Northeast corner (expanded)
+			],
+			maxBoundsViscosity: 0.8 // Allow some flexibility when panning near edges
+		}).setView(center, zoom);
 		mapInstanceRef.current = mapInstance
 
 		// Add tile layer
@@ -553,6 +568,16 @@ export default function MapComponent({
 		}
 	}, [])
 
+	// Handle center prop changes
+	useEffect(() => {
+		if (!mapInstanceRef.current) return;
+		
+		if (propCenter && propZoom) {
+			console.log("🎯 Re-centering map due to prop change:", propCenter, "zoom:", propZoom);
+			mapInstanceRef.current.setView(propCenter, propZoom);
+		}
+	}, [propCenter, propZoom])
+
 	// Handle hotspots visualization
 	useEffect(() => {
 		if (!mapInstanceRef.current || !hotspots || hotspots.length === 0) return;
@@ -611,12 +636,12 @@ export default function MapComponent({
 	// Recenter map when barangay changes
 	useEffect(() => {
 		if (!mapInstanceRef.current) return;
-		let center = [14.8447, 120.8102]; // Default: Pinagbakahan, Malolos, Bulacan
+		let center = [14.8612, 120.8067]; // Default: Use exact Bulihan coordinates
 		let zoom = barangay ? 16 : 15;
 		
 		if (barangay === "Bulihan") {
-			center = [14.8527, 120.8160]; // Updated Bulihan coordinates
-			zoom = 17; // Increased zoom for better focus
+			center = [14.8612, 120.8067]; // Use exact Bulihan coordinates
+			zoom = 16; // Consistent zoom level
 			console.log("🔄 Re-centering to Bulihan:", center, "zoom:", zoom);
 		}
 		else if (barangay === "Mojon") center = [14.858, 120.814];

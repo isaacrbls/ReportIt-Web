@@ -24,6 +24,7 @@ export default function AdminDashboard() {
   const [showLogoutModal, setShowLogoutModal] = React.useState(false);
   const [totalReports, setTotalReports] = React.useState(0);
   const [pendingReports, setPendingReports] = React.useState(0);
+  const [highRiskCount, setHighRiskCount] = React.useState(0);
   const [selectedReport, setSelectedReport] = React.useState(null);
   const [isDialogOpen, setIsDialogOpen] = React.useState(false);
   const router = useRouter();
@@ -78,6 +79,8 @@ export default function AdminDashboard() {
     const querySnapshot = await getDocs(collection(db, "reports"));
     let total = 0;
     let pending = 0;
+    const locationData = {};
+
     querySnapshot.forEach(doc => {
       const data = doc.data();
       if (!userBarangay || data.Barangay === userBarangay) {
@@ -86,9 +89,66 @@ export default function AdminDashboard() {
           pending++;
         }
       }
+
+      // Calculate high-risk areas (for all data, not filtered by user barangay)
+      let barangay = data.Barangay || data.barangay || data.Location || data.location;
+      if (barangay && typeof barangay === 'string') {
+        barangay = barangay.trim();
+        if (barangay.toLowerCase().includes('bulihan')) barangay = 'Bulihan';
+        else if (barangay.toLowerCase().includes('mojon')) barangay = 'Mojon';
+        else if (barangay.toLowerCase().includes('dakila')) barangay = 'Dakila';
+        else if (barangay.toLowerCase().includes('pinagbakahan')) barangay = 'Pinagbakahan';
+        else if (barangay.toLowerCase().includes('look')) barangay = 'Look 1st';
+        else if (barangay.toLowerCase().includes('longos')) barangay = 'Longos';
+        else if (barangay.toLowerCase().includes('tiaong')) barangay = 'Tiaong';
+        else return;
+      } else return;
+
+      if (!locationData[barangay]) {
+        locationData[barangay] = {
+          name: barangay,
+          totalIncidents: 0,
+          highSeverityIncidents: 0,
+          incidentTypes: {}
+        };
+      }
+
+      locationData[barangay].totalIncidents++;
+
+      const incidentType = (data.IncidentType || "").toLowerCase();
+      if (incidentType.includes("robbery") || incidentType.includes("assault") || 
+          incidentType.includes("violence") || incidentType.includes("murder") ||
+          incidentType.includes("kidnap") || incidentType.includes("rape")) {
+        locationData[barangay].highSeverityIncidents++;
+      }
+
+      const type = data.IncidentType || "Other";
+      locationData[barangay].incidentTypes[type] = (locationData[barangay].incidentTypes[type] || 0) + 1;
     });
+
+    // Calculate high-risk areas count using WCRA
+    const highRiskAreas = Object.values(locationData)
+      .map(area => {
+        const frequencyScore = Math.min(Math.log2(area.totalIncidents + 1) * 8, 35);
+        const severityScore = area.highSeverityIncidents * 25;
+        const diversityScore = Math.min(Object.keys(area.incidentTypes).length * 4, 20);
+        
+        area.riskScore = Math.round((frequencyScore + severityScore + diversityScore));
+        area.riskScore = Math.min(area.riskScore, 100);
+        
+        return area.riskScore >= 70 ? area : null; // Only HIGH risk (70+)
+      })
+      .filter(area => area !== null);
+
+    console.log("📊 Dashboard High Risk Calculation:", {
+      totalAreas: Object.keys(locationData).length,
+      highRiskCount: highRiskAreas.length,
+      areas: highRiskAreas.map(a => `${a.name}: ${a.riskScore}`)
+    });
+
     setTotalReports(total);
     setPendingReports(pending);
+    setHighRiskCount(highRiskAreas.length);
   };
 
   // Remove duplicate mapping logic, use userBarangay from above
@@ -123,7 +183,7 @@ export default function AdminDashboard() {
             aria-label="Show High Risk Areas"
           >
             <div className="text-sm font-medium mb-2">High Risk Areas</div>
-            <div className="text-3xl font-bold">4</div>
+            <div className="text-3xl font-bold">{highRiskCount}</div>
           </div>
           {/* ML Prediction Accuracy */}
           <div className="rounded-lg bg-red-500 text-white shadow-md p-6 flex flex-col items-start">
@@ -136,12 +196,24 @@ export default function AdminDashboard() {
         <div className="mb-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
           <div className="text-2xl font-bold text-red-600 mb-1">Incident Distribution</div>
           <div className="text-xs text-gray-500 mb-4">Bubble size represents incident frequency, color indicates risk levels</div>
-          <CrimeMap barangay={userBarangay} />
+          {/* Debug info */}
+          {userEmail === "testbulihan@example.com" && (
+            <div className="text-xs text-blue-600 mb-2">
+              🎯 Bulihan Map: Center [14.8612, 120.8067] Zoom 16
+            </div>
+          )}
+          {console.log("🗺️ Passing to CrimeMap - userEmail:", userEmail, "userBarangay:", userBarangay)}
+          <CrimeMap 
+            barangay={userBarangay}
+            center={userEmail === "testbulihan@example.com" ? [14.8612, 120.8067] : undefined}
+            zoom={userEmail === "testbulihan@example.com" ? 16 : undefined}
+          />
         </div>
         {/* High Risk Areas Dialog (ensure it overlays the map) */}
         <HighRiskAreasDialog 
           open={showHighRiskDialog} 
           onOpenChange={setShowHighRiskDialog} 
+          userBarangay={userBarangay}
           dialogClassName="relative z-[9999] overflow-hidden"
         />
 
