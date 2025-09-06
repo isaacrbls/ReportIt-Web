@@ -1,17 +1,71 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { CheckCircle, XCircle } from "lucide-react";
+import { CheckCircle, XCircle, ChevronLeft, ChevronRight } from "lucide-react";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { collection, getDocs, doc, updateDoc, query as fsQuery, where } from "firebase/firestore";
 import { db } from "@/firebase";
 import "@/styles/recent-reports-custom.css";
 
-export function RecentReports({ singleReport, onVerify, onReject, onViewDetails, statusFilter, barangay }) {
-	const [reports, setReports] = useState(singleReport ? [singleReport] : []);
+export function RecentReports({ 
+	singleReport, 
+	onVerify, 
+	onReject, 
+	onViewDetails, 
+	statusFilter, 
+	barangay, 
+	enablePagination = false, // New prop to enable pagination
+	reportsPerPage = 3 // Default to 3 reports for dashboard
+}) {
+	const [allReports, setAllReports] = useState(singleReport ? [singleReport] : []);
 	const [actionStatus, setActionStatus] = useState({}); // { [id]: 'verified' | 'rejected' }
+	const [currentPage, setCurrentPage] = useState(1);
+
+	// Calculate pagination data
+	const paginationData = useMemo(() => {
+		if (!enablePagination) {
+			return {
+				currentReports: allReports,
+				totalReports: allReports.length,
+				totalPages: 1,
+				startIndex: 1,
+				endIndex: allReports.length
+			};
+		}
+
+		const totalReports = allReports.length;
+		const totalPages = Math.ceil(totalReports / reportsPerPage);
+		const startIndex = (currentPage - 1) * reportsPerPage;
+		const endIndex = Math.min(startIndex + reportsPerPage, totalReports);
+		const currentReports = allReports.slice(startIndex, endIndex);
+
+		return {
+			currentReports,
+			totalReports,
+			totalPages,
+			startIndex: startIndex + 1,
+			endIndex
+		};
+	}, [allReports, currentPage, reportsPerPage, enablePagination]);
+
+	// Reset to first page when reports change
+	useEffect(() => {
+		setCurrentPage(1);
+	}, [allReports]);
+
+	const handlePreviousPage = () => {
+		setCurrentPage(prev => Math.max(prev - 1, 1));
+	};
+
+	const handleNextPage = () => {
+		setCurrentPage(prev => Math.min(prev + 1, paginationData.totalPages));
+	};
+
+	const handlePageClick = (pageNumber) => {
+		setCurrentPage(pageNumber);
+	};
 
     useEffect(() => {
 		if (!singleReport) {
@@ -34,11 +88,17 @@ export function RecentReports({ singleReport, onVerify, onReject, onViewDetails,
 					id: doc.id,
 					...doc.data(),
 				}));
-				setReports(reportsData);
+				// Sort by date (newest first)
+				const sortedReports = reportsData.sort((a, b) => {
+					const dateA = a.DateTime?.seconds ? new Date(a.DateTime.seconds * 1000) : new Date(a.DateTime || 0);
+					const dateB = b.DateTime?.seconds ? new Date(b.DateTime.seconds * 1000) : new Date(b.DateTime || 0);
+					return dateB - dateA;
+				});
+				setAllReports(sortedReports);
 			};
 			fetchReports();
 		} else {
-			setReports([singleReport]);
+			setAllReports([singleReport]);
 		}
 	}, [singleReport, statusFilter, barangay]);
 
@@ -65,7 +125,7 @@ export function RecentReports({ singleReport, onVerify, onReject, onViewDetails,
 	const handleVerify = async (id) => {
 		try {
 			await updateDoc(doc(db, "reports", id), { Status: "Verified" });
-			setReports((prev) => prev.map((r) => r.id === id ? { ...r, Status: "Verified" } : r));
+			setAllReports((prev) => prev.map((r) => r.id === id ? { ...r, Status: "Verified" } : r));
 			setActionStatus((prev) => ({ ...prev, [id]: "verified" }));
 		} catch (e) {
 			console.error(e);
@@ -75,7 +135,7 @@ export function RecentReports({ singleReport, onVerify, onReject, onViewDetails,
 	const handleReject = async (id) => {
 		try {
 			await updateDoc(doc(db, "reports", id), { Status: "Rejected" });
-			setReports((prev) => prev.map((r) => r.id === id ? { ...r, Status: "Rejected" } : r));
+			setAllReports((prev) => prev.map((r) => r.id === id ? { ...r, Status: "Rejected" } : r));
 			setActionStatus((prev) => ({ ...prev, [id]: "rejected" }));
 		} catch (e) {
 			console.error(e);
@@ -84,7 +144,21 @@ export function RecentReports({ singleReport, onVerify, onReject, onViewDetails,
 
 	return (
 		<div className="space-y-4">
-			{reports.length === 0 ? (
+			{/* Pagination Info for Dashboard */}
+			{enablePagination && paginationData.totalReports > reportsPerPage && (
+				<div className="flex justify-between items-center text-sm text-gray-600 px-1 mb-2">
+					<span>
+						Showing {paginationData.startIndex}-{paginationData.endIndex} of {paginationData.totalReports} reports
+					</span>
+					{paginationData.totalPages > 1 && (
+						<span className="text-xs bg-gray-100 px-2 py-1 rounded-full">
+							Page {currentPage} of {paginationData.totalPages}
+						</span>
+					)}
+				</div>
+			)}
+
+			{paginationData.currentReports.length === 0 ? (
 				<Card className="flex flex-col space-y-2 border p-3">
 					<CardHeader>
 						<CardTitle className="text-base text-gray-400 font-normal">
@@ -93,7 +167,7 @@ export function RecentReports({ singleReport, onVerify, onReject, onViewDetails,
 					</CardHeader>
 				</Card>
 			) : (
-				reports.map((report) => (
+				paginationData.currentReports.map((report) => (
 					<Card key={report.id} className="flex flex-col border p-5 rounded-2xl shadow-sm transition-all">
 						<CardHeader className="flex flex-row items-start justify-between p-0 pb-2">
 							<div className="flex-1 flex flex-row items-center gap-3">
@@ -155,6 +229,82 @@ export function RecentReports({ singleReport, onVerify, onReject, onViewDetails,
 						</div>
 					</Card>
 				))
+			)}
+
+			{/* Pagination Controls */}
+			{enablePagination && paginationData.totalPages > 1 && (
+				<div className="flex justify-center items-center mt-8 pt-6 border-t border-gray-200">
+					<div className="flex items-center gap-2">
+						{/* Previous Button */}
+						<Button
+							variant="outline"
+							size="sm"
+							onClick={handlePreviousPage}
+							disabled={currentPage === 1}
+							className="flex items-center gap-1 px-3"
+						>
+							<ChevronLeft className="h-4 w-4" />
+							<span className="hidden sm:inline">Previous</span>
+						</Button>
+
+						{/* Page Numbers */}
+						<div className="flex items-center gap-1">
+							{Array.from({ length: paginationData.totalPages }, (_, i) => i + 1).map((pageNumber) => {
+								// Show first page, last page, current page, and adjacent pages
+								const showPage = 
+									pageNumber === 1 || 
+									pageNumber === paginationData.totalPages || 
+									Math.abs(pageNumber - currentPage) <= 1;
+
+								if (!showPage) {
+									// Show ellipsis for gaps
+									if (pageNumber === 2 && currentPage > 4) {
+										return <span key={pageNumber} className="text-gray-400">...</span>;
+									}
+									if (pageNumber === paginationData.totalPages - 1 && currentPage < paginationData.totalPages - 3) {
+										return <span key={pageNumber} className="text-gray-400">...</span>;
+									}
+									return null;
+								}
+
+								return (
+									<Button
+										key={pageNumber}
+										variant={currentPage === pageNumber ? "default" : "outline"}
+										size="sm"
+										onClick={() => handlePageClick(pageNumber)}
+										className={`w-9 h-9 p-0 ${
+											currentPage === pageNumber 
+												? "bg-red-500 text-white hover:bg-red-600 border-red-500" 
+												: "hover:bg-gray-50"
+										}`}
+									>
+										{pageNumber}
+									</Button>
+								);
+							})}
+						</div>
+
+						{/* Next Button */}
+						<Button
+							variant="outline"
+							size="sm"
+							onClick={handleNextPage}
+							disabled={currentPage === paginationData.totalPages}
+							className="flex items-center gap-1 px-3 border-red-400 text-red-500 hover:bg-red-50"
+						>
+							<span className="hidden sm:inline">Next</span>
+							<ChevronRight className="h-4 w-4" />
+						</Button>
+					</div>
+				</div>
+			)}
+
+			{/* Mobile-friendly pagination info */}
+			{enablePagination && paginationData.totalPages > 1 && (
+				<div className="text-center text-xs text-gray-500 mt-2">
+					Scroll up to see more reports on previous pages
+				</div>
 			)}
 		</div>
 	);

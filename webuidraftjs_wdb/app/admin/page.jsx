@@ -279,6 +279,8 @@ export default function AdminDashboard() {
               setSelectedReport(report);
               setIsDialogOpen(true);
             }}
+            enablePagination={true}
+            reportsPerPage={4}
           />
         </div>
       </main>

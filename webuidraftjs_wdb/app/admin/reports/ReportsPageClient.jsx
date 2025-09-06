@@ -250,6 +250,7 @@ export default function ReportsPageClient() {
                     setIsDialogOpen(true);
                   }}
                   statusFilter={statusFilter}
+                  reportsPerPage={6} // Show 6 reports per page
                 />
               </>
             ) : (

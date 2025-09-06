@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { LayoutDashboard, BarChart2, FileText, LogOut, ShieldAlert } from "lucide-react";
+import { LayoutDashboard, BarChart2, FileText, LogOut, ShieldAlert, ChevronLeft, ChevronRight } from "lucide-react";
 import { CrimeDistributionChart } from "@/components/admin/crime-distribution-chart";
+import { Button } from "@/components/ui/button";
 import React from "react";
 import Image from "next/image";
 import LogoutConfirmationModal from "@/components/admin/LogoutConfirmationModal";
@@ -16,6 +17,8 @@ export default function AnalyticsPage() {
   const [showLogoutModal, setShowLogoutModal] = React.useState(false);
   const [hotspots, setHotspots] = React.useState([]);
   const [reports, setReports] = React.useState([]);
+  const [currentPage, setCurrentPage] = React.useState(1);
+  const hotspotsPerPage = 5; // Show 5 hotspots per page
   const router = useRouter();
   const user = useCurrentUser(); // Fix: remove destructuring
 
@@ -137,6 +140,30 @@ export default function AnalyticsPage() {
     router.push("/"); 
   };
 
+  // Pagination calculations
+  const totalHotspots = hotspots.length;
+  const totalPages = Math.ceil(totalHotspots / hotspotsPerPage);
+  const startIndex = (currentPage - 1) * hotspotsPerPage;
+  const endIndex = Math.min(startIndex + hotspotsPerPage, totalHotspots);
+  const currentHotspots = hotspots.slice(startIndex, endIndex);
+
+  // Reset to first page when hotspots change
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [hotspots]);
+
+  const handlePreviousPage = () => {
+    setCurrentPage(prev => Math.max(prev - 1, 1));
+  };
+
+  const handleNextPage = () => {
+    setCurrentPage(prev => Math.min(prev + 1, totalPages));
+  };
+
+  const handlePageClick = (pageNumber) => {
+    setCurrentPage(pageNumber);
+  };
+
   return (
     
       <div className="flex min-h-screen bg-white">
@@ -160,36 +187,131 @@ export default function AnalyticsPage() {
             <h2 className="text-2xl font-bold text-red-500 mb-1">Emerging Hotspots</h2>
             <p className="text-gray-400 mb-4">Based on the recent and spatial analysis.</p>
             
-            {hotspots.length > 0 ? (
-              <div className="space-y-4">
-                {hotspots.slice(0, 5).map((hotspot, index) => (
-                  <div key={hotspot.id} className="bg-white rounded-xl border p-4 flex flex-col gap-2">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="font-bold text-red-600 text-lg">
-                        {hotspot.area} - {hotspot.incidentCount} incidents
-                      </span>
-                      <span className={`px-4 py-1 rounded-full font-semibold text-sm border ${
-                        hotspot.riskLevel === 'High' 
-                          ? 'bg-red-100 text-red-600 border-red-200'
-                          : hotspot.riskLevel === 'Medium'
-                          ? 'bg-orange-100 text-orange-600 border-orange-200'
-                          : 'bg-yellow-100 text-yellow-600 border-yellow-200'
-                      }`}>
-                        {hotspot.riskLevel} Risk
-                      </span>
+            {/* Pagination Info */}
+            {totalHotspots > hotspotsPerPage && (
+              <div className="flex justify-between items-center text-sm text-gray-600 px-1 mb-4">
+                <span>
+                  Showing {startIndex + 1}-{endIndex} of {totalHotspots} hotspots
+                </span>
+                {totalPages > 1 && (
+                  <span className="text-xs bg-gray-100 px-2 py-1 rounded-full">
+                    Page {currentPage} of {totalPages}
+                  </span>
+                )}
+              </div>
+            )}
+            
+            {currentHotspots.length > 0 ? (
+              <>
+                <div className="space-y-4">
+                  {currentHotspots.map((hotspot, index) => (
+                    <div key={hotspot.id} className="bg-white rounded-xl border p-4 flex flex-col gap-2">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="font-bold text-red-600 text-lg">
+                          {hotspot.area} - {hotspot.incidentCount} incidents
+                        </span>
+                        <span className={`px-4 py-1 rounded-full font-semibold text-sm border ${
+                          hotspot.riskLevel === 'High' 
+                            ? 'bg-red-100 text-red-600 border-red-200'
+                            : hotspot.riskLevel === 'Medium'
+                            ? 'bg-orange-100 text-orange-600 border-orange-200'
+                            : 'bg-yellow-100 text-yellow-600 border-yellow-200'
+                        }`}>
+                          {hotspot.riskLevel} Risk
+                        </span>
+                      </div>
+                      <div className="text-gray-700 text-base">
+                        Type of incident: <span className="font-semibold">{hotspot.incidentType}</span>
+                      </div>
+                      <div className="text-gray-600 text-sm">
+                        Location: {hotspot.latitude.toFixed(6)}, {hotspot.longitude.toFixed(6)}
+                      </div>
                     </div>
-                    <div className="text-gray-700 text-base">
-                      Type of incident: <span className="font-semibold">{hotspot.incidentType}</span>
-                    </div>
-                    <div className="text-gray-600 text-sm">
-                      Location: {hotspot.latitude.toFixed(6)}, {hotspot.longitude.toFixed(6)}
+                  ))}
+                </div>
+
+                {/* Pagination Controls */}
+                {totalPages > 1 && (
+                  <div className="flex justify-center items-center mt-8 pt-6 border-t border-gray-200">
+                    <div className="flex items-center gap-2">
+                      {/* Previous Button */}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handlePreviousPage}
+                        disabled={currentPage === 1}
+                        className="flex items-center gap-1 px-3"
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                        <span className="hidden sm:inline">Previous</span>
+                      </Button>
+
+                      {/* Page Numbers */}
+                      <div className="flex items-center gap-1">
+                        {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNumber) => {
+                          // Show first page, last page, current page, and adjacent pages
+                          const showPage = 
+                            pageNumber === 1 || 
+                            pageNumber === totalPages || 
+                            Math.abs(pageNumber - currentPage) <= 1;
+
+                          if (!showPage) {
+                            // Show ellipsis for gaps
+                            if (pageNumber === 2 && currentPage > 4) {
+                              return <span key={pageNumber} className="text-gray-400">...</span>;
+                            }
+                            if (pageNumber === totalPages - 1 && currentPage < totalPages - 3) {
+                              return <span key={pageNumber} className="text-gray-400">...</span>;
+                            }
+                            return null;
+                          }
+
+                          return (
+                            <Button
+                              key={pageNumber}
+                              variant={currentPage === pageNumber ? "default" : "outline"}
+                              size="sm"
+                              onClick={() => handlePageClick(pageNumber)}
+                              className={`w-9 h-9 p-0 ${
+                                currentPage === pageNumber 
+                                  ? "bg-red-500 text-white hover:bg-red-600 border-red-500" 
+                                  : "hover:bg-gray-50"
+                              }`}
+                            >
+                              {pageNumber}
+                            </Button>
+                          );
+                        })}
+                      </div>
+
+                      {/* Next Button */}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleNextPage}
+                        disabled={currentPage === totalPages}
+                        className="flex items-center gap-1 px-3 border-red-400 text-red-500 hover:bg-red-50"
+                      >
+                        <span className="hidden sm:inline">Next</span>
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
                     </div>
                   </div>
-                ))}
-              </div>
+                )}
+
+                {/* Mobile-friendly pagination info */}
+                {totalPages > 1 && (
+                  <div className="text-center text-xs text-gray-500 mt-2">
+                    Scroll up to see more hotspots on previous pages
+                  </div>
+                )}
+              </>
             ) : (
               <div className="bg-gray-50 rounded-xl border p-4 text-center text-gray-500">
-                No hotspots detected yet. Hotspots are identified when 2 or more incidents occur in the same area.
+                {totalHotspots === 0 
+                  ? "No hotspots detected yet. Hotspots are identified when 2 or more incidents occur in the same area."
+                  : "No hotspots found for the current page."
+                }
               </div>
             )}
           </div>
