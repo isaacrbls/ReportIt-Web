@@ -8,16 +8,18 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { CrimeMap } from "@/components/admin/crime-map"
+import React from "react"
 
 export default function Page() {
   const user = useCurrentUser()
-  const pinagbakahanCenter = [14.847, 120.815]
-  const bulihanCenter = [14.8527, 120.8160] // Bulihan, Malolos, Bulacan
-  const dakilaCenter = [14.8527, 120.8160] // Placeholder for Dakila center
-  const mojonCenter = [14.8527, 120.8160] // Placeholder for Mojon center 
-  const tiaongCenter = [14.8527, 120.8160] // Placeholder for Tiaong center
-  const lookCenter = [14.8527, 120.8160] // Placeholder for Look 1st center
-  const longosCenter = [14.8527, 120.8160] // Placeholder for Longos center
+  const [isUserLoading, setIsUserLoading] = React.useState(true)
+  const pinagbakahanCenter = [14.8715, 120.8207] // Updated coordinates
+  const bulihanCenter = [14.8612, 120.8067] // Updated to match main admin page
+  const dakilaCenter = [14.8555, 120.8186] // Updated to match main admin page
+  const lookCenter = [14.8657, 120.8154] // Updated to match main admin page
+  const mojonCenter = [14.8617, 120.8118] // Updated Mojon coordinates 
+  const tiaongCenter = [14.9502, 120.9002] // Updated for Tiaong center
+  const longosCenter = [14.849, 120.813] // Updated for Longos center
   const userEmail = user?.email || ""
   
   // Determine map center based on user email
@@ -40,6 +42,18 @@ export default function Page() {
   
   const defaultBarangay = ""
   const defaultZoom = 15
+
+  // Track user loading state
+  React.useEffect(() => {
+    if (user !== undefined) {
+      setIsUserLoading(false);
+    }
+  }, [user]);
+
+  console.log("🗺️ Map page - Current user:", user);
+  console.log("📧 Map page - User email:", userEmail);
+  console.log("🎯 Map page - Map center:", mapCenter);
+  console.log("🔄 Map page - Is user loading:", isUserLoading);
 
   return (
     <div className="flex min-h-screen flex-col bg-white">
@@ -181,7 +195,16 @@ export default function Page() {
                     Layers
                   </Button>
                 </div>
-                <CrimeMap center={mapCenter} barangay={defaultBarangay} zoom={defaultZoom} />
+                {isUserLoading ? (
+                  <div className="flex h-[500px] w-full items-center justify-center bg-gray-100 rounded-lg">
+                    <div className="text-center">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600 mx-auto mb-2"></div>
+                      <p className="text-gray-600">Loading map...</p>
+                    </div>
+                  </div>
+                ) : (
+                  <CrimeMap center={mapCenter} barangay={defaultBarangay} zoom={defaultZoom} />
+                )}
                 <div className="mt-4 text-sm text-muted-foreground">
                   <p>
                     <strong>Instructions:</strong> Click the "Pin Incident" button to add a new incident. Click on
@@ -198,7 +221,16 @@ export default function Page() {
                 <CardDescription>Individual crime incidents plotted on the map</CardDescription>
               </CardHeader>
               <CardContent>
-                <CrimeMap center={mapCenter} barangay={defaultBarangay} zoom={defaultZoom} />
+                {isUserLoading ? (
+                  <div className="flex h-[500px] w-full items-center justify-center bg-gray-100 rounded-lg">
+                    <div className="text-center">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600 mx-auto mb-2"></div>
+                      <p className="text-gray-600">Loading map...</p>
+                    </div>
+                  </div>
+                ) : (
+                  <CrimeMap center={mapCenter} barangay={defaultBarangay} zoom={defaultZoom} />
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -211,7 +243,16 @@ export default function Page() {
               <CardContent>
                 <div className="grid gap-6 md:grid-cols-2">
                   <div>
-                    <CrimeMap center={mapCenter} barangay={defaultBarangay} zoom={defaultZoom} />
+                    {isUserLoading ? (
+                      <div className="flex h-[500px] w-full items-center justify-center bg-gray-100 rounded-lg">
+                        <div className="text-center">
+                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600 mx-auto mb-2"></div>
+                          <p className="text-gray-600">Loading map...</p>
+                        </div>
+                      </div>
+                    ) : (
+                      <CrimeMap center={mapCenter} barangay={defaultBarangay} zoom={defaultZoom} />
+                    )}
                   </div>
                   <div className="space-y-4">
                     <div className="rounded-lg border p-4">

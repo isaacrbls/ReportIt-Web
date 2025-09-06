@@ -9,7 +9,7 @@ import { db } from "@/firebase"
 const crimeIncidents = [
 	{
 		id: 1,
-		location: [14.8527, 120.816], // Bulihan coordinates
+		location: [14.8612, 120.8067], // Updated Bulihan coordinates
 		title: "Smartphone theft",
 		description: "Victim reported smartphone snatched while shopping at the public market",
 		category: "Theft",
@@ -19,7 +19,7 @@ const crimeIncidents = [
 	},
 	{
 		id: 2,
-		location: [14.858, 120.814], // Mojon coordinates
+		location: [14.8617, 120.8118], // Updated Mojon coordinates
 		title: "Wallet snatching",
 		description: "Wallet stolen from backpack while victim was riding a jeepney",
 		category: "Theft",
@@ -29,7 +29,7 @@ const crimeIncidents = [
 	},
 	{
 		id: 3,
-		location: [14.855, 120.812], // Dakila coordinates
+		location: [14.8555, 120.8186], // Updated Dakila coordinates to match admin settings
 		title: "Motorcycle theft",
 		description: "Motorcycle stolen from parking area near the market",
 		category: "Vehicle Theft",
@@ -39,7 +39,7 @@ const crimeIncidents = [
 	},
 	{
 		id: 4,
-		location: [14.851, 120.818], // Look 1st coordinates
+		location: [14.8657, 120.8154], // Updated Look 1st coordinates to match admin settings
 		title: "Store robbery",
 		description: "Armed individuals robbed a convenience store",
 		category: "Robbery",
@@ -59,7 +59,7 @@ const crimeIncidents = [
 	},
 	{
 		id: 6,
-		location: [14.847, 120.815], // Pinagbakahan coordinates
+		location: [14.8715, 120.8207], // Updated Pinagbakahan coordinates
 		title: "Attempted break-in",
 		description: "Attempted break-in at a residential property",
 		category: "Burglary",
@@ -69,7 +69,7 @@ const crimeIncidents = [
 	},
 	{
 		id: 7,
-		location: [14.8535, 120.8165], // Bulihan area
+		location: [14.8620, 120.8070], // Updated Bulihan area coordinates
 		title: "Bag snatching",
 		description: "Bag snatched from pedestrian near the market",
 		category: "Theft",
@@ -79,7 +79,7 @@ const crimeIncidents = [
 	},
 	{
 		id: 8,
-		location: [14.8575, 120.8145], // Mojon area
+		location: [14.8620, 120.8115], // Updated Mojon area coordinates
 		title: "Shop theft",
 		description: "Items stolen from a convenience store",
 		category: "Theft",
@@ -93,7 +93,7 @@ const crimeIncidents = [
 const hotspots = [
 	{
 		id: 1,
-		center: [14.8527, 120.816], // Bulihan center
+		center: [14.8612, 120.8067], // Updated Bulihan center coordinates
 		radius: 300,
 		name: "Bulihan Market Area",
 		risk: "High",
@@ -102,7 +102,7 @@ const hotspots = [
 	},
 	{
 		id: 2,
-		center: [14.858, 120.814], // Mojon center
+		center: [14.8617, 120.8118], // Updated Mojon center coordinates
 		radius: 250,
 		name: "Mojon Shopping District",
 		risk: "High",
@@ -111,7 +111,7 @@ const hotspots = [
 	},
 	{
 		id: 3,
-		center: [14.855, 120.812], // Dakila center
+		center: [14.8555, 120.8186], // Updated Dakila center to match admin settings
 		radius: 200,
 		name: "Dakila Bus Terminal",
 		risk: "Medium",
@@ -120,7 +120,7 @@ const hotspots = [
 	},
 	{
 		id: 4,
-		center: [14.851, 120.818], // Look 1st center
+		center: [14.8657, 120.8154], // Updated Look 1st center to match admin settings
 		radius: 180,
 		name: "Look 1st Commercial Zone",
 		risk: "Medium",
@@ -138,7 +138,7 @@ const hotspots = [
 	},
 	{
 		id: 6,
-		center: [14.847, 120.815], // Pinagbakahan center
+		center: [14.8715, 120.8207], // Updated Pinagbakahan center coordinates
 		radius: 120,
 		name: "Pinagbakahan Community",
 		risk: "Low",
@@ -316,6 +316,7 @@ export default function MapComponent({
 	useEffect(() => {
 		if (preloadedIncidents) {
 			// Convert preloaded incidents to the expected format
+			console.log("🎯 Processing preloaded incidents for report detail:", preloadedIncidents);
 			const formattedIncidents = preloadedIncidents.map(report => ({
 				id: report.id,
 				location: [report.Latitude, report.Longitude],
@@ -328,6 +329,7 @@ export default function MapComponent({
 				barangay: report.Barangay || "Unknown",
 				status: report.Status || "Pending"
 			}));
+			console.log("🗺️ Formatted incidents for map:", formattedIncidents);
 			setIncidents(formattedIncidents);
 		} else {
 			fetchReports();
@@ -386,14 +388,20 @@ export default function MapComponent({
 		// If we have preloaded incidents (like in report detail dialog), center map on markers
 		if (preloadedIncidents && newMarkers.length > 0) {
 			if (newMarkers.length === 1) {
-				// For single marker, center on it with good zoom level
-				mapInstanceRef.current.setView(newMarkers[0].getLatLng(), 17);
-				console.log("🎯 Centering map on single marker:", newMarkers[0].getLatLng());
+				// For single marker (report detail view), center on it with detailed zoom level
+				const markerPosition = newMarkers[0].getLatLng();
+				mapInstanceRef.current.setView(markerPosition, 17);
+				console.log("🎯 Centering map on single report marker:", markerPosition, "zoom: 17");
+				
+				// Open popup automatically to show report details
+				setTimeout(() => {
+					newMarkers[0].openPopup();
+				}, 500);
 			} else {
 				// For multiple markers, fit bounds to show all
 				const group = new L.featureGroup(newMarkers);
 				mapInstanceRef.current.fitBounds(group.getBounds(), { padding: [20, 20] });
-				console.log("🎯 Fitting map bounds to show all markers");
+				console.log("🎯 Fitting map bounds to show all", newMarkers.length, "markers");
 			}
 		}
 	}, [incidents, preloadedIncidents]);
@@ -409,40 +417,57 @@ export default function MapComponent({
 
 		console.log("MapComponent received barangay:", barangay);
 		console.log("Prop center:", propCenter, "Prop zoom:", propZoom);
+		console.log("Preloaded incidents:", preloadedIncidents);
 
-		// Use prop center/zoom if provided, otherwise determine based on barangay
-		let center = propCenter || [14.8612, 120.8067]; // Default: Use exact Bulihan coordinates for smooth experience
-		let zoom = propZoom || (barangay ? 16 : 15);
+		// Use prop center/zoom if provided (e.g., from report detail dialog or admin page), otherwise determine based on barangay
+		let center = [14.8527, 120.816]; // Neutral default center (general Malolos area)
+		let zoom = 14; // Lower zoom for neutral view
 		
-		// Override with barangay-specific coordinates if no prop center is provided
-		if (!propCenter && barangay) {
+		// Priority 1: Use prop center/zoom if provided (from admin page for specific accounts)
+		if (propCenter && propZoom) {
+			center = propCenter;
+			zoom = propZoom;
+			console.log("🎯 Using prop center/zoom:", center, "zoom:", zoom);
+		}
+		// Priority 2: If we have preloaded incidents (single report view), use the first incident's location
+		else if (preloadedIncidents && preloadedIncidents.length > 0 && preloadedIncidents[0].Latitude && preloadedIncidents[0].Longitude) {
+			center = [preloadedIncidents[0].Latitude, preloadedIncidents[0].Longitude];
+			zoom = propZoom || 17; // Higher zoom for individual report view
+			console.log("🎯 Using report geolocation as center:", center, "zoom:", zoom);
+		}
+		// Priority 3: Override with barangay-specific coordinates if no prop center is provided and no preloaded incidents
+		else if (barangay) {
 			console.log("Checking barangay:", barangay);
 			if (barangay === "Bulihan") {
 				// Center on Bulihan, Malolos, Bulacan - Use exact coordinates
-				center = [14.8612, 120.8067]; // Exact Bulihan coordinates for smooth experience
-				zoom = 16; // Consistent zoom level
+				center = [14.8612, 120.8067]; // Exact Bulihan coordinates
+				zoom = 15; // Consistent zoom level
 				console.log("✅ Setting Bulihan center:", center, "zoom:", zoom);
 			}
 			else if (barangay === "Mojon") {
-				center = [14.858, 120.814];
-				console.log("✅ Setting Mojon center:", center);
+				center = [14.8617, 120.8118]; // Updated Mojon coordinates
+				zoom = 15;
+				console.log("✅ Setting Mojon center:", center, "zoom:", zoom);
 			}
 			else if (barangay === "Dakila") {
-				center = [14.855, 120.812];
-				console.log("✅ Setting Dakila center:", center);
+				center = [14.8555, 120.8186]; // Updated Dakila coordinates
+				zoom = 15;
+				console.log("✅ Setting Dakila center:", center, "zoom:", zoom);
 			}
 			else if (barangay === "Look 1st") {
-				center = [14.851, 120.818];
-				console.log("✅ Setting Look 1st center:", center);
+				center = [14.8657, 120.8154]; // Updated Look 1st coordinates
+				zoom = 15;
+				console.log("✅ Setting Look 1st center:", center, "zoom:", zoom);
 			}
 			else if (barangay === "Longos") {
 				center = [14.849, 120.813];
+				zoom = 15;
 				console.log("✅ Setting Longos center:", center);
 			}
 			else if (barangay === "Pinagbakahan") {
-				center = [14.8447, 120.8102]; // Pinagbakahan, Malolos, Bulacan
-				zoom = 16;
-				console.log("✅ Setting Pinagbakahan center:", center);
+				center = [14.8715, 120.8207]; // Precise Pinagbakahan coordinates
+				zoom = 15;
+				console.log("✅ Setting Pinagbakahan center:", center, "zoom:", zoom);
 			}
 			else if (barangay === "Tiaong") {
 				center = [14.9502, 120.9002]; // Tiaong, Baliuag, Bulacan
@@ -450,14 +475,15 @@ export default function MapComponent({
 				console.log("✅ Setting Tiaong center:", center);
 			}
 			else {
-				console.log("❌ No matching barangay found for:", barangay);
+				console.log("❌ No matching barangay found for:", barangay, "- using default center");
 			}
 		}
 		
 		console.log("🗺️ Final map center:", center, "zoom:", zoom);
 		// Add more as needed
 
-		const mapInstance = L.map(mapRef.current, {
+		// Configure map options based on context
+		let mapOptions = {
 			minZoom: 16, // Minimum zoom level (can't zoom out beyond this)
 			maxZoom: 19, // Maximum zoom level (can zoom in up to this)
 			dragging: true, // Enable map dragging/panning for better UX
@@ -466,13 +492,30 @@ export default function MapComponent({
 			boxZoom: false, // Disable box zoom
 			keyboard: true, // Enable keyboard navigation for accessibility
 			zoomControl: true, // Keep zoom buttons
-			// Set bounds to restrict panning area around Bulihan (larger area for zoomed-in panning)
-			maxBounds: [
-				[14.8550, 120.8000], // Southwest corner (expanded)
-				[14.8680, 120.8140]  // Northeast corner (expanded)
-			],
-			maxBoundsViscosity: 0.8 // Allow some flexibility when panning near edges
-		}).setView(center, zoom);
+		};
+
+		// For report detail view (preloaded incidents), don't restrict bounds
+		if (preloadedIncidents && preloadedIncidents.length > 0) {
+			console.log("🎯 Report detail view: No map bounds restriction");
+			// No maxBounds for report detail view - allow free movement
+		} 
+		// ONLY Bulihan barangay gets movement restrictions
+		else if (barangay === "Bulihan") {
+			// Set tight bounds only for Bulihan to restrict panning area
+			mapOptions.maxBounds = [
+				[14.8580, 120.8040], // Southwest corner of Bulihan
+				[14.8640, 120.8100]  // Northeast corner of Bulihan
+			];
+			mapOptions.maxBoundsViscosity = 1.0; // Completely restrict movement outside bounds
+			console.log("🔒 Bulihan map: Movement restricted with tight bounds");
+		}
+		// All other barangays (including Pinagbakahan) have free movement
+		else {
+			console.log("🆓 " + (barangay || "Default") + " map: Free movement enabled - no bounds restriction");
+			// No maxBounds for other barangays - allow free movement
+		}
+
+		const mapInstance = L.map(mapRef.current, mapOptions).setView(center, zoom);
 		mapInstanceRef.current = mapInstance
 
 		// Add tile layer
@@ -568,15 +611,24 @@ export default function MapComponent({
 		}
 	}, [])
 
-	// Handle center prop changes
+	// Handle center prop changes (important for report detail dialog and account-specific centering)
 	useEffect(() => {
 		if (!mapInstanceRef.current) return;
 		
+		console.log("🔄 Prop change effect triggered - propCenter:", propCenter, "propZoom:", propZoom);
+		
+		// If we have specific center and zoom props (like from admin account), use them immediately
 		if (propCenter && propZoom) {
 			console.log("🎯 Re-centering map due to prop change:", propCenter, "zoom:", propZoom);
 			mapInstanceRef.current.setView(propCenter, propZoom);
 		}
-	}, [propCenter, propZoom])
+		// If we have preloaded incidents (report view), center on the report location
+		else if (preloadedIncidents && preloadedIncidents.length > 0 && preloadedIncidents[0].Latitude && preloadedIncidents[0].Longitude) {
+			const reportCenter = [preloadedIncidents[0].Latitude, preloadedIncidents[0].Longitude];
+			console.log("🎯 Centering map on report location:", reportCenter);
+			mapInstanceRef.current.setView(reportCenter, 17);
+		}
+	}, [propCenter, propZoom, preloadedIncidents])
 
 	// Handle hotspots visualization
 	useEffect(() => {
@@ -601,30 +653,38 @@ export default function MapComponent({
 						  hotspot.riskLevel === 'medium' ? '#f97316' :   // Orange 🟠
 						  '#eab308';                                     // Yellow 🟡
 			
+			console.log(`🎯 Hotspot ${index + 1}: ${hotspot.incidentCount} incidents, ${hotspot.radius}m radius, ${hotspot.riskLevel} risk at [${hotspot.lat.toFixed(4)}, ${hotspot.lng.toFixed(4)}]`);
+			
 			const circle = L.circle([hotspot.lat, hotspot.lng], {
 				color: color,
 				fillColor: color,
-				fillOpacity: 0.3,
-				radius: hotspot.radius || 100, // Use calculated radius or default
+				fillOpacity: 0.25, // Slightly more transparent for better visibility
+				radius: hotspot.radius,
 				weight: 2,
+				opacity: 0.8,
 			}).addTo(mapInstanceRef.current);
 
 			// Add popup to hotspot
 			const popupContent = `
-				<div class="p-2">
-					<h3 class="font-medium text-sm">🔥 Crime Hotspot</h3>
-					<p class="text-xs text-gray-600 mb-1">
-						Risk Level: <span class="font-medium ${
-							hotspot.riskLevel === 'high' ? 'text-red-600' :
-							hotspot.riskLevel === 'medium' ? 'text-yellow-600' : 'text-orange-600'
-						}">${hotspot.riskLevel.toUpperCase()}</span>
-					</p>
-					<p class="text-xs text-gray-600 mb-1">
-						📊 ${hotspot.incidentCount} incidents in this area
-					</p>
-					<p class="text-xs text-gray-500">
-						📍 ${hotspot.lat.toFixed(4)}, ${hotspot.lng.toFixed(4)}
-					</p>
+				<div class="p-3">
+					<h3 class="font-medium text-sm mb-2">🔥 Crime Hotspot</h3>
+					<div class="space-y-1">
+						<p class="text-xs text-gray-600">
+							Risk Level: <span class="font-medium ${
+								hotspot.riskLevel === 'high' ? 'text-red-600' :
+								hotspot.riskLevel === 'medium' ? 'text-orange-600' : 'text-yellow-600'
+							}">${hotspot.riskLevel.toUpperCase()}</span>
+						</p>
+						<p class="text-xs text-gray-600">
+							📊 ${hotspot.incidentCount} incidents in ${hotspot.radius}m radius
+						</p>
+						<p class="text-xs text-gray-500">
+							📍 ${hotspot.lat.toFixed(4)}, ${hotspot.lng.toFixed(4)}
+						</p>
+						<p class="text-xs text-gray-500 mt-2">
+							💡 Based on verified reports within 100m grid
+						</p>
+					</div>
 				</div>
 			`;
 
@@ -636,25 +696,43 @@ export default function MapComponent({
 	// Recenter map when barangay changes
 	useEffect(() => {
 		if (!mapInstanceRef.current) return;
-		let center = [14.8612, 120.8067]; // Default: Use exact Bulihan coordinates
-		let zoom = barangay ? 16 : 15;
+		let center = [14.8527, 120.816]; // Neutral default center (general Malolos area)
+		let zoom = barangay ? 15 : 14;
 		
 		if (barangay === "Bulihan") {
 			center = [14.8612, 120.8067]; // Use exact Bulihan coordinates
-			zoom = 16; // Consistent zoom level
+			zoom = 15; // Consistent zoom level
 			console.log("🔄 Re-centering to Bulihan:", center, "zoom:", zoom);
 		}
-		else if (barangay === "Mojon") center = [14.858, 120.814];
-		else if (barangay === "Dakila") center = [14.855, 120.812];
-		else if (barangay === "Look 1st") center = [14.851, 120.818];
-		else if (barangay === "Longos") center = [14.849, 120.813];
+		else if (barangay === "Mojon") {
+			center = [14.8617, 120.8118]; // Updated Mojon coordinates
+			zoom = 15;
+			console.log("🔄 Re-centering to Mojon:", center, "zoom:", zoom);
+		}
+		else if (barangay === "Dakila") {
+			center = [14.8555, 120.8186]; // Updated Dakila coordinates
+			zoom = 15;
+			console.log("🔄 Re-centering to Dakila:", center, "zoom:", zoom);
+		}
+		else if (barangay === "Look 1st") {
+			center = [14.8657, 120.8154]; // Updated Look 1st coordinates
+			zoom = 15;
+			console.log("🔄 Re-centering to Look 1st:", center, "zoom:", zoom);
+		}
+		else if (barangay === "Longos") {
+			center = [14.849, 120.813];
+			zoom = 15;
+			console.log("🔄 Re-centering to Longos:", center, "zoom:", zoom);
+		}
 		else if (barangay === "Pinagbakahan") {
-			center = [14.8447, 120.8102]; // Pinagbakahan, Malolos, Bulacan
-			zoom = 16;
+			center = [14.8715, 120.8207]; // Precise Pinagbakahan coordinates
+			zoom = 15;
+			console.log("🔄 Re-centering to Pinagbakahan:", center, "zoom:", zoom);
 		}
 		else if (barangay === "Tiaong") {
 			center = [14.9502, 120.9002]; // Tiaong, Baliuag, Bulacan
 			zoom = 16;
+			console.log("🔄 Re-centering to Tiaong:", center, "zoom:", zoom);
 		}
 		
 		console.log("🔄 Final re-center:", center, "zoom:", zoom);

@@ -140,14 +140,19 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
               <div className="font-bold text-[#F14B51] text-xl mb-2">Incident Location</div>
               <div className="w-[350px] h-[250px] bg-[#F8E3DE] rounded-lg flex items-center justify-center overflow-hidden mb-2">
                 {report?.Latitude && report?.Longitude ? (
-                  <MapWithNoSSR
-                    center={[report.Latitude, report.Longitude]}
-                    zoom={16}
-                    showPins={true}
-                    showHotspots={false}
-                    showControls={false}
-                    preloadedIncidents={[report]}
-                  />
+                  <>
+                    {console.log("🗺️ Report Detail Map - Report data:", report)}
+                    {console.log("🗺️ Report coordinates:", report.Latitude, report.Longitude)}
+                    <MapWithNoSSR
+                      center={[report.Latitude, report.Longitude]}
+                      zoom={17}
+                      showPins={true}
+                      showHotspots={false}
+                      showControls={true}
+                      preloadedIncidents={[report]}
+                      barangay={report.Barangay}
+                    />
+                  </>
                 ) : (
                   <div className="text-gray-500 text-center">
                     <MapPin className="w-12 h-12 mx-auto mb-2 text-gray-400" />

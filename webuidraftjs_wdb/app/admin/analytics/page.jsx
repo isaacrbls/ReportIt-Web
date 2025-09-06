@@ -29,7 +29,7 @@ export default function AnalyticsPage() {
     "testlook@example.com": "Look 1st",
     "testlongos@example.com": "Longos",
     // Add admin fallback
-    'admin@gmail.com': 'All'
+    'test@example.com': 'All'
   };
 
   // Calculate hotspots function for specific barangay

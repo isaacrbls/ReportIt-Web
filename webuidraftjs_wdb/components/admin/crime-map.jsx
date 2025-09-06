@@ -50,8 +50,8 @@ export function CrimeMap({ barangay, showPins = true, showHotspots = true, showC
     
     const barangayReports = reports.filter(r => r.Barangay === targetBarangay && r.Status === "Verified");
     
-    // Simple density-based hotspot detection
-    const gridSize = 0.002; // ~200m grid cells
+    // Improved density-based hotspot detection
+    const gridSize = 0.001; // ~100m grid cells (smaller for better precision)
     const locations = {};
     
     barangayReports.forEach(report => {
@@ -85,7 +85,8 @@ export function CrimeMap({ barangay, showPins = true, showHotspots = true, showC
         incidentCount: location.count,
         riskLevel: location.count >= 5 ? 'high' : location.count >= 3 ? 'medium' : 'low',
         incidents: location.incidents,
-        radius: Math.min(location.count * 50, 200) // Dynamic radius based on incident count
+        // Improved radius calculation: logarithmic scaling with min/max bounds
+        radius: Math.max(50, Math.min(Math.sqrt(location.count) * 60, 150)) // 50-150m range
       }))
       .sort((a, b) => b.incidentCount - a.incidentCount); // Sort by incident count
   };

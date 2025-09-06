@@ -272,7 +272,11 @@ export default function ReportsPageClient() {
           </div>
         </main>
       </div>
-      <AddReportDialog open={showAddReport} onClose={() => setShowAddReport(false)} />
+      <AddReportDialog 
+        open={showAddReport} 
+        onClose={() => setShowAddReport(false)} 
+        barangay={userBarangay}
+      />
       <LogoutConfirmationModal
         open={showLogoutModal}
         onConfirm={handleLogout}

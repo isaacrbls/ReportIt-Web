@@ -14,7 +14,7 @@ const MapWithNoSSR = dynamic(() => import("./map-component"), {
   loading: () => <div className="flex h-[220px] w-full items-center justify-center bg-gray-100">Loading map...</div>,
 });
 
-export default function AddReportDialog({ open, onClose }) {
+export default function AddReportDialog({ open, onClose, barangay }) {
   const [incidentType, setIncidentType] = useState("");
   const [description, setDescription] = useState("");
   const [mediaFile, setMediaFile] = useState(null);
@@ -25,17 +25,10 @@ export default function AddReportDialog({ open, onClose }) {
   const [uploadFailed, setUploadFailed] = useState(false);
 
   const user = useCurrentUser();
-  let barangay = null;
-  if (user?.email) {
-    if (user.email.includes("bulihan")) barangay = "Bulihan";
-    else if (user.email.includes("mojon")) barangay = "Mojon";
-    else if (user.email.includes("dakila")) barangay = "Dakila";
-    else if (user.email.includes("pinagbakahan")) barangay = "Pinagbakahan";
-    else if (user.email.includes("look")) barangay = "Look 1st";
-    else if (user.email.includes("longos")) barangay = "Longos";
-    else if (user.email.includes("tiaong")) barangay = "Tiaong";
-    // Add more mappings as needed
-  }
+  
+  // Debug log to verify barangay prop
+  console.log("🎯 AddReportDialog - Received barangay prop:", barangay);
+  console.log("👤 AddReportDialog - Current user:", user?.email);
 
   const handleFileChange = (e) => {
     if (e.target.files && e.target.files[0]) {

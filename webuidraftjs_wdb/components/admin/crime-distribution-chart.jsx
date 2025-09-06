@@ -21,7 +21,7 @@ export function CrimeDistributionChart() {
     "testlook@example.com": "Look 1st",
     "testlongos@example.com": "Longos",
     // Add admin fallback to see all data
-    'admin@gmail.com': 'All'
+    'test@example.com': 'All'
   };
 
   // Color scheme for different incident types - light to dark based on severity/frequency

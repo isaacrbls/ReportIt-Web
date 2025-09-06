@@ -27,6 +27,7 @@ export default function AdminDashboard() {
   const [highRiskCount, setHighRiskCount] = React.useState(0);
   const [selectedReport, setSelectedReport] = React.useState(null);
   const [isDialogOpen, setIsDialogOpen] = React.useState(false);
+  const [isUserLoading, setIsUserLoading] = React.useState(true);
   const router = useRouter();
   const user = useCurrentUser();
   // Map email to barangay name
@@ -47,6 +48,13 @@ export default function AdminDashboard() {
   console.log("📧 Admin page - User email:", userEmail);
   console.log("🏘️ Admin page - Mapped barangay:", userBarangay);
   console.log("🗺️ Available barangay mappings:", userBarangayMap);
+
+  // Track user loading state
+  React.useEffect(() => {
+    if (user !== undefined) {
+      setIsUserLoading(false);
+    }
+  }, [user]);
 
   React.useEffect(() => {
     fetchReportStats();
@@ -199,15 +207,52 @@ export default function AdminDashboard() {
           {/* Debug info */}
           {userEmail === "testbulihan@example.com" && (
             <div className="text-xs text-blue-600 mb-2">
-              🎯 Bulihan Map: Center [14.8612, 120.8067] Zoom 16
+              🎯 Bulihan Map: Center [14.8612, 120.8067] Zoom 15
             </div>
           )}
-          {console.log("🗺️ Passing to CrimeMap - userEmail:", userEmail, "userBarangay:", userBarangay)}
-          <CrimeMap 
-            barangay={userBarangay}
-            center={userEmail === "testbulihan@example.com" ? [14.8612, 120.8067] : undefined}
-            zoom={userEmail === "testbulihan@example.com" ? 16 : undefined}
-          />
+          {userEmail === "testpinagbakahan@example.com" && (
+            <div className="text-xs text-blue-600 mb-2">
+              🎯 Pinagbakahan Map: Center [14.8715, 120.8207] Zoom 15
+            </div>
+          )}
+          {userEmail === "testdakila@example.com" && (
+            <div className="text-xs text-blue-600 mb-2">
+              🎯 Dakila Map: Center [14.8555, 120.8186] Zoom 15
+            </div>
+          )}
+          {userEmail === "testlook@example.com" && (
+            <div className="text-xs text-blue-600 mb-2">
+              🎯 Look 1st Map: Center [14.8657, 120.8154] Zoom 15
+            </div>
+          )}
+          {userEmail === "testmojon@example.com" && (
+            <div className="text-xs text-blue-600 mb-2">
+              🎯 Mojon Map: Center [14.8617, 120.8118] Zoom 15
+            </div>
+          )}
+          {console.log("🗺️ Passing to CrimeMap - userEmail:", userEmail, "userBarangay:", userBarangay, "isUserLoading:", isUserLoading)}
+          {isUserLoading ? (
+            <div className="flex h-[500px] w-full items-center justify-center bg-gray-100 rounded-lg">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600 mx-auto mb-2"></div>
+                <p className="text-gray-600">Loading map...</p>
+              </div>
+            </div>
+          ) : (
+            <CrimeMap 
+              barangay={userBarangay}
+              center={userEmail === "testbulihan@example.com" ? [14.8612, 120.8067] : 
+                      userEmail === "testpinagbakahan@example.com" ? [14.8715, 120.8207] : 
+                      userEmail === "testdakila@example.com" ? [14.8555, 120.8186] : 
+                      userEmail === "testlook@example.com" ? [14.8657, 120.8154] : 
+                      userEmail === "testmojon@example.com" ? [14.8617, 120.8118] : undefined}
+              zoom={userEmail === "testbulihan@example.com" ? 15 : 
+                    userEmail === "testpinagbakahan@example.com" ? 15 : 
+                    userEmail === "testdakila@example.com" ? 15 : 
+                    userEmail === "testlook@example.com" ? 15 : 
+                    userEmail === "testmojon@example.com" ? 15 : undefined}
+            />
+          )}
         </div>
         {/* High Risk Areas Dialog (ensure it overlays the map) */}
         <HighRiskAreasDialog 

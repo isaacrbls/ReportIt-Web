@@ -9,7 +9,7 @@ import { CrimeMap } from "@/components/admin/crime-map"
 
 
   const user = useCurrentUser();
-  const pinagbakahanCenter = [14.847, 120.815];
+  const pinagbakahanCenter = [14.8715, 120.8207]; // Updated coordinates
   const userEmail = user?.email || "";
   const mapCenter = userEmail === "testpinagbakahan@example.com" ? pinagbakahanCenter : undefined;
   // Default values for required props
