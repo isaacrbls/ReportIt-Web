@@ -78,7 +78,7 @@ export function StatsCards() {
           .filter(area => area.riskLevel === "High") // Only count HIGH risk areas (70+ score)
           .sort((a, b) => b.riskScore - a.riskScore);
 
-        console.log("🏠 High Risk Areas calculation:", {
+  console.log("High Risk Areas calculation:", {
           totalAreas: Object.keys(locationData).length,
           highRiskCount: highRiskResults.length,
           highRiskAreas: highRiskResults.map(a => `${a.name} (${a.riskScore})`)

@@ -141,8 +141,8 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
               <div className="w-[350px] h-[250px] bg-[#F8E3DE] rounded-lg flex items-center justify-center overflow-hidden mb-2">
                 {report?.Latitude && report?.Longitude ? (
                   <>
-                    {console.log("🗺️ Report Detail Map - Report data:", report)}
-                    {console.log("🗺️ Report coordinates:", report.Latitude, report.Longitude)}
+                    {console.log("Report Detail Map - Report data:", report)}
+                    {console.log("Report coordinates:", report.Latitude, report.Longitude)}
                     <MapWithNoSSR
                       center={[report.Latitude, report.Longitude]}
                       zoom={17}

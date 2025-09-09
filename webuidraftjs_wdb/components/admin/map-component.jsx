@@ -196,13 +196,13 @@ export default function MapComponent({
 	// Fetch reports from Firebase and convert to incident format
 	const fetchReports = async () => {
 		try {
-			console.log("🔄 Fetching reports from database...");
+			console.log("Fetching reports from database...");
 			const querySnapshot = await getDocs(collection(db, "reports"));
 			const reportsData = [];
 			
 			querySnapshot.forEach((doc) => {
 				const data = doc.data();
-				console.log("📄 Processing report:", data);
+				console.log("Processing report:", data);
 				
 				// Check if the report has geolocation data
 				if (data.Latitude && data.Longitude) {
@@ -226,10 +226,10 @@ export default function MapComponent({
 				}
 			});
 			
-			console.log("📍 Found reports with geolocation:", reportsData.length);
+			console.log("Found reports with geolocation:", reportsData.length);
 			setIncidents(reportsData);
 		} catch (error) {
-			console.error("❌ Error fetching reports:", error);
+			console.error("Error fetching reports:", error);
 		}
 	};
 	
@@ -316,7 +316,7 @@ export default function MapComponent({
 	useEffect(() => {
 		if (preloadedIncidents) {
 			// Convert preloaded incidents to the expected format
-			console.log("🎯 Processing preloaded incidents for report detail:", preloadedIncidents);
+			console.log("Processing preloaded incidents for report detail:", preloadedIncidents);
 			const formattedIncidents = preloadedIncidents.map(report => ({
 				id: report.id,
 				location: [report.Latitude, report.Longitude],
@@ -329,7 +329,7 @@ export default function MapComponent({
 				barangay: report.Barangay || "Unknown",
 				status: report.Status || "Pending"
 			}));
-			console.log("🗺️ Formatted incidents for map:", formattedIncidents);
+			console.log("Formatted incidents for map:", formattedIncidents);
 			setIncidents(formattedIncidents);
 		} else {
 			fetchReports();
@@ -349,7 +349,7 @@ export default function MapComponent({
 		markersRef.current = [];
 		
 		// Add new markers for incidents
-		console.log("🔄 Updating markers for", incidents.length, "incidents");
+	console.log("Updating markers for", incidents.length, "incidents");
 		const newMarkers = [];
 		incidents.forEach((incident) => {
 			const marker = L.marker(incident.location, {
@@ -363,7 +363,7 @@ export default function MapComponent({
 						${incident.date} at ${incident.time}
 					</p>
 					<p class="text-xs text-gray-600 mb-1">
-						📍 ${incident.barangay} • Status: ${incident.status}
+						${incident.barangay} • Status: ${incident.status}
 					</p>
 					<div class="mt-1 rounded-full px-2 py-0.5 text-center text-xs font-medium bg-${
 						incident.risk === "High" ? "red" : incident.risk === "Medium" ? "yellow" : "green"
@@ -646,12 +646,12 @@ export default function MapComponent({
 		console.log("🔥 Adding", hotspots.length, "hotspots to map");
 		hotspots.forEach((hotspot, index) => {
 			// Risk level colors:
-			// Low risk (2 incidents) = Yellow circles 🟡
-			// Medium risk (3-4 incidents) = Orange circles 🟠  
-			// High risk (5+ incidents) = Red circles 🔴
-			const color = hotspot.riskLevel === 'high' ? '#ef4444' :     // Red 🔴
-						  hotspot.riskLevel === 'medium' ? '#f97316' :   // Orange 🟠
-						  '#eab308';                                     // Yellow 🟡
+			// Low risk (2 incidents) = Yellow circles
+			// Medium risk (3-4 incidents) = Orange circles
+			// High risk (5+ incidents) = Red circles
+			const color = hotspot.riskLevel === 'high' ? '#ef4444' :     // Red
+						  hotspot.riskLevel === 'medium' ? '#f97316' :   // Orange
+						  '#eab308';                                     // Yellow
 			
 			console.log(`🎯 Hotspot ${index + 1}: ${hotspot.incidentCount} incidents, ${hotspot.radius}m radius, ${hotspot.riskLevel} risk at [${hotspot.lat.toFixed(4)}, ${hotspot.lng.toFixed(4)}]`);
 			
@@ -667,7 +667,7 @@ export default function MapComponent({
 			// Add popup to hotspot
 			const popupContent = `
 				<div class="p-3">
-					<h3 class="font-medium text-sm mb-2">🔥 Crime Hotspot</h3>
+					<h3 class="font-medium text-sm mb-2">Crime Hotspot</h3>
 					<div class="space-y-1">
 						<p class="text-xs text-gray-600">
 							Risk Level: <span class="font-medium ${
@@ -676,13 +676,13 @@ export default function MapComponent({
 							}">${hotspot.riskLevel.toUpperCase()}</span>
 						</p>
 						<p class="text-xs text-gray-600">
-							📊 ${hotspot.incidentCount} incidents in ${hotspot.radius}m radius
+							${hotspot.incidentCount} incidents in ${hotspot.radius}m radius
 						</p>
 						<p class="text-xs text-gray-500">
-							📍 ${hotspot.lat.toFixed(4)}, ${hotspot.lng.toFixed(4)}
+							${hotspot.lat.toFixed(4)}, ${hotspot.lng.toFixed(4)}
 						</p>
 						<p class="text-xs text-gray-500 mt-2">
-							💡 Based on verified reports within 100m grid
+							Based on verified reports within 100m grid
 						</p>
 					</div>
 				</div>
