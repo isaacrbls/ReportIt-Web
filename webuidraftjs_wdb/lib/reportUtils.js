@@ -77,11 +77,9 @@ export async function getReportDetails(reportId) {
         ...data
       };
     } else {
-      console.log("No such document!");
       return null;
     }
   } catch (error) {
-    console.error("Error fetching report details:", error);
     return null;
   }
 }
@@ -104,7 +102,6 @@ export async function updateReportStatus(reportId, status, rejectionReason = nul
     await updateDoc(docRef, updateData);
     return true;
   } catch (error) {
-    console.error("Error updating report status:", error);
     return false;
   }
 }

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CheckCircle, XCircle, ChevronLeft, ChevronRight } from "lucide-react";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
