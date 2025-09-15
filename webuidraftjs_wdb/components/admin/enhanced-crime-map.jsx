@@ -10,6 +10,7 @@ import { db } from "@/firebase";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import dynamic from "next/dynamic";
 import { MapPin, Zap, Layers, Eye, EyeOff } from "lucide-react";
+import { getMapCoordinatesForUser, getUserBarangay } from "@/lib/userMapping";
 
 // Dynamically import components to avoid SSR issues
 const CrimeMap = dynamic(() => import("./crime-map").then(mod => ({ default: mod.CrimeMap })), {
@@ -28,22 +29,11 @@ export function EnhancedCrimeMap() {
   const [showPins, setShowPins] = useState(true);
   const [showHotspots, setShowHotspots] = useState(true);
   const [showHeatmap, setShowHeatmap] = useState(true);
-  const user = useCurrentUser();
+  const { user, isLoading: isUserLoading } = useCurrentUser();
 
-  // User-barangay mapping
-  const userBarangayMap = {
-    "testpinagbakahan@example.com": "Pinagbakahan",
-    "testbulihan@example.com": "Bulihan", 
-    "testtiaong@example.com": "Tiaong",
-    "testdakila@example.com": "Dakila",
-    "testmojon@example.com": "Mojon",
-    "testlook@example.com": "Look 1st",
-    "testlongos@example.com": "Longos",
-    'test@example.com': 'All'
-  };
-
-  const userEmail = user?.email;
-  const barangay = userBarangayMap[userEmail] || 'Unknown';
+  // Use centralized user mapping
+  const userEmail = user?.email || "";
+  const barangay = getUserBarangay(userEmail) || 'All';
 
   // Fetch reports from Firebase
   useEffect(() => {

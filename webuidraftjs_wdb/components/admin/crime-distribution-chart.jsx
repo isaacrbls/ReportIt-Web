@@ -9,7 +9,7 @@ import { useCurrentUser } from "@/hooks/use-current-user";
 export function CrimeDistributionChart() {
   const [chartData, setChartData] = useState([]);
   const [reports, setReports] = useState([]);
-  const user = useCurrentUser();
+  const { user } = useCurrentUser();
 
   // User-barangay mapping (same as other components)
   const userBarangayMap = {

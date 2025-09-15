@@ -20,7 +20,7 @@ export default function AnalyticsPage() {
   const [currentPage, setCurrentPage] = React.useState(1);
   const hotspotsPerPage = 5; // Show 5 hotspots per page
   const router = useRouter();
-  const user = useCurrentUser(); // Fix: remove destructuring
+  const { user } = useCurrentUser(); // Fix: remove destructuring
 
   // User-barangay mapping (same as admin Dashboard)
   const userBarangayMap = {

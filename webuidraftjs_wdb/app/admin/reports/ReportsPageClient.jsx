@@ -19,6 +19,7 @@ import Sidebar from "@/components/admin/Sidebar";
 import ReportList from "@/components/admin/ReportList";
 import { db } from "@/firebase";
 import { useCurrentUser } from "@/hooks/use-current-user";
+import { getUserBarangay } from "@/lib/userMapping";
 import { updateReportStatus, formatReportForDisplay } from "@/lib/reportUtils";
 
 export default function ReportsPageClient() {
@@ -33,7 +34,7 @@ export default function ReportsPageClient() {
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [hotspots, setHotspots] = useState([]);
   const router = useRouter();
-  const user = useCurrentUser();
+  const { user } = useCurrentUser();
 
   useEffect(() => {
     const q = query(collection(db, "reports"), orderBy("DateTime", "desc"));
@@ -44,21 +45,9 @@ export default function ReportsPageClient() {
     return () => unsubscribe();
   }, []);
 
-  // Map user email to barangay
-  const userBarangayMap = {
-    "testpinagbakahan@example.com": "Pinagbakahan",
-    "testbulihan@example.com": "Bulihan", 
-    "testtiaong@example.com": "Tiaong",
-    "testdakila@example.com": "Dakila",
-    "testmojon@example.com": "Mojon",
-    "testlook@example.com": "Look 1st",
-    "testlongos@example.com": "Longos",
-    // Add more accounts and their barangay names here
-  };
-  const userEmail = user?.email || "";
-  const userBarangay = userBarangayMap[userEmail] || null;
-
-  console.log("👤 Reports page - Current user:", user);
+// Use centralized user mapping
+const userEmail = user?.email || "";
+const userBarangay = getUserBarangay(userEmail);  console.log("👤 Reports page - Current user:", user);
   console.log("📧 Reports page - User email:", userEmail);
   console.log("🏘️ Reports page - Mapped barangay:", userBarangay);
   console.log("📊 Reports page - Total reports loaded:", reports.length);

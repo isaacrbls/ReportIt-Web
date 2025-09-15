@@ -24,7 +24,7 @@ export default function AddReportDialog({ open, onClose, barangay }) {
   const [error, setError] = useState("");
   const [uploadFailed, setUploadFailed] = useState(false);
 
-  const user = useCurrentUser();
+  const { user } = useCurrentUser();
   
   // Debug log to verify barangay prop
   console.log("🎯 AddReportDialog - Received barangay prop:", barangay);

@@ -9,6 +9,7 @@ import { RecentReports } from "@/components/admin/recent-reports";
 import { StatsCards } from "@/components/admin/stats-cards";
 import { HighRiskAreasDialog } from "../../components/admin/high-risk-areas-dialog.jsx";
 import { ReportDetailDialog } from "@/components/admin/report-detail-dialog.jsx";
+import AddReportDialog from "@/components/admin/add-report-dialog";
 import LogoutConfirmationModal from "@/components/admin/LogoutConfirmationModal";
 import { useRouter } from "next/navigation";
 import React from "react";
@@ -18,6 +19,7 @@ import { db } from "@/firebase";
 import Sidebar from "@/components/admin/Sidebar";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { updateReportStatus } from "@/lib/reportUtils";
+import { getMapCoordinatesForUser, getUserBarangay } from "@/lib/userMapping";
 
 export default function AdminDashboard() {
   const [showHighRiskDialog, setShowHighRiskDialog] = React.useState(false);
@@ -27,34 +29,20 @@ export default function AdminDashboard() {
   const [highRiskCount, setHighRiskCount] = React.useState(0);
   const [selectedReport, setSelectedReport] = React.useState(null);
   const [isDialogOpen, setIsDialogOpen] = React.useState(false);
-  const [isUserLoading, setIsUserLoading] = React.useState(true);
+  const [showAddReportDialog, setShowAddReportDialog] = React.useState(false);
   const router = useRouter();
-  const user = useCurrentUser();
-  // Map email to barangay name
-  const userBarangayMap = {
-    "testpinagbakahan@example.com": "Pinagbakahan",
-    "testbulihan@example.com": "Bulihan",
-    "testtiaong@example.com": "Tiaong",
-    "testdakila@example.com": "Dakila",
-    "testmojon@example.com": "Mojon",
-    "testlook@example.com": "Look 1st",
-    "testlongos@example.com": "Longos",
-    // Add more accounts and their barangay names here
-  };
+  const { user, isLoading: isUserLoading } = useCurrentUser();
+  
+  // Use centralized user mapping - only get coordinates when user is loaded
   const userEmail = user?.email || "";
-  const userBarangay = userBarangayMap[userEmail] || "";
+  const userBarangay = getUserBarangay(userEmail);
+  const userCoordinates = isUserLoading ? { center: [14.8527, 120.816], zoom: 16 } : getMapCoordinatesForUser(userEmail);
 
   console.log("👤 Admin page - Current user:", user);
   console.log("📧 Admin page - User email:", userEmail);
   console.log("🏘️ Admin page - Mapped barangay:", userBarangay);
-  console.log("🗺️ Available barangay mappings:", userBarangayMap);
-
-  // Track user loading state
-  React.useEffect(() => {
-    if (user !== undefined) {
-      setIsUserLoading(false);
-    }
-  }, [user]);
+  console.log("🎯 Admin page - User coordinates:", userCoordinates);
+  console.log("🔄 Admin page - Is user loading:", isUserLoading);
 
   React.useEffect(() => {
     fetchReportStats();
@@ -204,33 +192,6 @@ export default function AdminDashboard() {
         <div className="mb-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
           <div className="text-2xl font-bold text-red-600 mb-1">Incident Distribution</div>
           <div className="text-xs text-gray-500 mb-4">Bubble size represents incident frequency, color indicates risk levels</div>
-          {/* Debug info */}
-          {userEmail === "testbulihan@example.com" && (
-            <div className="text-xs text-blue-600 mb-2">
-              🎯 Bulihan Map: Center [14.8612, 120.8067] Zoom 15
-            </div>
-          )}
-          {userEmail === "testpinagbakahan@example.com" && (
-            <div className="text-xs text-blue-600 mb-2">
-              🎯 Pinagbakahan Map: Center [14.8715, 120.8207] Zoom 15
-            </div>
-          )}
-          {userEmail === "testdakila@example.com" && (
-            <div className="text-xs text-blue-600 mb-2">
-              🎯 Dakila Map: Center [14.8555, 120.8186] Zoom 15
-            </div>
-          )}
-          {userEmail === "testlook@example.com" && (
-            <div className="text-xs text-blue-600 mb-2">
-              🎯 Look 1st Map: Center [14.8657, 120.8154] Zoom 15
-            </div>
-          )}
-          {userEmail === "testmojon@example.com" && (
-            <div className="text-xs text-blue-600 mb-2">
-              🎯 Mojon Map: Center [14.8617, 120.8118] Zoom 15
-            </div>
-          )}
-          {console.log("🗺️ Passing to CrimeMap - userEmail:", userEmail, "userBarangay:", userBarangay, "isUserLoading:", isUserLoading)}
           {isUserLoading ? (
             <div className="flex h-[500px] w-full items-center justify-center bg-gray-100 rounded-lg">
               <div className="text-center">
@@ -241,16 +202,9 @@ export default function AdminDashboard() {
           ) : (
             <CrimeMap 
               barangay={userBarangay}
-              center={userEmail === "testbulihan@example.com" ? [14.8612, 120.8067] : 
-                      userEmail === "testpinagbakahan@example.com" ? [14.8715, 120.8207] : 
-                      userEmail === "testdakila@example.com" ? [14.8555, 120.8186] : 
-                      userEmail === "testlook@example.com" ? [14.8657, 120.8154] : 
-                      userEmail === "testmojon@example.com" ? [14.8617, 120.8118] : undefined}
-              zoom={userEmail === "testbulihan@example.com" ? 15 : 
-                    userEmail === "testpinagbakahan@example.com" ? 15 : 
-                    userEmail === "testdakila@example.com" ? 15 : 
-                    userEmail === "testlook@example.com" ? 15 : 
-                    userEmail === "testmojon@example.com" ? 15 : undefined}
+              center={userCoordinates.center}
+              zoom={userCoordinates.zoom}
+              onAddIncident={() => setShowAddReportDialog(true)}
             />
           )}
         </div>
@@ -295,6 +249,11 @@ export default function AdminDashboard() {
         open={showLogoutModal}
         onConfirm={handleLogout}
         onCancel={() => setShowLogoutModal(false)}
+      />
+      <AddReportDialog
+        open={showAddReportDialog}
+        onClose={() => setShowAddReportDialog(false)}
+        barangay={userBarangay}
       />
     </div>
   );

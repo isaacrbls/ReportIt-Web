@@ -9,46 +9,19 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { CrimeMap } from "@/components/admin/crime-map"
 import React from "react"
+import { getMapCoordinatesForUser } from "@/lib/userMapping"
 
 export default function Page() {
-  const user = useCurrentUser()
-  const [isUserLoading, setIsUserLoading] = React.useState(true)
-  const pinagbakahanCenter = [14.8715, 120.8207] // Updated coordinates
-  const bulihanCenter = [14.8612, 120.8067] // Updated to match main admin page
-  const dakilaCenter = [14.8555, 120.8186] // Updated to match main admin page
-  const lookCenter = [14.8657, 120.8154] // Updated to match main admin page
-  const mojonCenter = [14.8617, 120.8118] // Updated Mojon coordinates 
-  const tiaongCenter = [14.9502, 120.9002] // Updated for Tiaong center
-  const longosCenter = [14.849, 120.813] // Updated for Longos center
+  const { user, isLoading: isUserLoading } = useCurrentUser()
+  
   const userEmail = user?.email || ""
   
-  // Determine map center based on user email
-  let mapCenter = undefined
-  if (userEmail === "testpinagbakahan@example.com") {
-    mapCenter = pinagbakahanCenter
-  } else if (userEmail === "testbulihan@example.com") {
-    mapCenter = bulihanCenter
-  } else if (userEmail === "testdakila@example.com") {
-    mapCenter = dakilaCenter
-  } else if (userEmail === "testmojon@example.com") {
-    mapCenter = mojonCenter
-  } else if (userEmail === "testtiaong@example.com") {
-    mapCenter = tiaongCenter
-  } else if (userEmail === "testlook@example.com") {
-    mapCenter = lookCenter
-  } else if (userEmail === "testlongos@example.com") {
-    mapCenter = longosCenter
-  }
+  // Use centralized map coordinates - only get coordinates when user is loaded
+  const userCoordinates = isUserLoading ? { center: [14.8527, 120.816], zoom: 16 } : getMapCoordinatesForUser(userEmail);
+  const mapCenter = userCoordinates.center;
   
   const defaultBarangay = ""
-  const defaultZoom = 15
-
-  // Track user loading state
-  React.useEffect(() => {
-    if (user !== undefined) {
-      setIsUserLoading(false);
-    }
-  }, [user]);
+  const defaultZoom = userCoordinates.zoom
 
   console.log("🗺️ Map page - Current user:", user);
   console.log("📧 Map page - User email:", userEmail);
