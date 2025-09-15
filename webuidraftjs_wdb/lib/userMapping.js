@@ -58,21 +58,20 @@ export function getUserBarangay(userEmail) {
 /**
  * Get map coordinates for a user based on their email
  * @param {string} userEmail - The user's email address
- * @returns {object} Object containing center and zoom properties
+ * @returns {object|null} Object containing center and zoom properties, or null if not found
  */
 export function getMapCoordinatesForUser(userEmail) {
-  // If userEmail is undefined or empty, it likely means user is still loading
-  // Return null so caller can decide whether to wait or use default
+  // If userEmail is undefined or empty, return null
   if (!userEmail) {
     console.log("🗺️ No user email provided (user may still be loading)");
-    return DEFAULT_COORDINATES; // Still return default for now, but caller can check user state
+    return null;
   }
   
   const barangay = getUserBarangay(userEmail);
   
   if (!barangay || !BARANGAY_COORDINATES[barangay]) {
-    console.log("🗺️ No specific coordinates found for user:", userEmail, "- using default");
-    return DEFAULT_COORDINATES;
+    console.log("🗺️ No specific coordinates found for user:", userEmail);
+    return null;
   }
   
   const coordinates = BARANGAY_COORDINATES[barangay];
@@ -84,12 +83,12 @@ export function getMapCoordinatesForUser(userEmail) {
 /**
  * Get map coordinates for a barangay name
  * @param {string} barangay - The barangay name
- * @returns {object} Object containing center and zoom properties
+ * @returns {object|null} Object containing center and zoom properties, or null if not found
  */
 export function getMapCoordinatesForBarangay(barangay) {
   if (!barangay || !BARANGAY_COORDINATES[barangay]) {
-    console.log("🗺️ No specific coordinates found for barangay:", barangay, "- using default");
-    return DEFAULT_COORDINATES;
+    console.log("🗺️ No specific coordinates found for barangay:", barangay);
+    return null;
   }
   
   const coordinates = BARANGAY_COORDINATES[barangay];

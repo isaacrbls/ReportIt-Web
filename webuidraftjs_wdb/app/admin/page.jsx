@@ -9,7 +9,6 @@ import { RecentReports } from "@/components/admin/recent-reports";
 import { StatsCards } from "@/components/admin/stats-cards";
 import { HighRiskAreasDialog } from "../../components/admin/high-risk-areas-dialog.jsx";
 import { ReportDetailDialog } from "@/components/admin/report-detail-dialog.jsx";
-import AddReportDialog from "@/components/admin/add-report-dialog";
 import LogoutConfirmationModal from "@/components/admin/LogoutConfirmationModal";
 import { useRouter } from "next/navigation";
 import React from "react";
@@ -29,7 +28,6 @@ export default function AdminDashboard() {
   const [highRiskCount, setHighRiskCount] = React.useState(0);
   const [selectedReport, setSelectedReport] = React.useState(null);
   const [isDialogOpen, setIsDialogOpen] = React.useState(false);
-  const [showAddReportDialog, setShowAddReportDialog] = React.useState(false);
   const router = useRouter();
   const { user, isLoading: isUserLoading } = useCurrentUser();
   
@@ -204,7 +202,6 @@ export default function AdminDashboard() {
               barangay={userBarangay}
               center={userCoordinates.center}
               zoom={userCoordinates.zoom}
-              onAddIncident={() => setShowAddReportDialog(true)}
             />
           )}
         </div>
@@ -249,11 +246,6 @@ export default function AdminDashboard() {
         open={showLogoutModal}
         onConfirm={handleLogout}
         onCancel={() => setShowLogoutModal(false)}
-      />
-      <AddReportDialog
-        open={showAddReportDialog}
-        onClose={() => setShowAddReportDialog(false)}
-        barangay={userBarangay}
       />
     </div>
   );

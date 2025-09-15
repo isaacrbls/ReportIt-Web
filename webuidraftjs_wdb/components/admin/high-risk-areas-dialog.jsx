@@ -6,6 +6,7 @@ import { MapPin } from "lucide-react";
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "@/firebase";
 import dynamic from 'next/dynamic';
+import { getMapCoordinatesForBarangay } from "@/lib/userMapping";
 
 // Dynamically import the map component to avoid SSR issues
 const MapComponent = dynamic(() => import('./map-component'), { 
@@ -240,7 +241,7 @@ export const HighRiskAreasDialog = ({ open, onOpenChange, userBarangay }) => {
                 <MapComponent 
                   preloadedIncidents={mapIncidents}
                   showHotspots={true}
-                  center={userBarangay === 'Bulihan' ? [14.2532, 121.1532] : undefined}
+                  center={userBarangay ? getMapCoordinatesForBarangay(userBarangay)?.center : undefined}
                   zoom={userBarangay ? 15 : 13}
                 />
               </div>

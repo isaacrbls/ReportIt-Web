@@ -18,7 +18,7 @@ const MapWithNoSSR = dynamic(() => import("./map-component"), {
   loading: () => <div className="flex h-[500px] w-full items-center justify-center bg-gray-100">Loading map...</div>,
 });
 
-export function CrimeMap({ barangay, showPins = true, showHotspots = true, showControls = true, center, zoom, onAddIncident }) {
+export function CrimeMap({ barangay, showPins = true, showHotspots = true, showControls = true, center, zoom }) {
   const [selectedIncident, setSelectedIncident] = useState(null);
   const [addingIncident, setAddingIncident] = useState(false);
   const [newIncidentLocation, setNewIncidentLocation] = useState(null);
@@ -103,13 +103,7 @@ export function CrimeMap({ barangay, showPins = true, showHotspots = true, showC
   }, [reports, barangay, showHotspots]);
 
   const handleAddIncident = () => {
-    if (onAddIncident) {
-      // If onAddIncident prop is provided, call it (for dashboard use)
-      onAddIncident();
-    } else {
-      // Otherwise, use the existing inline form behavior
-      setAddingIncident(true);
-    }
+    setAddingIncident(true);
   };
 
   const handleCancelAddIncident = () => {

@@ -259,11 +259,14 @@ export default function MapComponent({
 				setTimeout(() => {
 					newMarkers[0].openPopup();
 				}, 500);
-			} else {
-				// For multiple markers, fit bounds to show all
+			} else if (!propCenter) {
+				// For multiple markers, fit bounds to show all ONLY if no explicit center is provided
 				const group = new L.featureGroup(newMarkers);
 				mapInstanceRef.current.fitBounds(group.getBounds(), { padding: [20, 20] });
 				console.log("🎯 Fitting map bounds to show all", newMarkers.length, "markers");
+			} else {
+				// If explicit center is provided, respect it and don't auto-fit bounds
+				console.log("🎯 Respecting explicit center coordinates, not auto-fitting bounds to markers");
 			}
 		}
 	}, [incidents, preloadedIncidents]);
@@ -395,7 +398,13 @@ export default function MapComponent({
 			}
 			window.removeEventListener("addIncident", handleAddIncident)
 		}
-	}, [user, isUserLoading, propCenter, propZoom, preloadedIncidents]) // Include user loading state in dependencies
+	}, [
+		// Only include user if we don't have explicit coordinates
+		...(propCenter ? [] : [user]),
+		propCenter, 
+		propZoom, 
+		preloadedIncidents
+	]) // Conditional user dependency to prevent unnecessary re-initialization
 
 	// Handle hotspots visualization
 	useEffect(() => {
