@@ -12,6 +12,18 @@ export const USER_BARANGAY_MAP = {
   // Add more accounts and their barangay names here
 };
 
+// Admin emails who can see sensitive reports
+export const ADMIN_EMAILS = [
+  "testpinagbakahan@example.com",
+  "testbulihan@example.com", 
+  "testtiaong@example.com",
+  "testdakila@example.com",
+  "testmojon@example.com",
+  "testlook@example.com",
+  "testlongos@example.com",
+  // Add more admin emails here
+];
+
 // Centralized map coordinates for each barangay
 export const BARANGAY_COORDINATES = {
   "Pinagbakahan": {
@@ -53,6 +65,16 @@ export const BARANGAY_COORDINATES = {
 export function getUserBarangay(userEmail) {
   if (!userEmail) return "";
   return USER_BARANGAY_MAP[userEmail] || "";
+}
+
+/**
+ * Check if a user is an admin who can see sensitive reports
+ * @param {string} userEmail - The user's email address
+ * @returns {boolean} True if user is an admin, false otherwise
+ */
+export function isUserAdmin(userEmail) {
+  if (!userEmail) return false;
+  return ADMIN_EMAILS.includes(userEmail);
 }
 
 /**

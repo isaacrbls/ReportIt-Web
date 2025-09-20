@@ -277,7 +277,7 @@ export default function CategoriesPageClient() {
           </div>
           <Button className="bg-red-600 hover:bg-red-700" onClick={() => setIsAddDialogOpen(true)}>
             <Plus className="mr-2 h-4 w-4" />
-            Add Category
+            Edit Categories
           </Button>
         </div>
 

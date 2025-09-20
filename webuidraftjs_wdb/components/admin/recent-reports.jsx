@@ -6,6 +6,8 @@ import { CheckCircle, XCircle, ChevronLeft, ChevronRight } from "lucide-react";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { collection, getDocs, doc, updateDoc, query as fsQuery, where } from "firebase/firestore";
 import { db } from "@/firebase";
+import { useCurrentUser } from "@/hooks/use-current-user";
+import { isUserAdmin } from "@/lib/userMapping";
 import "@/styles/recent-reports-custom.css";
 
 export function RecentReports({ 
@@ -21,24 +23,31 @@ export function RecentReports({
 	const [allReports, setAllReports] = useState(singleReport ? [singleReport] : []);
 	const [actionStatus, setActionStatus] = useState({}); // { [id]: 'verified' | 'rejected' }
 	const [currentPage, setCurrentPage] = useState(1);
+	const { user } = useCurrentUser();
+	const isAdmin = isUserAdmin(user?.email);
 
 	// Calculate pagination data
 	const paginationData = useMemo(() => {
+		// Filter out sensitive reports for non-admin users
+		const filteredReports = allReports.filter(report => {
+			return isAdmin || !report?.isSensitive;
+		});
+
 		if (!enablePagination) {
 			return {
-				currentReports: allReports,
-				totalReports: allReports.length,
+				currentReports: filteredReports,
+				totalReports: filteredReports.length,
 				totalPages: 1,
 				startIndex: 1,
-				endIndex: allReports.length
+				endIndex: filteredReports.length
 			};
 		}
 
-		const totalReports = allReports.length;
+		const totalReports = filteredReports.length;
 		const totalPages = Math.ceil(totalReports / reportsPerPage);
 		const startIndex = (currentPage - 1) * reportsPerPage;
 		const endIndex = Math.min(startIndex + reportsPerPage, totalReports);
-		const currentReports = allReports.slice(startIndex, endIndex);
+		const currentReports = filteredReports.slice(startIndex, endIndex);
 
 		return {
 			currentReports,
@@ -47,7 +56,7 @@ export function RecentReports({
 			startIndex: startIndex + 1,
 			endIndex
 		};
-	}, [allReports, currentPage, reportsPerPage, enablePagination]);
+	}, [allReports, currentPage, reportsPerPage, enablePagination, isAdmin]);
 
 	// Reset to first page when reports change
 	useEffect(() => {
@@ -171,10 +180,15 @@ export function RecentReports({
 						<CardHeader className="flex flex-row items-start justify-between p-0 pb-2">
 							<div className="flex-1 flex flex-row items-center gap-3">
 								<CardTitle className="text-xl md:text-2xl font-bold text-red-600 flex items-center gap-3">
-									{report.IncidentType || <span className="text-gray-400">Untitled</span>}
+									{report.Title || report.IncidentType || <span className="text-gray-400">Untitled</span>}
 									{report.Status && (
 										<span className={`ml-2 px-3 py-1 rounded-lg border text-xs font-medium ${report.Status.toLowerCase() === 'verified' ? 'bg-green-100 text-green-600 border-green-400' : report.Status.toLowerCase() === 'rejected' ? 'bg-red-100 text-red-600 border-red-400' : 'bg-white text-black border-black'}`}>
 											{report.Status.charAt(0).toUpperCase() + report.Status.slice(1)}
+										</span>
+									)}
+									{report.isSensitive && (
+										<span className="ml-2 px-3 py-1 rounded-lg bg-orange-100 text-orange-600 border border-orange-400 text-xs font-medium">
+											Sensitive
 										</span>
 									)}
 								</CardTitle>

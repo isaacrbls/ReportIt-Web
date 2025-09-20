@@ -1,4 +1,4 @@
-import { doc, getDoc, updateDoc } from "firebase/firestore";
+import { doc, getDoc, updateDoc, deleteDoc } from "firebase/firestore";
 import { db } from "../firebase";
 
 /**
@@ -102,6 +102,37 @@ export async function updateReportStatus(reportId, status, rejectionReason = nul
     await updateDoc(docRef, updateData);
     return true;
   } catch (error) {
+    return false;
+  }
+}
+
+/**
+ * Delete a report from Firebase
+ * @param {string} reportId - The ID of the report to delete
+ */
+export async function deleteReport(reportId) {
+  try {
+    const docRef = doc(db, "reports", reportId);
+    await deleteDoc(docRef);
+    return true;
+  } catch (error) {
+    console.error("Error deleting report:", error);
+    return false;
+  }
+}
+
+/**
+ * Update report details in Firebase
+ * @param {string} reportId - The ID of the report to update
+ * @param {Object} updates - Object containing the fields to update
+ */
+export async function updateReportDetails(reportId, updates) {
+  try {
+    const docRef = doc(db, "reports", reportId);
+    await updateDoc(docRef, updates);
+    return true;
+  } catch (error) {
+    console.error("Error updating report:", error);
     return false;
   }
 }

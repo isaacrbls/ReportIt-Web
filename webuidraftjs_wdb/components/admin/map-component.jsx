@@ -78,7 +78,8 @@ export default function MapComponent({
 						date: formatDate(data.DateTime),
 						time: formatTime(data.DateTime),
 						barangay: data.Barangay || "Unknown",
-						status: data.Status || "Pending"
+						status: data.Status || "Pending",
+						isSensitive: data.isSensitive || false
 					};
 					
 					// Filter by barangay if specified and only show verified reports
@@ -189,7 +190,8 @@ export default function MapComponent({
 				date: formatDate(report.DateTime),
 				time: formatTime(report.DateTime),
 				barangay: report.Barangay || "Unknown",
-				status: report.Status || "Pending"
+				status: report.Status || "Pending",
+				isSensitive: report.isSensitive || false
 			}));
 			console.log("Formatted incidents for map:", formattedIncidents);
 			setIncidents(formattedIncidents);
@@ -220,7 +222,10 @@ export default function MapComponent({
 
 			const popupContent = `
 				<div class="p-2">
-					<h3 class="font-medium text-sm">${incident.title}</h3>
+					<div class="flex items-center gap-2 mb-1">
+						<h3 class="font-medium text-sm">${incident.title}</h3>
+						${incident.isSensitive ? '<span class="px-2 py-0.5 rounded-md bg-orange-100 text-orange-600 text-xs font-medium border border-orange-300">Sensitive</span>' : ''}
+					</div>
 					<p class="text-xs text-gray-600 mb-1">
 						${incident.date} at ${incident.time}
 					</p>
@@ -332,7 +337,10 @@ export default function MapComponent({
 
 			const popupContent = `
 				<div class="p-2">
-					<h3 class="font-medium text-sm">${incident.title}</h3>
+					<div class="flex items-center gap-2 mb-1">
+						<h3 class="font-medium text-sm">${incident.title}</h3>
+						${incident.isSensitive ? '<span class="px-2 py-0.5 rounded-md bg-orange-100 text-orange-600 text-xs font-medium border border-orange-300">Sensitive</span>' : ''}
+					</div>
 					<p class="text-xs text-gray-600 mb-1">
 						${incident.date} at ${incident.time}
 					</p>
@@ -367,7 +375,10 @@ export default function MapComponent({
 
 			const popupContent = `
 				<div class="p-1">
-					<h3 class="font-medium">${newIncident.title}</h3>
+					<div class="flex items-center gap-2 mb-1">
+						<h3 class="font-medium">${newIncident.title}</h3>
+						${newIncident.isSensitive ? '<span class="px-2 py-0.5 rounded-md bg-orange-100 text-orange-600 text-xs font-medium border border-orange-300">Sensitive</span>' : ''}
+					</div>
 					<p class="text-xs text-muted-foreground">
 						${newIncident.date} at ${newIncident.time}
 					</p>

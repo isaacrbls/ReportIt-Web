@@ -12,14 +12,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { ReportDetailDialog } from "@/components/admin/report-detail-dialog.jsx";
-import { AddCategoryDialog } from "@/components/admin/add-category-dialog.jsx";
+import { EditCategoryDialog } from "@/components/admin/edit-category-dialog.jsx";
 import AddReportDialog from "@/components/admin/add-report-dialog";
 import LogoutConfirmationModal from "@/components/admin/LogoutConfirmationModal";
 import Sidebar from "@/components/admin/Sidebar";
 import ReportList from "@/components/admin/ReportList";
 import { db } from "@/firebase";
 import { useCurrentUser } from "@/hooks/use-current-user";
-import { getUserBarangay } from "@/lib/userMapping";
+import { getUserBarangay, isUserAdmin } from "@/lib/userMapping";
 import { updateReportStatus, formatReportForDisplay } from "@/lib/reportUtils";
 
 export default function ReportsPageClient() {
@@ -47,9 +47,12 @@ export default function ReportsPageClient() {
 
 // Use centralized user mapping
 const userEmail = user?.email || "";
-const userBarangay = getUserBarangay(userEmail);  console.log("👤 Reports page - Current user:", user);
+const userBarangay = getUserBarangay(userEmail);
+const isAdmin = isUserAdmin(userEmail);
+console.log("👤 Reports page - Current user:", user);
   console.log("📧 Reports page - User email:", userEmail);
   console.log("🏘️ Reports page - Mapped barangay:", userBarangay);
+  console.log("🔐 Reports page - Is admin:", isAdmin);
   console.log("📊 Reports page - Total reports loaded:", reports.length);
 
   // Phase 1: Basic Hotspot Calculation
@@ -140,12 +143,15 @@ const userBarangay = getUserBarangay(userEmail);  console.log("👤 Reports page
     // Only show reports for the user's barangay - strict filtering
     const matchesBarangay = userBarangay ? report?.Barangay === userBarangay : false;
     
+    // Filter out sensitive reports for non-admin users
+    const canViewSensitive = isAdmin || !report?.isSensitive;
+    
     // Debug logging for each report
     if (report?.id) {
-      console.log(`🔍 Report ${report.id}: Barangay="${report?.Barangay}" vs UserBarangay="${userBarangay}" = ${matchesBarangay}`);
+      console.log(`🔍 Report ${report.id}: Barangay="${report?.Barangay}" vs UserBarangay="${userBarangay}" = ${matchesBarangay}, Sensitive=${report?.isSensitive}, CanView=${canViewSensitive}`);
     }
 
-    return matchesSearch && matchesStatus && matchesBarangay;
+    return matchesSearch && matchesStatus && matchesBarangay && canViewSensitive;
   });
 
   console.log("🔍 Reports page - Filtered reports count:", filteredReports.length);
@@ -187,7 +193,7 @@ const userBarangay = getUserBarangay(userEmail);  console.log("👤 Reports page
                 className="bg-red-500 hover:bg-red-600 text-white font-medium rounded-lg px-6 py-2 text-base transition-colors"
                 onClick={() => setIsAddDialogOpen(true)}
               >
-                Add Category
+                Edit Categories
               </button>
               <button
                 className="bg-red-500 hover:bg-red-600 text-white font-medium rounded-lg px-6 py-2 text-base transition-colors"
@@ -251,12 +257,24 @@ const userBarangay = getUserBarangay(userEmail);  console.log("👤 Reports page
               onOpenChange={setIsDialogOpen}
               onVerify={handleVerify}
               onReject={handleReject}
+              onDelete={(reportId) => {
+                // The reports will be updated automatically through the onSnapshot listener
+                console.log("Report deleted successfully");
+              }}
+              onEdit={(reportId, updates) => {
+                // The reports will be updated automatically through the onSnapshot listener
+                console.log("Report edited successfully");
+              }}
             />
-            <AddCategoryDialog
+            <EditCategoryDialog
               open={isAddDialogOpen}
               onOpenChange={setIsAddDialogOpen}
+              categories={categories}
               onSave={({ name, keywords }) => {
                 setCategories((prev) => [...prev, { name, keywords }]);
+              }}
+              onDelete={(categoryName) => {
+                setCategories((prev) => prev.filter(cat => (cat.name || cat) !== categoryName));
               }}
             />
           </div>
@@ -266,6 +284,7 @@ const userBarangay = getUserBarangay(userEmail);  console.log("👤 Reports page
         open={showAddReport} 
         onClose={() => setShowAddReport(false)} 
         barangay={userBarangay}
+        categories={categories}
       />
       <LogoutConfirmationModal
         open={showLogoutModal}

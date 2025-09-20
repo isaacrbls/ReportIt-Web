@@ -241,6 +241,14 @@ export default function AdminDashboard() {
         onOpenChange={setIsDialogOpen}
         onVerify={handleVerify}
         onReject={handleReject}
+        onDelete={(reportId) => {
+          // Refresh the stats when a report is deleted
+          fetchReportStats();
+        }}
+        onEdit={(reportId, updates) => {
+          // Refresh the stats when a report is edited
+          fetchReportStats();
+        }}
       />
       <LogoutConfirmationModal
         open={showLogoutModal}

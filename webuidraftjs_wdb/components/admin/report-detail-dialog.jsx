@@ -1,22 +1,17 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useMemo } from "react"
 import dynamic from "next/dynamic"
-import { Calendar, CheckCircle, Clock, ImageIcon, MapPin, Tag, XCircle, Edit } from "lucide-react"
+import { Calendar, CheckCircle, Clock, ImageIcon, MapPin, Tag, XCircle, Edit, Trash2, Printer } from "lucide-react"
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import { Textarea } from "@/components/ui/textarea"
-import { Label } from "@/components/ui/label"
-import { EditCategoryDialog } from "@/components/admin/edit-category-dialog"
-import { updateReportStatus, formatReportForDisplay } from "@/lib/reportUtils"
+import { Input } from "@/components/ui/input"
+import { updateReportStatus, formatReportForDisplay, deleteReport, updateReportDetails } from "@/lib/reportUtils"
+import { useToast } from "@/hooks/use-toast"
 
 // Dynamically import the map component with no SSR
 const MapWithNoSSR = dynamic(() => import("./map-component"), {
@@ -24,16 +19,103 @@ const MapWithNoSSR = dynamic(() => import("./map-component"), {
   loading: () => <div className="flex h-[250px] w-full items-center justify-center bg-gray-100 rounded-lg">Loading map...</div>,
 });
 
-export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onReject }) {
+export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onReject, onDelete, onEdit }) {
   const [rejectionReason, setRejectionReason] = useState("")
   const [isRejecting, setIsRejecting] = useState(false)
   const [isVerifying, setIsVerifying] = useState(false)
-  const [isEditingCategory, setIsEditingCategory] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
+  const [editedReport, setEditedReport] = useState({})
+  const [error, setError] = useState("")
+  const [isEditMode, setIsEditMode] = useState(false)
+  const [deleteClickCount, setDeleteClickCount] = useState(0)
+  const [deleteTimeout, setDeleteTimeout] = useState(null)
+  const [currentReportData, setCurrentReportData] = useState(null)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const { toast } = useToast()
+
+  // Update local report data when props change
+  useEffect(() => {
+    if (report) {
+      setCurrentReportData(report)
+    }
+  }, [report])
 
   // Format the report data to match Firebase structure
-  const formattedReport = formatReportForDisplay(report)
-  const [editedCategory, setEditedCategory] = useState(formattedReport?.category || "")
-  const [categoryKeywords, setCategoryKeywords] = useState(report?.keywords || ["Steal", "pickpocket", "snatched"])
+  const formattedReport = useMemo(() => {
+    return formatReportForDisplay(currentReportData || report)
+  }, [currentReportData, report])
+
+  // Memoize map data to prevent unnecessary re-renders during editing
+  const mapData = useMemo(() => {
+    // Use original report data for map display to prevent re-renders during editing
+    const reportData = report // Always use original report for map coordinates
+    const latitude = reportData?.Latitude
+    const longitude = reportData?.Longitude
+    const barangay = reportData?.Barangay
+    
+    return {
+      latitude,
+      longitude,
+      barangay,
+      incident: reportData
+    }
+  }, [report?.Latitude, report?.Longitude, report?.Barangay]) // Only depend on original report coordinates
+
+  // Initialize edit form when opening edit mode
+  useEffect(() => {
+    if (isEditMode && (currentReportData || report)) {
+      const reportToEdit = currentReportData || report
+      setEditedReport({
+        Title: reportToEdit.Title || reportToEdit.IncidentType || "",
+        IncidentType: reportToEdit.IncidentType || "",
+        Description: reportToEdit.Description || "",
+        Barangay: reportToEdit.Barangay || ""
+      })
+      setError("")
+    }
+  }, [isEditMode, currentReportData, report])
+
+  // Reset states when dialog closes
+  useEffect(() => {
+    if (!open) {
+      setError("")
+      setEditedReport({})
+      setIsEditMode(false)
+      setDeleteClickCount(0)
+      setCurrentReportData(null)
+      setShowDeleteConfirm(false)
+      if (deleteTimeout) {
+        clearTimeout(deleteTimeout)
+        setDeleteTimeout(null)
+      }
+    }
+  }, [open, deleteTimeout])
+
+  // Add keyboard navigation
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (!open) return
+      
+      if (e.key === 'Escape') {
+        if (isEditMode) {
+          setIsEditMode(false)
+          setError("")
+        } else {
+          onOpenChange(false)
+        }
+      }
+      
+      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+        if (isEditMode && !isSaving) {
+          handleSaveEdit()
+        }
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [open, isEditMode, isSaving])
 
   // Early return after all hooks
   if (!report) return null
@@ -43,11 +125,32 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
     try {
       const success = await updateReportStatus(report.id, "Verified")
       if (success) {
+        // Update local report data to reflect status change
+        setCurrentReportData(prevData => ({
+          ...(prevData || report),
+          Status: "Verified"
+        }))
+        
+        toast({
+          title: "Report Verified",
+          description: "The report has been successfully verified.",
+        })
         onVerify?.(report.id)
         onOpenChange(false)
+      } else {
+        toast({
+          title: "Verification Failed",
+          description: "Failed to verify the report. Please try again.",
+          variant: "destructive",
+        })
       }
     } catch (error) {
       console.error("Error verifying report:", error)
+      toast({
+        title: "Error",
+        description: `Error verifying report: ${error.message}`,
+        variant: "destructive",
+      })
     } finally {
       setIsVerifying(false)
     }
@@ -58,13 +161,335 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
     try {
       const success = await updateReportStatus(report.id, "Rejected")
       if (success) {
+        // Update local report data to reflect status change
+        setCurrentReportData(prevData => ({
+          ...(prevData || report),
+          Status: "Rejected"
+        }))
+        
+        toast({
+          title: "Report Rejected",
+          description: "The report has been rejected.",
+        })
         onReject?.(report.id)
         onOpenChange(false)
+      } else {
+        toast({
+          title: "Rejection Failed",
+          description: "Failed to reject the report. Please try again.",
+          variant: "destructive",
+        })
       }
     } catch (error) {
       console.error("Error rejecting report:", error)
+      toast({
+        title: "Error",
+        description: `Error rejecting report: ${error.message}`,
+        variant: "destructive",
+      })
     } finally {
       setIsRejecting(false)
+    }
+  }
+
+  const handleDelete = () => {
+    setShowDeleteConfirm(true)
+  }
+
+  const confirmDelete = async () => {
+    setIsDeleting(true)
+    setError("")
+    try {
+      const success = await deleteReport(report.id)
+      if (success) {
+        toast({
+          title: "Report Deleted",
+          description: "The report has been successfully deleted.",
+        })
+        onDelete?.(report.id)
+        onOpenChange(false)
+      } else {
+        setError("Failed to delete report. Please try again.")
+        toast({
+          title: "Deletion Failed",
+          description: "Failed to delete the report. Please try again.",
+          variant: "destructive",
+        })
+      }
+    } catch (error) {
+      console.error("Error deleting report:", error)
+      const errorMessage = `Error deleting report: ${error.message}`
+      setError(errorMessage)
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      })
+    } finally {
+      setIsDeleting(false)
+      setShowDeleteConfirm(false)
+    }
+  }
+
+  const cancelDelete = () => {
+    setShowDeleteConfirm(false)
+  }
+
+  const handleEdit = () => {
+    setIsEditMode(true)
+  }
+
+  const handleSaveEdit = async () => {
+    setIsSaving(true)
+    setError("")
+    
+    // Basic validation
+    if (!editedReport.Title?.trim()) {
+      setError("Title is required")
+      setIsSaving(false)
+      return
+    }
+    if (!editedReport.IncidentType?.trim()) {
+      setError("Incident type is required")
+      setIsSaving(false)
+      return
+    }
+    if (!editedReport.Description?.trim()) {
+      setError("Description is required")
+      setIsSaving(false)
+      return
+    }
+
+    try {
+      const success = await updateReportDetails(report.id, editedReport)
+      if (success) {
+        // Update local report data to reflect changes immediately
+        setCurrentReportData(prevData => ({
+          ...(prevData || report),
+          ...editedReport
+        }))
+        
+        toast({
+          title: "Report Updated",
+          description: "The report has been successfully updated.",
+        })
+        onEdit?.(report.id, editedReport)
+        setIsEditMode(false)
+      } else {
+        setError("Failed to update report. Please try again.")
+        toast({
+          title: "Update Failed",
+          description: "Failed to update the report. Please try again.",
+          variant: "destructive",
+        })
+      }
+    } catch (error) {
+      console.error("Error updating report:", error)
+      const errorMessage = `Error updating report: ${error.message}`
+      setError(errorMessage)
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      })
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const handleCancelEdit = () => {
+    setIsEditMode(false)
+    setError("")
+  }
+
+  const handleGenerateReport = () => {
+    try {
+      const printContent = `
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <title>Report - ${formattedReport?.title}</title>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <style>
+              * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+              }
+              
+              html, body {
+                width: 100%;
+                height: 100%;
+                font-family: Arial, sans-serif;
+                background: white;
+                overflow: hidden;
+              }
+              
+              .report-container {
+                max-width: 800px;
+                margin: 0 auto;
+                padding: 40px;
+                background: white;
+                min-height: 100vh;
+                box-sizing: border-box;
+              }
+              
+              .report-title {
+                color: #F14B51;
+                text-align: center;
+                margin-bottom: 30px;
+                font-size: 28px;
+                font-weight: bold;
+              }
+              
+              .report-subtitle {
+                color: #F14B51;
+                border-bottom: 2px solid #F14B51;
+                padding-bottom: 5px;
+                margin-bottom: 20px;
+                font-size: 20px;
+                font-weight: bold;
+              }
+              
+              .report-grid {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 20px;
+                margin-bottom: 20px;
+              }
+              
+              .report-field {
+                margin-bottom: 8px;
+                line-height: 1.5;
+              }
+              
+              .report-section {
+                margin-bottom: 20px;
+              }
+              
+              .description-box {
+                border: 1px solid #ddd;
+                padding: 15px;
+                background-color: #f9f9f9;
+                border-radius: 4px;
+                line-height: 1.6;
+                word-wrap: break-word;
+              }
+              
+              .footer {
+                margin-top: 40px;
+                text-align: center;
+                color: #666;
+                font-size: 12px;
+                border-top: 1px solid #eee;
+                padding-top: 20px;
+              }
+              
+              @media print {
+                html, body {
+                  width: 210mm;
+                  height: 297mm;
+                  margin: 0;
+                  padding: 0;
+                  overflow: hidden;
+                }
+                
+                .report-container {
+                  padding: 20mm;
+                  margin: 0;
+                  max-width: none;
+                  width: 100%;
+                  height: 100%;
+                }
+                
+                .report-grid {
+                  display: grid;
+                  grid-template-columns: 1fr 1fr;
+                  gap: 20px;
+                }
+              }
+            </style>
+          </head>
+          <body>
+            <div class="report-container">
+              <h1 class="report-title">INCIDENT REPORT</h1>
+              
+              <div class="report-section">
+                <h2 class="report-subtitle">${formattedReport?.title || 'Untitled Report'}</h2>
+              </div>
+              
+              <div class="report-grid">
+                <div>
+                  <div class="report-field"><strong>Date:</strong> ${formattedReport?.date}</div>
+                  <div class="report-field"><strong>Time:</strong> ${formattedReport?.time}</div>
+                </div>
+                <div>
+                  <div class="report-field"><strong>Status:</strong> ${(currentReportData || report)?.Status || 'Pending'}</div>
+                  <div class="report-field"><strong>Submitted by:</strong> ${formattedReport?.submittedBy}</div>
+                  <div class="report-field"><strong>Report ID:</strong> ${(currentReportData || report)?.id}</div>
+                </div>
+              </div>
+              
+              <div class="report-section">
+                <h3 style="color: #F14B51; margin-bottom: 10px;">Description:</h3>
+                <div class="description-box">
+                  ${formattedReport?.description || "No description provided"}
+                </div>
+              </div>
+              
+              <div class="footer">
+                Generated on ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}
+              </div>
+            </div>
+            
+            <script>
+              window.onload = function() {
+                // Small delay to ensure content is fully loaded
+                setTimeout(function() {
+                  window.print();
+                }, 100);
+                
+                // Close window after print dialog
+                setTimeout(function() {
+                  window.close();
+                }, 1000);
+              }
+              
+              // Handle print cancel/complete
+              window.onafterprint = function() {
+                setTimeout(function() {
+                  window.close();
+                }, 100);
+              }
+            </script>
+          </body>
+        </html>
+      `
+      
+      // Create a blob URL for the content
+      const blob = new Blob([printContent], { type: 'text/html' });
+      const url = URL.createObjectURL(blob);
+      
+      // Open the URL directly
+      const printWindow = window.open(url, '_blank', 'width=800,height=600');
+      
+      // Clean up the blob URL after a delay
+      setTimeout(() => {
+        URL.revokeObjectURL(url);
+      }, 3000);
+      
+      toast({
+        title: "Report Generated",
+        description: "Print dialog has been opened for the report.",
+      })
+    } catch (error) {
+      console.error("Error generating report:", error)
+      toast({
+        title: "Error",
+        description: "Failed to generate report. Please try again.",
+        variant: "destructive",
+      })
     }
   }
 
@@ -75,84 +500,214 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
           <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-8">
             {/* Left: Details */}
             <div className="flex-1 min-w-[320px]">
-              <h2 className="text-[#F14B51] text-2xl font-bold mb-4">Report Details</h2>
-              <div className="text-2xl font-bold text-[#F14B51] mb-2">{formattedReport?.title}</div>
-              <div className="flex items-center gap-2 mb-2">
-                <Tag className="w-5 h-5 text-[#F14B51]" />
-                <span className="font-semibold text-[#F14B51]">{formattedReport?.category}</span>
-                <button className="ml-2 px-2 py-0.5 text-xs rounded bg-gray-100 border border-gray-300 text-gray-600 hover:bg-gray-200 flex items-center gap-1" onClick={() => setIsEditingCategory(true)}>
-                  <Edit className="w-3 h-3" /> Edit
-                </button>
+              <div className="flex items-center gap-3 mb-4">
+                <h2 className="text-[#F14B51] text-2xl font-bold">Report Details</h2>
+                {(currentReportData || report)?.isSensitive && (
+                  <span className="px-3 py-1 rounded-lg bg-orange-100 text-orange-600 border border-orange-400 text-sm font-medium">
+                    Sensitive
+                  </span>
+                )}
               </div>
+              
+              {error && (
+                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md text-red-600 text-sm">
+                  {error}
+                </div>
+              )}
+              
+              {/* Title */}
+              <div className="flex items-center mb-4 gap-2">
+                <span className="font-bold text-lg text-[#F14B51]">Title:</span>
+                {isEditMode ? (
+                  <Input
+                    value={editedReport.Title || ""}
+                    onChange={(e) => setEditedReport({...editedReport, Title: e.target.value})}
+                    placeholder="Enter title of report"
+                    className={`flex-1 ${!editedReport.Title?.trim() && error ? 'border-red-500 focus:ring-red-500' : ''}`}
+                  />
+                ) : (
+                  <div className="text-lg font-bold text-[#F14B51]">
+                    {(currentReportData || report)?.Title || formattedReport?.title}
+                  </div>
+                )}
+              </div>
+
+              {/* Category/Incident Type */}
+              <div className="flex items-center gap-2 mb-4">
+                <Tag className="w-5 h-5 text-[#F14B51]" />
+                {isEditMode ? (
+                  <select
+                    value={editedReport.IncidentType || ""}
+                    onChange={(e) => setEditedReport({...editedReport, IncidentType: e.target.value})}
+                    className={`flex-1 border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#F14B51] ${!editedReport.IncidentType?.trim() && error ? 'border-red-500 focus:ring-red-500' : ''}`}
+                  >
+                    <option value="">Select type of incident</option>
+                    <option value="Theft">Theft</option>
+                    <option value="Reports/Agreement">Reports/Agreement</option>
+                    <option value="Accident">Accident</option>
+                    <option value="Debt / Unpaid Wages Report">Debt / Unpaid Wages Report</option>
+                    <option value="Defamation Complaint">Defamation Complaint</option>
+                    <option value="Assault/Harassment">Assault/Harassment</option>
+                    <option value="Property Damage/Incident">Property Damage/Incident</option>
+                    <option value="Animal Incident">Animal Incident</option>
+                    <option value="Verbal Abuse and Threats">Verbal Abuse and Threats</option>
+                    <option value="Alarm and Scandal">Alarm and Scandal</option>
+                    <option value="Lost Items">Lost Items</option>
+                    <option value="Scam/Fraud">Scam/Fraud</option>
+                    <option value="Drugs Addiction">Drugs Addiction</option>
+                    <option value="Missing Person">Missing Person</option>
+                    <option value="Others">Others</option>
+                  </select>
+                ) : (
+                  <span className="font-semibold text-[#F14B51]">{formattedReport?.category}</span>
+                )}
+              </div>
+              
+              {/* Location */}
               <div className="flex items-center gap-2 mb-2">
                 <MapPin className="w-5 h-5 text-[#F14B51]" />
-                <span>{formattedReport?.location}</span>
+                {isEditMode ? (
+                  <Input
+                    value={editedReport.Barangay || ""}
+                    onChange={(e) => setEditedReport({...editedReport, Barangay: e.target.value})}
+                    placeholder="Enter location"
+                    className="flex-1"
+                  />
+                ) : (
+                  <span>{formattedReport?.location}</span>
+                )}
               </div>
+              
               <div className="flex items-center gap-2 mb-2">
                 <Calendar className="w-5 h-5 text-[#F14B51]" />
                 <span>{formattedReport?.date}</span>
               </div>
+              
               <div className="flex items-center gap-2 mb-4">
                 <Clock className="w-5 h-5 text-[#F14B51]" />
                 <span>{formattedReport?.time}</span>
               </div>
-              <div className="mb-2 font-semibold">Description</div>
-              <Textarea
-                className="w-full border rounded-lg px-4 py-2 focus:outline-none min-h-[80px] mb-4"
-                value={formattedReport?.description || "No description provided"}
-                readOnly
-              />
-              <div className="font-bold text-[#F14B51] mb-2 mt-6">Media Attachments</div>
-              <div className="flex gap-6 mb-2">
-                <div className="flex flex-col items-center border rounded-xl p-6 bg-[#FFF3F2] w-44">
-                  <ImageIcon className="w-12 h-12 text-[#F14B51] mb-2" />
-                  <span className="font-medium text-base text-[#F14B51]">Photo</span>
-                </div>
-                <div className="flex flex-col items-center border rounded-xl p-6 bg-[#FFF3F2] w-44">
-                  <ImageIcon className="w-12 h-12 text-[#F14B51] mb-2" />
-                  <span className="font-medium text-base text-[#F14B51]">Video</span>
-                </div>
-              </div>
-              <div className="text-xs text-gray-400">Click on the image to view full size</div>
               
-              {/* Only show verify/reject buttons if report is not already verified */}
-              {report?.Status !== "Verified" && (
-                <div className="flex gap-4 mt-8">
-                  <button 
-                    className="border border-[#F14B51] text-[#F14B51] px-8 py-2 rounded-md flex items-center gap-2 btn-reject disabled:opacity-50" 
-                    onClick={handleReject}
-                    disabled={isRejecting}
+              <div className="mb-2 font-semibold">Description</div>
+              {isEditMode ? (
+                <Textarea
+                  className={`w-full border rounded-lg px-4 py-2 focus:outline-none min-h-[80px] mb-4 ${!editedReport.Description?.trim() && error ? 'border-red-500 focus:ring-red-500' : ''}`}
+                  value={editedReport.Description || ""}
+                  onChange={(e) => setEditedReport({...editedReport, Description: e.target.value})}
+                  placeholder="Describe the incident"
+                />
+              ) : (
+                <Textarea
+                  className="w-full border rounded-lg px-4 py-2 focus:outline-none min-h-[80px] mb-4"
+                  value={formattedReport?.description || "No description provided"}
+                  readOnly
+                />
+              )}
+              
+              {/* Edit mode buttons */}
+              {isEditMode && (
+                <div className="flex gap-3 mb-6">
+                  <Button
+                    onClick={handleSaveEdit}
+                    disabled={isSaving}
+                    className="bg-[#F14B51] hover:bg-[#D13B41] px-6 py-2 min-w-[120px]"
                   >
-                    <XCircle className="w-5 h-5" /> {isRejecting ? "Rejecting..." : "Reject"}
+                    {isSaving ? "Saving..." : "Save Changes"}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={handleCancelEdit}
+                    disabled={isSaving}
+                    className="px-6 py-2"
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              )}
+              
+              <div className="font-bold text-[#F14B51] mb-4 mt-6">Media Attachments</div>
+              {report?.MediaURL ? (
+                <div className="mb-4">
+                  {report.MediaType === "video" ? (
+                    <div className="border rounded-lg p-4 bg-gray-50">
+                      <video 
+                        src={report.MediaURL} 
+                        controls 
+                        className="w-full max-w-md mx-auto rounded-lg"
+                        style={{ maxHeight: '300px' }}
+                      >
+                        Your browser does not support the video tag.
+                      </video>
+                      <p className="text-sm text-gray-600 text-center mt-2">Video attachment</p>
+                    </div>
+                  ) : (
+                    <div className="border rounded-lg p-4 bg-gray-50">
+                      <img 
+                        src={report.MediaURL} 
+                        alt="Report attachment" 
+                        className="w-full max-w-md mx-auto rounded-lg cursor-pointer hover:opacity-80 transition-opacity"
+                        style={{ maxHeight: '300px', objectFit: 'contain' }}
+                        onClick={() => window.open(report.MediaURL, '_blank')}
+                      />
+                      <p className="text-sm text-gray-600 text-center mt-2">Click image to view full size</p>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="flex gap-4 mb-4">
+                  <div className="flex flex-col items-center border rounded-xl p-6 bg-[#FFF3F2] w-44">
+                    <ImageIcon className="w-12 h-12 text-[#F14B51] mb-2" />
+                    <span className="font-medium text-base text-[#F14B51]">No Photo</span>
+                  </div>
+                  <div className="flex flex-col items-center border rounded-xl p-6 bg-[#FFF3F2] w-44">
+                    <ImageIcon className="w-12 h-12 text-[#F14B51] mb-2" />
+                    <span className="font-medium text-base text-[#F14B51]">No Video</span>
+                  </div>
+                </div>
+              )}
+              {!report?.MediaURL && (
+                <div className="text-xs text-gray-400 mb-4">No media attachments available</div>
+              )}
+              
+              {/* Action buttons - only show when not in edit mode */}
+              {!isEditMode && (
+                <div className="flex gap-3 mt-8 flex-wrap">
+                  <button 
+                    className="border border-blue-500 text-blue-500 px-4 py-2 rounded-md flex items-center gap-2 hover:bg-blue-50 transition-colors"
+                    onClick={handleEdit}
+                  >
+                    <Edit className="w-4 h-4" /> Edit Report
                   </button>
                   <button 
-                    className="bg-green-500 text-white px-8 py-2 rounded-md flex items-center gap-2 btn-verify disabled:opacity-50" 
-                    onClick={handleVerify}
-                    disabled={isVerifying}
+                    className="border border-red-500 text-red-500 px-4 py-2 rounded-md flex items-center gap-2 hover:bg-red-50 transition-colors"
+                    onClick={handleDelete}
                   >
-                    <CheckCircle className="w-5 h-5" /> {isVerifying ? "Verifying..." : "Verify"}
+                    <Trash2 className="w-4 h-4" /> Delete Report
+                  </button>
+                  <button 
+                    className="border border-green-500 text-green-500 px-4 py-2 rounded-md flex items-center gap-2 hover:bg-green-50 transition-colors"
+                    onClick={handleGenerateReport}
+                  >
+                    <Printer className="w-4 h-4" /> Generate Report
                   </button>
                 </div>
               )}
             </div>
+            
             {/* Right: Map */}
             <div className="flex-1 min-w-[320px] flex flex-col items-center">
               <div className="font-bold text-[#F14B51] text-xl mb-2">Incident Location</div>
               <div className="w-[350px] h-[250px] bg-[#F8E3DE] rounded-lg flex items-center justify-center overflow-hidden mb-2">
-                {report?.Latitude && report?.Longitude ? (
-                  <>
-                    {console.log("Report Detail Map - Report data:", report)}
-                    {console.log("Report coordinates:", report.Latitude, report.Longitude)}
-                    <MapWithNoSSR
-                      center={[report.Latitude, report.Longitude]}
-                      zoom={17}
-                      showPins={true}
-                      showHotspots={false}
-                      showControls={true}
-                      preloadedIncidents={[report]}
-                      barangay={report.Barangay}
-                    />
-                  </>
+                {mapData.latitude && mapData.longitude ? (
+                  <MapWithNoSSR
+                    center={[mapData.latitude, mapData.longitude]}
+                    zoom={17}
+                    showPins={true}
+                    showHotspots={false}
+                    showControls={true}
+                    preloadedIncidents={[mapData.incident]}
+                    barangay={mapData.barangay}
+                  />
                 ) : (
                   <div className="text-gray-500 text-center">
                     <MapPin className="w-12 h-12 mx-auto mb-2 text-gray-400" />
@@ -165,18 +720,56 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
               </div>
             </div>
           </div>
-          <button className="self-end border border-gray-400 text-black px-6 py-2 rounded-md" onClick={() => onOpenChange(false)}>Close</button>
+          
+          {/* Close button with better spacing */}
+          <div className="flex justify-end mt-8 pt-6 border-t border-gray-200">
+            <button 
+              className="border border-gray-400 text-gray-600 px-6 py-2 rounded-md hover:bg-gray-50 transition-colors" 
+              onClick={() => onOpenChange(false)}
+            >
+              Close
+            </button>
+          </div>
         </div>
       </DialogContent>
-      <EditCategoryDialog
-        open={isEditingCategory}
-        onOpenChange={setIsEditingCategory}
-        category={{ name: formattedReport?.category, keywords: report?.keywords }}
-        onSave={({ name, keywords }) => {
-          setIsEditingCategory(false)
-          // Optionally update the category in parent state here
-        }}
-      />
+
+      {/* Delete Confirmation Dialog */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100]">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold text-red-600 mb-4">Delete Report</h3>
+            <p className="text-gray-600 mb-6">
+              Do you want to delete this report? This action cannot be undone.
+            </p>
+            
+            <div className="bg-gray-50 rounded-lg p-3 mb-6">
+              <p className="text-sm text-gray-700">
+                <strong>Title:</strong> {(currentReportData || report)?.Title || formattedReport?.title}
+              </p>
+              <p className="text-sm text-gray-700">
+                <strong>Category:</strong> {(currentReportData || report)?.IncidentType || formattedReport?.category}
+              </p>
+            </div>
+
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={cancelDelete}
+                disabled={isDeleting}
+                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDelete}
+                disabled={isDeleting}
+                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors disabled:opacity-50"
+              >
+                {isDeleting ? "Deleting..." : "Yes, Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </Dialog>
   )
 }

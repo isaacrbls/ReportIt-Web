@@ -14,7 +14,8 @@ const MapWithNoSSR = dynamic(() => import("./map-component"), {
   loading: () => <div className="flex h-[220px] w-full items-center justify-center bg-gray-100">Loading map...</div>,
 });
 
-export default function AddReportDialog({ open, onClose, barangay }) {
+export default function AddReportDialog({ open, onClose, barangay, categories = [] }) {
+  const [title, setTitle] = useState("");
   const [incidentType, setIncidentType] = useState("");
   const [description, setDescription] = useState("");
   const [mediaFile, setMediaFile] = useState(null);
@@ -23,6 +24,34 @@ export default function AddReportDialog({ open, onClose, barangay }) {
   const [addingIncident, setAddingIncident] = useState(false);
   const [error, setError] = useState("");
   const [uploadFailed, setUploadFailed] = useState(false);
+  const [isSensitive, setIsSensitive] = useState(false);
+  const [useCustomTime, setUseCustomTime] = useState(false);
+  const [customDateTime, setCustomDateTime] = useState("");
+
+  // Default categories that are always available
+  const defaultCategories = [
+    "Theft",
+    "Reports/Agreement", 
+    "Accident",
+    "Debt / Unpaid Wages Report",
+    "Defamation Complaint",
+    "Assault/Harassment",
+    "Property Damage/Incident",
+    "Animal Incident",
+    "Verbal Abuse and Threats",
+    "Alarm and Scandal",
+    "Lost Items",
+    "Scam/Fraud",
+    "Drugs Addiction",
+    "Missing Person",
+    "Others"
+  ];
+
+  // Combine default categories with custom categories
+  const allCategories = [
+    ...defaultCategories,
+    ...categories.map(cat => cat.name || cat).filter(catName => !defaultCategories.includes(catName))
+  ];
 
   const { user } = useCurrentUser();
   
@@ -46,6 +75,10 @@ export default function AddReportDialog({ open, onClose, barangay }) {
   const handleSubmit = async () => {
     setError("");
     setUploadFailed(false);
+    if (!title.trim()) {
+      setError("Please enter the title of the report.");
+      return;
+    }
     if (!incidentType.trim()) {
       setError("Please enter the type of incident.");
       return;
@@ -123,18 +156,20 @@ export default function AddReportDialog({ open, onClose, barangay }) {
 
       const [lat, lng] = incidentLocation;
       const payload = {
+        Title: title.trim(),
         IncidentType: incidentType.trim(),
         Description: description.trim(),
         Barangay: barangay || "",
         Latitude: lat,
         Longitude: lng,
         GeoLocation: new GeoPoint(lat, lng),
-        DateTime: serverTimestamp(),
+        DateTime: useCustomTime && customDateTime ? new Date(customDateTime) : serverTimestamp(),
         Status: "Verified",
         hasMedia: !!mediaUrl,
         MediaType: uploadedMediaType,
         MediaURL: mediaUrl,
         SubmittedByEmail: user?.email || null,
+        isSensitive: isSensitive,
       };
       console.log("💾 Saving to Firestore:", payload);
       await addDoc(collection(db, "reports"), payload);
@@ -144,6 +179,7 @@ export default function AddReportDialog({ open, onClose, barangay }) {
       const apiBase = process.env.NEXT_PUBLIC_API_URL;
       if (apiBase) {
         const formData = new FormData();
+        formData.append("title", title.trim());
         formData.append("incident_type", incidentType.trim());
         formData.append("description", description.trim());
         formData.append("barangay", barangay || "");
@@ -158,11 +194,15 @@ export default function AddReportDialog({ open, onClose, barangay }) {
       }
 
       // Reset and close
+      setTitle("");
       setIncidentType("");
       setDescription("");
       setMediaFile(null);
       setMediaType("");
       setIncidentLocation(null);
+      setIsSensitive(false);
+      setUseCustomTime(false);
+      setCustomDateTime("");
       onClose?.(false);
     } catch (e) {
       console.error("❌ Error submitting report:", e);
@@ -186,13 +226,28 @@ export default function AddReportDialog({ open, onClose, barangay }) {
         <div className="bg-white rounded-2xl border p-10 shadow-sm w-[500px] flex flex-col items-stretch max-w-full max-h-[90vh] overflow-y-auto">
           <DialogTitle className="text-red-500 text-2xl font-bold mb-4">Detail of report</DialogTitle>
           <div className="mb-4">
-            <label className="block text-sm font-medium mb-1">Type of incident</label>
+            <label className="block text-sm font-medium mb-1">Title of report</label>
             <input
+              className="w-full border rounded-lg px-4 py-2 focus:outline-none"
+              value={title}
+              onChange={e => setTitle(e.target.value)}
+              placeholder="Enter title of report"
+            />
+          </div>
+          <div className="mb-4">
+            <label className="block text-sm font-medium mb-1">Type of incident</label>
+            <select
               className="w-full border rounded-lg px-4 py-2 focus:outline-none"
               value={incidentType}
               onChange={e => setIncidentType(e.target.value)}
-              placeholder="Enter type of incident"
-            />
+            >
+              <option value="">Select type of incident</option>
+              {allCategories.map((category, index) => (
+                <option key={index} value={category}>
+                  {category}
+                </option>
+              ))}
+            </select>
           </div>
           <div className="mb-4">
             <label className="block text-sm font-medium mb-1">Description</label>
@@ -202,6 +257,37 @@ export default function AddReportDialog({ open, onClose, barangay }) {
               onChange={e => setDescription(e.target.value)}
               placeholder="Describe the incident"
             />
+          </div>
+          <div className="mb-4">
+            <label className="flex items-center gap-2 text-sm font-medium cursor-pointer">
+              <input
+                type="checkbox"
+                checked={isSensitive}
+                onChange={e => setIsSensitive(e.target.checked)}
+                className="rounded border-gray-300 text-red-600 focus:ring-red-500"
+              />
+              <span>Mark as sensitive (only visible to admin users)</span>
+            </label>
+          </div>
+          <div className="mb-4">
+            <label className="flex items-center gap-2 text-sm font-medium cursor-pointer mb-2">
+              <input
+                type="checkbox"
+                checked={useCustomTime}
+                onChange={e => setUseCustomTime(e.target.checked)}
+                className="rounded border-gray-300 text-red-600 focus:ring-red-500"
+              />
+              <span>Set custom date and time</span>
+            </label>
+            {useCustomTime && (
+              <input
+                type="datetime-local"
+                value={customDateTime}
+                onChange={e => setCustomDateTime(e.target.value)}
+                className="w-full border rounded-lg px-4 py-2 focus:outline-none"
+                placeholder="Select date and time"
+              />
+            )}
           </div>
           <div className="mb-4">
             <label className="block text-sm font-medium mb-2">Add photo or video</label>
