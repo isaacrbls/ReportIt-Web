@@ -49,6 +49,7 @@ export default function MapComponent({
 	zoom: propZoom,
 	hotspots = [], // Add hotspots prop
 	preloadedIncidents = null, // Add prop for pre-loaded incidents
+	showPopups = true, // Add prop to control popup display
 }) {
 	const [incidents, setIncidents] = useState([]) // Will be populated from database
 	const mapRef = useRef(null)
@@ -335,31 +336,38 @@ export default function MapComponent({
 				icon: createCustomIcon(incident.risk),
 			}).addTo(mapInstance)
 
-			const popupContent = `
-				<div class="p-2">
-					<div class="flex items-center gap-2 mb-1">
-						<h3 class="font-medium text-sm">${incident.title}</h3>
-						${incident.isSensitive ? '<span class="px-2 py-0.5 rounded-md bg-orange-100 text-orange-600 text-xs font-medium border border-orange-300">Sensitive</span>' : ''}
+			// Only bind popup if showPopups is true
+			if (showPopups) {
+				const popupContent = `
+					<div class="p-2">
+						<div class="flex items-center gap-2 mb-1">
+							<h3 class="font-medium text-sm">${incident.title}</h3>
+							${incident.isSensitive ? '<span class="px-2 py-0.5 rounded-md bg-orange-100 text-orange-600 text-xs font-medium border border-orange-300">Sensitive</span>' : ''}
+						</div>
+						<p class="text-xs text-gray-600 mb-1">
+							${incident.date} at ${incident.time}
+						</p>
+						<p class="text-xs text-gray-600 mb-1">
+							📍 ${incident.barangay} • Status: ${incident.status}
+						</p>
+						<div class="mt-1 rounded-full px-2 py-0.5 text-center text-xs font-medium bg-${
+							incident.risk === "High" ? "red" : incident.risk === "Medium" ? "yellow" : "green"
+						}-100 text-${incident.risk === "High" ? "red" : incident.risk === "Medium" ? "yellow" : "green"}-800">
+							${incident.risk} Risk
+						</div>
+						<p class="mt-1 text-xs">${incident.description}</p>
 					</div>
-					<p class="text-xs text-gray-600 mb-1">
-						${incident.date} at ${incident.time}
-					</p>
-					<p class="text-xs text-gray-600 mb-1">
-						📍 ${incident.barangay} • Status: ${incident.status}
-					</p>
-					<div class="mt-1 rounded-full px-2 py-0.5 text-center text-xs font-medium bg-${
-						incident.risk === "High" ? "red" : incident.risk === "Medium" ? "yellow" : "green"
-					}-100 text-${incident.risk === "High" ? "red" : incident.risk === "Medium" ? "yellow" : "green"}-800">
-						${incident.risk} Risk
-					</div>
-					<p class="mt-1 text-xs">${incident.description}</p>
-				</div>
-			`
+				`
 
-			marker.bindPopup(popupContent)
-			marker.on("click", () => {
-				onMarkerClick(incident)
-			})
+				marker.bindPopup(popupContent)
+			}
+
+			// Only add click event if showPopups is true and onMarkerClick is provided
+			if (showPopups && onMarkerClick) {
+				marker.on("click", () => {
+					onMarkerClick(incident)
+				})
+			}
 
 			markersRef.current.push({ marker, incident })
 		})
@@ -373,28 +381,35 @@ export default function MapComponent({
 				icon: createCustomIcon(newIncident.risk),
 			}).addTo(mapInstance)
 
-			const popupContent = `
-				<div class="p-1">
-					<div class="flex items-center gap-2 mb-1">
-						<h3 class="font-medium">${newIncident.title}</h3>
-						${newIncident.isSensitive ? '<span class="px-2 py-0.5 rounded-md bg-orange-100 text-orange-600 text-xs font-medium border border-orange-300">Sensitive</span>' : ''}
+			// Only bind popup if showPopups is true
+			if (showPopups) {
+				const popupContent = `
+					<div class="p-1">
+						<div class="flex items-center gap-2 mb-1">
+							<h3 class="font-medium">${newIncident.title}</h3>
+							${newIncident.isSensitive ? '<span class="px-2 py-0.5 rounded-md bg-orange-100 text-orange-600 text-xs font-medium border border-orange-300">Sensitive</span>' : ''}
+						</div>
+						<p class="text-xs text-muted-foreground">
+							${newIncident.date} at ${newIncident.time}
+						</p>
+						<div class="mt-1 rounded-full px-2 py-0.5 text-center text-xs font-medium bg-${
+							newIncident.risk === "High" ? "red" : newIncident.risk === "Medium" ? "yellow" : "green"
+						}-100 text-${newIncident.risk === "High" ? "red" : newIncident.risk === "Medium" ? "yellow" : "green"}-800">
+							${newIncident.risk} Risk
+						</div>
+						<p class="mt-1 text-sm">${newIncident.description}</p>
 					</div>
-					<p class="text-xs text-muted-foreground">
-						${newIncident.date} at ${newIncident.time}
-					</p>
-					<div class="mt-1 rounded-full px-2 py-0.5 text-center text-xs font-medium bg-${
-						newIncident.risk === "High" ? "red" : newIncident.risk === "Medium" ? "yellow" : "green"
-					}-100 text-${newIncident.risk === "High" ? "red" : newIncident.risk === "Medium" ? "yellow" : "green"}-800">
-						${newIncident.risk} Risk
-					</div>
-					<p class="mt-1 text-sm">${newIncident.description}</p>
-				</div>
-			`
+				`
 
-			marker.bindPopup(popupContent)
-			marker.on("click", () => {
-				onMarkerClick(newIncident)
-			})
+				marker.bindPopup(popupContent)
+			}
+
+			// Only add click event if showPopups is true and onMarkerClick is provided
+			if (showPopups && onMarkerClick) {
+				marker.on("click", () => {
+					onMarkerClick(newIncident)
+				})
+			}
 
 			markersRef.current.push({ marker, incident: newIncident })
 		}

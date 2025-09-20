@@ -497,9 +497,9 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl w-full p-0 bg-transparent border-none shadow-none flex items-center justify-center min-h-screen overflow-y-auto">
         <div className="bg-white rounded-2xl p-10 shadow-sm w-[900px] max-w-full max-h-[95vh] overflow-y-auto flex flex-col gap-8">
-          <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-[1fr,400px] gap-8">
             {/* Left: Details */}
-            <div className="flex-1 min-w-[320px]">
+            <div className="min-w-[320px]">
               <div className="flex items-center gap-3 mb-4">
                 <h2 className="text-[#F14B51] text-2xl font-bold">Report Details</h2>
                 {(currentReportData || report)?.isSensitive && (
@@ -695,16 +695,17 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
             </div>
             
             {/* Right: Map */}
-            <div className="flex-1 min-w-[320px] flex flex-col items-center">
-              <div className="font-bold text-[#F14B51] text-xl mb-2">Incident Location</div>
-              <div className="w-[350px] h-[250px] bg-[#F8E3DE] rounded-lg flex items-center justify-center overflow-hidden mb-2">
+            <div className="w-full flex flex-col items-center justify-start">
+              <div className="font-bold text-[#F14B51] text-xl mb-2 text-center">Incident Location</div>
+              <div className="w-full h-[280px] bg-[#F8E3DE] rounded-lg flex items-center justify-center overflow-hidden mb-2">
                 {mapData.latitude && mapData.longitude ? (
                   <MapWithNoSSR
                     center={[mapData.latitude, mapData.longitude]}
-                    zoom={17}
+                    zoom={18}
                     showPins={true}
                     showHotspots={false}
-                    showControls={true}
+                    showControls={false}
+                    showPopups={false}
                     preloadedIncidents={[mapData.incident]}
                     barangay={mapData.barangay}
                   />
@@ -715,7 +716,36 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
                   </div>
                 )}
               </div>
-              <div className="w-full text-right text-gray-500 text-sm mt-2">
+              
+              {/* Incident Details - moved from popup to below map */}
+              <div className="w-full bg-white border border-gray-200 rounded-lg p-4 mb-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <h3 className="font-medium text-sm text-[#F14B51]">{formattedReport?.title}</h3>
+                  {(currentReportData || report)?.isSensitive && (
+                    <span className="px-2 py-0.5 rounded-md bg-orange-100 text-orange-600 text-xs font-medium border border-orange-300">
+                      Sensitive
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-gray-600 mb-1">
+                  {formattedReport?.date} at {formattedReport?.time}
+                </p>
+                <p className="text-xs text-gray-600 mb-1">
+                  📍 {formattedReport?.location} • Status: {(currentReportData || report)?.Status || 'Pending'}
+                </p>
+                <div className="mt-2">
+                  <span className={`inline-block rounded-full px-2 py-0.5 text-center text-xs font-medium ${
+                    formattedReport?.category === 'Theft' ? 'bg-red-100 text-red-800' :
+                    formattedReport?.category === 'Accident' ? 'bg-yellow-100 text-yellow-800' :
+                    formattedReport?.category === 'Assault/Harassment' ? 'bg-red-100 text-red-800' :
+                    'bg-green-100 text-green-800'
+                  }`}>
+                    {formattedReport?.category}
+                  </span>
+                </div>
+              </div>
+              
+              <div className="w-full text-center text-gray-500 text-sm">
                 Submitted by: <span className="font-semibold text-black">{formattedReport?.submittedBy}</span>
               </div>
             </div>
