@@ -21,6 +21,7 @@ export const ReportsProvider = ({ children }) => {
   const [reports, setReports] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [hotspotsCache, setHotspotsCache] = useState(new Map()); // Cache hotspots by barangay
 
   useEffect(() => {
     console.log('🔄 ReportsProvider: Setting up Firebase listener');
@@ -67,6 +68,13 @@ export const ReportsProvider = ({ children }) => {
   const calculateBarangayHotspots = (targetBarangay) => {
     if (!targetBarangay || !reports.length) return [];
     
+    // Check cache first
+    const cacheKey = `${targetBarangay}_${reports.length}_${reports.filter(r => r.Status === "Verified").length}`;
+    if (hotspotsCache.has(cacheKey)) {
+      console.log('🔥 ReportsProvider: Using cached hotspots for', targetBarangay);
+      return hotspotsCache.get(cacheKey);
+    }
+    
     const barangayReports = reports.filter(r => r.Barangay === targetBarangay && r.Status === "Verified");
     
     // Improved density-based hotspot detection
@@ -110,6 +118,19 @@ export const ReportsProvider = ({ children }) => {
       .sort((a, b) => b.incidentCount - a.incidentCount); // Sort by incident count
 
     console.log('🔥 ReportsProvider: Calculated hotspots for', targetBarangay, ':', calculatedHotspots.length);
+    
+    // Cache the result
+    setHotspotsCache(prevCache => {
+      const newCache = new Map(prevCache);
+      newCache.set(cacheKey, calculatedHotspots);
+      // Keep only recent 10 cache entries to prevent memory bloat
+      if (newCache.size > 10) {
+        const firstKey = newCache.keys().next().value;
+        newCache.delete(firstKey);
+      }
+      return newCache;
+    });
+    
     return calculatedHotspots;
   };
 

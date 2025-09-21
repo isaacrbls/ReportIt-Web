@@ -28,7 +28,7 @@ export function EnhancedCrimeMap() {
   const [showHotspots, setShowHotspots] = useState(true);
   const [showHeatmap, setShowHeatmap] = useState(true);
   const { user, isLoading: isUserLoading } = useCurrentUser();
-  const { reports, getReportsByBarangay } = useReports();
+  const { reports, getReportsByBarangay, isLoading } = useReports();
 
   // Use centralized user mapping
   const userEmail = user?.email || "";

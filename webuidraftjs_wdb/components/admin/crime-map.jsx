@@ -23,7 +23,7 @@ export function CrimeMap({ barangay, showPins = true, showHotspots = true, showC
   const [newIncidentLocation, setNewIncidentLocation] = useState(null);
   const [showIncidentForm, setShowIncidentForm] = useState(false);
   const [hotspots, setHotspots] = useState([]);
-  const { reports, calculateBarangayHotspots } = useReports();
+  const { reports, calculateBarangayHotspots, isLoading } = useReports();
   const [newIncident, setNewIncident] = useState({
     title: "",
     description: "",
@@ -46,14 +46,22 @@ export function CrimeMap({ barangay, showPins = true, showHotspots = true, showC
 
   // Calculate hotspots when reports or barangay changes
   useEffect(() => {
+    // Don't clear hotspots while data is loading
+    if (isLoading) {
+      console.log("🔄 CrimeMap: Skipping hotspot calculation while loading");
+      return;
+    }
+
     if (showHotspots && barangay && reports.length > 0) {
       const calculatedHotspots = calculateBarangayHotspots(barangay);
       setHotspots(calculatedHotspots);
       console.log("🔥 CrimeMap hotspots calculated for", barangay, ":", calculatedHotspots);
-    } else {
+    } else if (!isLoading) {
+      // Only clear hotspots if we're not loading data
       setHotspots([]);
+      console.log("🔥 CrimeMap hotspots cleared - no data or conditions not met");
     }
-  }, [reports, barangay, showHotspots, calculateBarangayHotspots]);
+  }, [reports, barangay, showHotspots, calculateBarangayHotspots, isLoading]);
 
   const handleAddIncident = () => {
     setAddingIncident(true);

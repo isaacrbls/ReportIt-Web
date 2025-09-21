@@ -78,6 +78,76 @@ export default function MapComponent({
 	const [mapError, setMapError] = useState(null)
 	const cleanupTimeoutRef = useRef(null)
 	
+	// Helper function to render hotspots
+	const renderHotspots = (hotspotsToRender) => {
+		if (!mapInstanceRef.current || !hotspotsToRender || hotspotsToRender.length === 0) {
+			return false;
+		}
+
+		try {
+			// Clear existing hotspot circles
+			hotspotsRef.current.forEach(circle => {
+				if (circle) {
+					try {
+						circle.remove();
+					} catch (error) {
+						console.warn("Warning removing hotspot circle:", error);
+					}
+				}
+			});
+			hotspotsRef.current = [];
+
+			// Add new hotspot circles
+			console.log("🔥 Rendering", hotspotsToRender.length, "hotspots to map");
+			hotspotsToRender.forEach((hotspot, index) => {
+				const color = hotspot.riskLevel === 'high' ? '#ef4444' :     // Red
+							  hotspot.riskLevel === 'medium' ? '#f97316' :   // Orange
+							  '#eab308';                                     // Yellow
+				
+				console.log(`🎯 Hotspot ${index + 1}: ${hotspot.incidentCount} incidents, ${hotspot.radius}m radius, ${hotspot.riskLevel} risk at [${hotspot.lat.toFixed(4)}, ${hotspot.lng.toFixed(4)}]`);
+			
+				const circle = L.circle([hotspot.lat, hotspot.lng], {
+					color: color,
+					fillColor: color,
+					fillOpacity: 0.25,
+					radius: hotspot.radius,
+					weight: 2,
+					opacity: 0.8,
+				}).addTo(mapInstanceRef.current);
+
+				const popupContent = `
+					<div class="p-3">
+						<h3 class="font-medium text-sm mb-2">Crime Hotspot</h3>
+						<div class="space-y-1">
+							<p class="text-xs text-gray-600">
+								Risk Level: <span class="font-medium ${
+									hotspot.riskLevel === 'high' ? 'text-red-600' :
+									hotspot.riskLevel === 'medium' ? 'text-orange-600' : 'text-yellow-600'
+								}">${hotspot.riskLevel.toUpperCase()}</span>
+							</p>
+							<p class="text-xs text-gray-600">
+								${hotspot.incidentCount} incidents in ${hotspot.radius}m radius
+							</p>
+							<p class="text-xs text-gray-500">
+								${hotspot.lat.toFixed(4)}, ${hotspot.lng.toFixed(4)}
+							</p>
+							<p class="text-xs text-gray-500 mt-2">
+								Based on verified reports within 100m grid
+							</p>
+						</div>
+					</div>
+				`;
+
+				circle.bindPopup(popupContent);
+				hotspotsRef.current.push(circle);
+			});
+			return true;
+		} catch (error) {
+			console.error("❌ Error rendering hotspots to map:", error);
+			return false;
+		}
+	};
+	
 	// Fetch reports from Firebase and convert to incident format
 	const fetchReports = async () => {
 		try {
@@ -532,77 +602,32 @@ export default function MapComponent({
 
 	// Handle hotspots visualization
 	useEffect(() => {
-		if (!mapInstanceRef.current || !hotspots || hotspots.length === 0) {
-			console.log("🔥 Skipping hotspots - map not ready or no hotspots");
+		if (!hotspots || hotspots.length === 0) {
+			console.log("🔥 Skipping hotspots - no hotspots data");
 			return;
 		}
 
-		try {
-			// Clear existing hotspot circles
-			hotspotsRef.current.forEach(circle => {
-				if (circle) {
-					try {
-						circle.remove();
-					} catch (error) {
-						console.warn("Warning removing hotspot circle:", error);
-					}
-				}
-			});
-			hotspotsRef.current = [];
-
-			// Add new hotspot circles
-			console.log("🔥 Adding", hotspots.length, "hotspots to map");
-			hotspots.forEach((hotspot, index) => {
-				// Risk level colors:
-				// Low risk (2 incidents) = Yellow circles
-				// Medium risk (3-4 incidents) = Orange circles
-				// High risk (5+ incidents) = Red circles
-				const color = hotspot.riskLevel === 'high' ? '#ef4444' :     // Red
-							  hotspot.riskLevel === 'medium' ? '#f97316' :   // Orange
-							  '#eab308';                                     // Yellow
-				
-				console.log(`🎯 Hotspot ${index + 1}: ${hotspot.incidentCount} incidents, ${hotspot.radius}m radius, ${hotspot.riskLevel} risk at [${hotspot.lat.toFixed(4)}, ${hotspot.lng.toFixed(4)}]`);
-			
-				const circle = L.circle([hotspot.lat, hotspot.lng], {
-					color: color,
-					fillColor: color,
-					fillOpacity: 0.25, // Slightly more transparent for better visibility
-					radius: hotspot.radius,
-					weight: 2,
-					opacity: 0.8,
-				}).addTo(mapInstanceRef.current);
-
-				// Add popup to hotspot
-				const popupContent = `
-					<div class="p-3">
-						<h3 class="font-medium text-sm mb-2">Crime Hotspot</h3>
-						<div class="space-y-1">
-							<p class="text-xs text-gray-600">
-								Risk Level: <span class="font-medium ${
-									hotspot.riskLevel === 'high' ? 'text-red-600' :
-									hotspot.riskLevel === 'medium' ? 'text-orange-600' : 'text-yellow-600'
-								}">${hotspot.riskLevel.toUpperCase()}</span>
-							</p>
-							<p class="text-xs text-gray-600">
-								${hotspot.incidentCount} incidents in ${hotspot.radius}m radius
-							</p>
-							<p class="text-xs text-gray-500">
-								${hotspot.lat.toFixed(4)}, ${hotspot.lng.toFixed(4)}
-							</p>
-							<p class="text-xs text-gray-500 mt-2">
-								Based on verified reports within 100m grid
-							</p>
-						</div>
-					</div>
-				`;
-
-				circle.bindPopup(popupContent);
-				hotspotsRef.current.push(circle);
-			});
-		} catch (error) {
-			console.error("❌ Error adding hotspots to map:", error);
+		if (!mapInstanceRef.current) {
+			console.log("🔥 Map not ready yet, deferring hotspots rendering");
+			return;
 		}
+
+		renderHotspots(hotspots);
 	}, [hotspots]);
+
+	// Ensure hotspots are rendered when map becomes ready (after navigation)
+	useEffect(() => {
+		if (isMapReady && mapInstanceRef.current && hotspots && hotspots.length > 0) {
+			// If hotspots are already rendered, skip
+			if (hotspotsRef.current.length > 0) {
+				console.log("🔥 Hotspots already rendered, skipping");
+				return;
+			}
+			
+			console.log("🔥 Map ready - adding deferred hotspots:", hotspots.length);
+			renderHotspots(hotspots);
+		}
+	}, [isMapReady, hotspots]);
 
 	// Handle window resize events to properly resize map
 	useEffect(() => {
