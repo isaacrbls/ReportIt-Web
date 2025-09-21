@@ -8,6 +8,25 @@ import { getMapConfig, getMapOptions } from "@/lib/mapUtils"
 import { getMapCoordinatesForBarangay } from "@/lib/userMapping"
 import { useCurrentUser } from "@/hooks/use-current-user"
 
+// Dynamically import Leaflet CSS to avoid SSR issues
+let leafletCSSLoaded = false;
+const loadLeafletCSS = () => {
+	if (typeof window !== 'undefined' && !leafletCSSLoaded) {
+		try {
+			require("leaflet/dist/leaflet.css");
+			leafletCSSLoaded = true;
+		} catch (error) {
+			console.warn("Failed to load Leaflet CSS:", error);
+			// Fallback: add CSS link manually
+			const link = document.createElement('link');
+			link.rel = 'stylesheet';
+			link.href = 'https://unpkg.com/leaflet@1.7.1/dist/leaflet.css';
+			document.head.appendChild(link);
+			leafletCSSLoaded = true;
+		}
+	}
+};
+
 // Fix for Leaflet marker icons in Next.js
 const fixLeafletIcons = () => {
 	// Delete the default icon
@@ -55,6 +74,9 @@ export default function MapComponent({
 	const mapRef = useRef(null)
 	const mapInstanceRef = useRef(null)
 	const { user, isLoading: isUserLoading } = useCurrentUser() // Get current user for map configuration
+	const [isMapReady, setIsMapReady] = useState(false)
+	const [mapError, setMapError] = useState(null)
+	const cleanupTimeoutRef = useRef(null)
 	
 	// Fetch reports from Firebase and convert to incident format
 	const fetchReports = async () => {
@@ -282,148 +304,224 @@ export default function MapComponent({
 
 	// Initialize map
 	useEffect(() => {
+		// Clear any existing cleanup timeout
+		if (cleanupTimeoutRef.current) {
+			clearTimeout(cleanupTimeoutRef.current);
+			cleanupTimeoutRef.current = null;
+		}
+
+		// Ensure mapRef.current exists before proceeding
+		if (!mapRef.current) {
+			console.log("⚠️ Map container not ready, skipping initialization");
+			return;
+		}
+
 		// Don't initialize map if user is still loading and we don't have explicit coordinates
 		// This prevents the map from centering on fallback coordinates then jumping
 		if (!propCenter && !preloadedIncidents && isUserLoading) {
 			console.log("⏳ Map initialization delayed - waiting for user to load");
 			return;
 		}
-		
-		// Import Leaflet CSS
-		require("leaflet/dist/leaflet.css")
-		fixLeafletIcons()
 
-		console.log("MapComponent received barangay:", barangay);
-		console.log("Prop center:", propCenter, "Prop zoom:", propZoom);
-		console.log("Preloaded incidents:", preloadedIncidents);
-		console.log("Current user:", user);
-
-		// Get centralized map configuration based on current user and props
-		const mapConfig = getMapConfig(user?.email, {
-			propCenter,
-			propZoom, 
-			preloadedIncidents
-		});
-
-		// Get map options with bounds if needed
-		const isReportDetail = preloadedIncidents && preloadedIncidents.length > 0;
-		const mapOptions = getMapOptions(mapConfig.bounds, isReportDetail, addingIncident);
-
-		const mapInstance = L.map(mapRef.current, mapOptions).setView(mapConfig.center, mapConfig.zoom);
-		mapInstanceRef.current = mapInstance
-
-		// Add tile layer
-		L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-			attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-		}).addTo(mapInstance)
-
-		// Add click event listener
-		mapInstance.on("click", (e) => {
-			if (addingIncident) {
-				const { lat, lng } = e.latlng
-				onMapClick([lat, lng])
+		// Clean up any existing map instance first
+		if (mapInstanceRef.current) {
+			console.log("🧹 Cleaning up existing map instance");
+			try {
+				mapInstanceRef.current.remove();
+			} catch (error) {
+				console.warn("Warning during map cleanup:", error);
 			}
-		})
-
-		// Add hotspots
-		// Hotspots removed
-
-		// Use incidents from database (already filtered by barangay in fetchReports)
-		console.log("📍 Rendering incidents on map:", incidents.length);
-		
-		incidents.forEach((incident) => {
-			const marker = L.marker(incident.location, {
-				icon: createCustomIcon(incident.risk),
-			}).addTo(mapInstance)
-
-			// Only bind popup if showPopups is true
-			if (showPopups) {
-				const popupContent = `
-					<div class="p-2">
-						<div class="flex items-center gap-2 mb-1">
-							<h3 class="font-medium text-sm">${incident.title}</h3>
-							${incident.isSensitive ? '<span class="px-2 py-0.5 rounded-md bg-orange-100 text-orange-600 text-xs font-medium border border-orange-300">Sensitive</span>' : ''}
-						</div>
-						<p class="text-xs text-gray-600 mb-1">
-							${incident.date} at ${incident.time}
-						</p>
-						<p class="text-xs text-gray-600 mb-1">
-							📍 ${incident.barangay} • Status: ${incident.status}
-						</p>
-						<div class="mt-1 rounded-full px-2 py-0.5 text-center text-xs font-medium bg-${
-							incident.risk === "High" ? "red" : incident.risk === "Medium" ? "yellow" : "green"
-						}-100 text-${incident.risk === "High" ? "red" : incident.risk === "Medium" ? "yellow" : "green"}-800">
-							${incident.risk} Risk
-						</div>
-						<p class="mt-1 text-xs">${incident.description}</p>
-					</div>
-				`
-
-				marker.bindPopup(popupContent)
-			}
-
-			// Only add click event if showPopups is true and onMarkerClick is provided
-			if (showPopups && onMarkerClick) {
-				marker.on("click", () => {
-					onMarkerClick(incident)
-				})
-			}
-
-			markersRef.current.push({ marker, incident })
-		})
-
-		// Listen for new incidents
-		const handleAddIncident = (e) => {
-			const newIncident = e.detail
-			setIncidents((prev) => [...prev, newIncident])
-
-			const marker = L.marker(newIncident.location, {
-				icon: createCustomIcon(newIncident.risk),
-			}).addTo(mapInstance)
-
-			// Only bind popup if showPopups is true
-			if (showPopups) {
-				const popupContent = `
-					<div class="p-1">
-						<div class="flex items-center gap-2 mb-1">
-							<h3 class="font-medium">${newIncident.title}</h3>
-							${newIncident.isSensitive ? '<span class="px-2 py-0.5 rounded-md bg-orange-100 text-orange-600 text-xs font-medium border border-orange-300">Sensitive</span>' : ''}
-						</div>
-						<p class="text-xs text-muted-foreground">
-							${newIncident.date} at ${newIncident.time}
-						</p>
-						<div class="mt-1 rounded-full px-2 py-0.5 text-center text-xs font-medium bg-${
-							newIncident.risk === "High" ? "red" : newIncident.risk === "Medium" ? "yellow" : "green"
-						}-100 text-${newIncident.risk === "High" ? "red" : newIncident.risk === "Medium" ? "yellow" : "green"}-800">
-							${newIncident.risk} Risk
-						</div>
-						<p class="mt-1 text-sm">${newIncident.description}</p>
-					</div>
-				`
-
-				marker.bindPopup(popupContent)
-			}
-
-			// Only add click event if showPopups is true and onMarkerClick is provided
-			if (showPopups && onMarkerClick) {
-				marker.on("click", () => {
-					onMarkerClick(newIncident)
-				})
-			}
-
-			markersRef.current.push({ marker, incident: newIncident })
+			mapInstanceRef.current = null;
 		}
 
-		window.addEventListener("addIncident", handleAddIncident)
+		// Add small delay to ensure DOM is ready
+		const initTimeout = setTimeout(() => {
+			try {
+				setMapError(null);
+				setIsMapReady(false);
 
-		// Cleanup
+				// Double-check container still exists
+				if (!mapRef.current) {
+					console.error("❌ Map container disappeared during initialization");
+					return;
+				}
+
+				// Load Leaflet CSS and initialize icons
+				loadLeafletCSS();
+				fixLeafletIcons()
+
+				console.log("MapComponent received barangay:", barangay);
+				console.log("Prop center:", propCenter, "Prop zoom:", propZoom);
+				console.log("Preloaded incidents:", preloadedIncidents);
+				console.log("Current user:", user);
+
+				// Get centralized map configuration based on current user and props
+				const mapConfig = getMapConfig(user?.email, {
+					propCenter,
+					propZoom, 
+					preloadedIncidents
+				});
+
+				// Get map options with bounds if needed
+				const isReportDetail = preloadedIncidents && preloadedIncidents.length > 0;
+				const mapOptions = getMapOptions(mapConfig.bounds, isReportDetail, addingIncident);
+
+				// Final safety check for map container
+				if (!mapRef.current) {
+					console.error("❌ Map container disappeared during initialization");
+					return;
+				}
+
+				const mapInstance = L.map(mapRef.current, mapOptions).setView(mapConfig.center, mapConfig.zoom);
+				mapInstanceRef.current = mapInstance
+
+				// Add tile layer
+				L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+					attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+				}).addTo(mapInstance)
+
+				// Add click event listener
+				mapInstance.on("click", (e) => {
+					if (addingIncident) {
+						const { lat, lng } = e.latlng
+						onMapClick([lat, lng])
+					}
+				})
+
+				// Add hotspots
+				// Hotspots removed
+
+				// Use incidents from database (already filtered by barangay in fetchReports)
+				console.log("📍 Rendering incidents on map:", incidents.length);
+				
+				incidents.forEach((incident) => {
+					const marker = L.marker(incident.location, {
+						icon: createCustomIcon(incident.risk),
+					}).addTo(mapInstance)
+
+					// Only bind popup if showPopups is true
+					if (showPopups) {
+						const popupContent = `
+							<div class="p-2">
+								<div class="flex items-center gap-2 mb-1">
+									<h3 class="font-medium text-sm">${incident.title}</h3>
+									${incident.isSensitive ? '<span class="px-2 py-0.5 rounded-md bg-orange-100 text-orange-600 text-xs font-medium border border-orange-300">Sensitive</span>' : ''}
+								</div>
+								<p class="text-xs text-gray-600 mb-1">
+									${incident.date} at ${incident.time}
+								</p>
+								<p class="text-xs text-gray-600 mb-1">
+									📍 ${incident.barangay} • Status: ${incident.status}
+								</p>
+								<div class="mt-1 rounded-full px-2 py-0.5 text-center text-xs font-medium bg-${
+									incident.risk === "High" ? "red" : incident.risk === "Medium" ? "yellow" : "green"
+								}-100 text-${incident.risk === "High" ? "red" : incident.risk === "Medium" ? "yellow" : "green"}-800">
+									${incident.risk} Risk
+								</div>
+								<p class="mt-1 text-xs">${incident.description}</p>
+							</div>
+						`
+
+						marker.bindPopup(popupContent)
+					}
+
+					// Only add click event if showPopups is true and onMarkerClick is provided
+					if (showPopups && onMarkerClick) {
+						marker.on("click", () => {
+							onMarkerClick(incident)
+						})
+					}
+
+					markersRef.current.push({ marker, incident })
+				})
+
+				// Listen for new incidents
+				const handleAddIncident = (e) => {
+					const newIncident = e.detail
+					setIncidents((prev) => [...prev, newIncident])
+
+					const marker = L.marker(newIncident.location, {
+						icon: createCustomIcon(newIncident.risk),
+					}).addTo(mapInstance)
+
+					// Only bind popup if showPopups is true
+					if (showPopups) {
+						const popupContent = `
+							<div class="p-1">
+								<div class="flex items-center gap-2 mb-1">
+									<h3 class="font-medium">${newIncident.title}</h3>
+									${newIncident.isSensitive ? '<span class="px-2 py-0.5 rounded-md bg-orange-100 text-orange-600 text-xs font-medium border border-orange-300">Sensitive</span>' : ''}
+								</div>
+								<p class="text-xs text-muted-foreground">
+									${newIncident.date} at ${newIncident.time}
+								</p>
+								<div class="mt-1 rounded-full px-2 py-0.5 text-center text-xs font-medium bg-${
+									newIncident.risk === "High" ? "red" : newIncident.risk === "Medium" ? "yellow" : "green"
+								}-100 text-${newIncident.risk === "High" ? "red" : newIncident.risk === "Medium" ? "yellow" : "green"}-800">
+									${newIncident.risk} Risk
+								</div>
+								<p class="mt-1 text-sm">${newIncident.description}</p>
+							</div>
+						`
+
+						marker.bindPopup(popupContent)
+					}
+
+					// Only add click event if showPopups is true and onMarkerClick is provided
+					if (showPopups && onMarkerClick) {
+						marker.on("click", () => {
+							onMarkerClick(newIncident)
+						})
+					}
+
+					markersRef.current.push({ marker, incident: newIncident })
+				}
+
+				window.addEventListener("addIncident", handleAddIncident);
+
+				// Mark map as ready
+				setIsMapReady(true);
+
+				// Cleanup function
+				return () => {
+					console.log("🧹 Cleaning up map instance and event listeners");
+					setIsMapReady(false);
+					
+					// Use timeout to avoid immediate cleanup issues
+					cleanupTimeoutRef.current = setTimeout(() => {
+						try {
+							if (mapInstanceRef.current) {
+								mapInstanceRef.current.remove()
+								mapInstanceRef.current = null
+							}
+						} catch (error) {
+							console.warn("Warning during map cleanup:", error);
+						}
+						window.removeEventListener("addIncident", handleAddIncident)
+					}, 100);
+				};
+
+			} catch (error) {
+				console.error("❌ Error initializing map:", error);
+				setMapError(error.message);
+				// Cleanup on error
+				if (mapInstanceRef.current) {
+					try {
+						mapInstanceRef.current.remove();
+					} catch (cleanupError) {
+						console.warn("Warning during error cleanup:", cleanupError);
+					}
+					mapInstanceRef.current = null;
+				}
+			}
+		}, 100); // Small delay to ensure DOM is ready
+
+		// Cleanup timeout on unmount
 		return () => {
-			if (mapInstanceRef.current) {
-				mapInstanceRef.current.remove()
-				mapInstanceRef.current = null
+			if (initTimeout) {
+				clearTimeout(initTimeout);
 			}
-			window.removeEventListener("addIncident", handleAddIncident)
-		}
+		};
 	}, [
 		// Only include user if we don't have explicit coordinates
 		...(propCenter ? [] : [user]),
@@ -434,93 +532,135 @@ export default function MapComponent({
 
 	// Handle hotspots visualization
 	useEffect(() => {
-		if (!mapInstanceRef.current || !hotspots || hotspots.length === 0) return;
+		if (!mapInstanceRef.current || !hotspots || hotspots.length === 0) {
+			console.log("🔥 Skipping hotspots - map not ready or no hotspots");
+			return;
+		}
 
-		// Clear existing hotspot circles
-		hotspotsRef.current.forEach(circle => {
-			if (circle) {
-				circle.remove();
-			}
-		});
-		hotspotsRef.current = [];
+		try {
+			// Clear existing hotspot circles
+			hotspotsRef.current.forEach(circle => {
+				if (circle) {
+					try {
+						circle.remove();
+					} catch (error) {
+						console.warn("Warning removing hotspot circle:", error);
+					}
+				}
+			});
+			hotspotsRef.current = [];
 
-		// Add new hotspot circles
-		console.log("🔥 Adding", hotspots.length, "hotspots to map");
-		hotspots.forEach((hotspot, index) => {
-			// Risk level colors:
-			// Low risk (2 incidents) = Yellow circles
-			// Medium risk (3-4 incidents) = Orange circles
-			// High risk (5+ incidents) = Red circles
-			const color = hotspot.riskLevel === 'high' ? '#ef4444' :     // Red
-						  hotspot.riskLevel === 'medium' ? '#f97316' :   // Orange
-						  '#eab308';                                     // Yellow
+			// Add new hotspot circles
+			console.log("🔥 Adding", hotspots.length, "hotspots to map");
+			hotspots.forEach((hotspot, index) => {
+				// Risk level colors:
+				// Low risk (2 incidents) = Yellow circles
+				// Medium risk (3-4 incidents) = Orange circles
+				// High risk (5+ incidents) = Red circles
+				const color = hotspot.riskLevel === 'high' ? '#ef4444' :     // Red
+							  hotspot.riskLevel === 'medium' ? '#f97316' :   // Orange
+							  '#eab308';                                     // Yellow
+				
+				console.log(`🎯 Hotspot ${index + 1}: ${hotspot.incidentCount} incidents, ${hotspot.radius}m radius, ${hotspot.riskLevel} risk at [${hotspot.lat.toFixed(4)}, ${hotspot.lng.toFixed(4)}]`);
 			
-			console.log(`🎯 Hotspot ${index + 1}: ${hotspot.incidentCount} incidents, ${hotspot.radius}m radius, ${hotspot.riskLevel} risk at [${hotspot.lat.toFixed(4)}, ${hotspot.lng.toFixed(4)}]`);
-			
-			const circle = L.circle([hotspot.lat, hotspot.lng], {
-				color: color,
-				fillColor: color,
-				fillOpacity: 0.25, // Slightly more transparent for better visibility
-				radius: hotspot.radius,
-				weight: 2,
-				opacity: 0.8,
-			}).addTo(mapInstanceRef.current);
+				const circle = L.circle([hotspot.lat, hotspot.lng], {
+					color: color,
+					fillColor: color,
+					fillOpacity: 0.25, // Slightly more transparent for better visibility
+					radius: hotspot.radius,
+					weight: 2,
+					opacity: 0.8,
+				}).addTo(mapInstanceRef.current);
 
-			// Add popup to hotspot
-			const popupContent = `
-				<div class="p-3">
-					<h3 class="font-medium text-sm mb-2">Crime Hotspot</h3>
-					<div class="space-y-1">
-						<p class="text-xs text-gray-600">
-							Risk Level: <span class="font-medium ${
-								hotspot.riskLevel === 'high' ? 'text-red-600' :
-								hotspot.riskLevel === 'medium' ? 'text-orange-600' : 'text-yellow-600'
-							}">${hotspot.riskLevel.toUpperCase()}</span>
-						</p>
-						<p class="text-xs text-gray-600">
-							${hotspot.incidentCount} incidents in ${hotspot.radius}m radius
-						</p>
-						<p class="text-xs text-gray-500">
-							${hotspot.lat.toFixed(4)}, ${hotspot.lng.toFixed(4)}
-						</p>
-						<p class="text-xs text-gray-500 mt-2">
-							Based on verified reports within 100m grid
-						</p>
+				// Add popup to hotspot
+				const popupContent = `
+					<div class="p-3">
+						<h3 class="font-medium text-sm mb-2">Crime Hotspot</h3>
+						<div class="space-y-1">
+							<p class="text-xs text-gray-600">
+								Risk Level: <span class="font-medium ${
+									hotspot.riskLevel === 'high' ? 'text-red-600' :
+									hotspot.riskLevel === 'medium' ? 'text-orange-600' : 'text-yellow-600'
+								}">${hotspot.riskLevel.toUpperCase()}</span>
+							</p>
+							<p class="text-xs text-gray-600">
+								${hotspot.incidentCount} incidents in ${hotspot.radius}m radius
+							</p>
+							<p class="text-xs text-gray-500">
+								${hotspot.lat.toFixed(4)}, ${hotspot.lng.toFixed(4)}
+							</p>
+							<p class="text-xs text-gray-500 mt-2">
+								Based on verified reports within 100m grid
+							</p>
+						</div>
 					</div>
-				</div>
-			`;
+				`;
 
-			circle.bindPopup(popupContent);
-			hotspotsRef.current.push(circle);
-		});
+				circle.bindPopup(popupContent);
+				hotspotsRef.current.push(circle);
+			});
+		} catch (error) {
+			console.error("❌ Error adding hotspots to map:", error);
+		}
 	}, [hotspots]);
+
+	// Handle window resize events to properly resize map
+	useEffect(() => {
+		const handleResize = () => {
+			if (mapInstanceRef.current) {
+				// Small delay to ensure container has resized
+				setTimeout(() => {
+					try {
+						mapInstanceRef.current.invalidateSize();
+						console.log("🔄 Map size invalidated due to resize");
+					} catch (error) {
+						console.warn("Warning invalidating map size:", error);
+					}
+				}, 50);
+			}
+		};
+
+		window.addEventListener('resize', handleResize);
+		
+		return () => {
+			window.removeEventListener('resize', handleResize);
+		};
+	}, []);
 
 	// Recenter map when barangay changes
 	useEffect(() => {
 		if (!mapInstanceRef.current || !barangay) return;
 		
-		// Use centralized mapping for barangay coordinates
-		const barangayCoordinates = getMapCoordinatesForBarangay(barangay);
-		
-		console.log("🔄 Re-centering to", barangay + ":", barangayCoordinates.center, "zoom:", barangayCoordinates.zoom);
-		mapInstanceRef.current.setView(barangayCoordinates.center, barangayCoordinates.zoom);
+		try {
+			// Use centralized mapping for barangay coordinates
+			const barangayCoordinates = getMapCoordinatesForBarangay(barangay);
+			
+			console.log("🔄 Re-centering to", barangay + ":", barangayCoordinates.center, "zoom:", barangayCoordinates.zoom);
+			mapInstanceRef.current.setView(barangayCoordinates.center, barangayCoordinates.zoom);
+		} catch (error) {
+			console.error("❌ Error re-centering map:", error);
+		}
 	}, [barangay]);
 
 	// Handle new incident location
 	useEffect(() => {
 		if (!mapInstanceRef.current) return
 
-		// Remove previous new marker if exists
-		if (newMarkerRef.current) {
-			newMarkerRef.current.remove()
-			newMarkerRef.current = null
-		}
+		try {
+			// Remove previous new marker if exists
+			if (newMarkerRef.current) {
+				newMarkerRef.current.remove()
+				newMarkerRef.current = null
+			}
 
-		// Add new marker if location exists
-		if (newIncidentLocation) {
-			newMarkerRef.current = L.marker(newIncidentLocation, {
-				icon: createCustomIcon(newIncidentRisk || "Medium"),
-			}).addTo(mapInstanceRef.current)
+			// Add new marker if location exists
+			if (newIncidentLocation) {
+				newMarkerRef.current = L.marker(newIncidentLocation, {
+					icon: createCustomIcon(newIncidentRisk || "Medium"),
+				}).addTo(mapInstanceRef.current)
+			}
+		} catch (error) {
+			console.error("❌ Error handling new incident location:", error);
 		}
 	}, [newIncidentLocation, newIncidentRisk])
 

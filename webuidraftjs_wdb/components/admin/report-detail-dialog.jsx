@@ -41,10 +41,48 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
     }
   }, [report])
 
+  // Handle dialog opening - trigger map refresh after dialog is visible
+  useEffect(() => {
+    if (open) {
+      // Add a small delay to ensure dialog is fully rendered and has proper dimensions
+      const refreshTimeout = setTimeout(() => {
+        // Trigger window resize event to force map to recalculate dimensions
+        window.dispatchEvent(new Event('resize'));
+      }, 150); // Slightly longer delay than map initialization
+
+      return () => clearTimeout(refreshTimeout);
+    }
+  }, [open])
+
   // Format the report data to match Firebase structure
   const formattedReport = useMemo(() => {
     return formatReportForDisplay(currentReportData || report)
   }, [currentReportData, report])
+
+  // Create stable display data for the map area that won't change during editing
+  const stableDisplayData = useMemo(() => {
+    const originalReport = report // Always use original report for stable display
+    const formatted = formatReportForDisplay(originalReport)
+    
+    return {
+      title: formatted?.title,
+      date: formatted?.date,
+      time: formatted?.time,
+      location: formatted?.location,
+      category: formatted?.category,
+      submittedBy: formatted?.submittedBy,
+      isSensitive: originalReport?.isSensitive,
+      status: originalReport?.Status || 'Pending'
+    }
+  }, [
+    report?.Title,
+    report?.IncidentType,
+    report?.DateTime,
+    report?.Barangay,
+    report?.isSensitive,
+    report?.Status,
+    report?.SubmittedBy
+  ]) // Only depend on original report properties
 
   // Memoize map data to prevent unnecessary re-renders during editing
   const mapData = useMemo(() => {
@@ -54,13 +92,37 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
     const longitude = reportData?.Longitude
     const barangay = reportData?.Barangay
     
+    // Create a stable incident object that won't change during editing
+    const stableIncident = {
+      id: reportData?.id || reportData?.ReportID,
+      Latitude: latitude,
+      Longitude: longitude,
+      Barangay: barangay,
+      IncidentType: reportData?.IncidentType,
+      Description: reportData?.Description,
+      DateTime: reportData?.DateTime,
+      Status: reportData?.Status,
+      isSensitive: reportData?.isSensitive
+    }
+    
     return {
       latitude,
       longitude,
       barangay,
-      incident: reportData
+      incident: stableIncident
     }
-  }, [report?.Latitude, report?.Longitude, report?.Barangay]) // Only depend on original report coordinates
+  }, [
+    report?.id, 
+    report?.ReportID, 
+    report?.Latitude, 
+    report?.Longitude, 
+    report?.Barangay,
+    report?.IncidentType,
+    report?.Description,
+    report?.DateTime,
+    report?.Status,
+    report?.isSensitive
+  ]) // Only depend on original report data that won't change during editing
 
   // Initialize edit form when opening edit mode
   useEffect(() => {
@@ -700,6 +762,7 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
               <div className="w-full h-[280px] bg-[#F8E3DE] rounded-lg flex items-center justify-center overflow-hidden mb-2">
                 {mapData.latitude && mapData.longitude ? (
                   <MapWithNoSSR
+                    key={`stable-map-${report?.id || report?.ReportID}`}
                     center={[mapData.latitude, mapData.longitude]}
                     zoom={18}
                     showPins={true}
@@ -720,33 +783,33 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
               {/* Incident Details - moved from popup to below map */}
               <div className="w-full bg-white border border-gray-200 rounded-lg p-4 mb-3">
                 <div className="flex items-center gap-2 mb-2">
-                  <h3 className="font-medium text-sm text-[#F14B51]">{formattedReport?.title}</h3>
-                  {(currentReportData || report)?.isSensitive && (
+                  <h3 className="font-medium text-sm text-[#F14B51]">{stableDisplayData?.title}</h3>
+                  {stableDisplayData?.isSensitive && (
                     <span className="px-2 py-0.5 rounded-md bg-orange-100 text-orange-600 text-xs font-medium border border-orange-300">
                       Sensitive
                     </span>
                   )}
                 </div>
                 <p className="text-xs text-gray-600 mb-1">
-                  {formattedReport?.date} at {formattedReport?.time}
+                  {stableDisplayData?.date} at {stableDisplayData?.time}
                 </p>
                 <p className="text-xs text-gray-600 mb-1">
-                  📍 {formattedReport?.location} • Status: {(currentReportData || report)?.Status || 'Pending'}
+                  📍 {stableDisplayData?.location} • Status: {stableDisplayData?.status}
                 </p>
                 <div className="mt-2">
                   <span className={`inline-block rounded-full px-2 py-0.5 text-center text-xs font-medium ${
-                    formattedReport?.category === 'Theft' ? 'bg-red-100 text-red-800' :
-                    formattedReport?.category === 'Accident' ? 'bg-yellow-100 text-yellow-800' :
-                    formattedReport?.category === 'Assault/Harassment' ? 'bg-red-100 text-red-800' :
+                    stableDisplayData?.category === 'Theft' ? 'bg-red-100 text-red-800' :
+                    stableDisplayData?.category === 'Accident' ? 'bg-yellow-100 text-yellow-800' :
+                    stableDisplayData?.category === 'Assault/Harassment' ? 'bg-red-100 text-red-800' :
                     'bg-green-100 text-green-800'
                   }`}>
-                    {formattedReport?.category}
+                    {stableDisplayData?.category}
                   </span>
                 </div>
               </div>
               
               <div className="w-full text-center text-gray-500 text-sm">
-                Submitted by: <span className="font-semibold text-black">{formattedReport?.submittedBy}</span>
+                Submitted by: <span className="font-semibold text-black">{stableDisplayData?.submittedBy}</span>
               </div>
             </div>
           </div>

@@ -62,13 +62,17 @@ console.log("👤 Reports page - Current user:", user);
     const barangayReports = reports.filter(r => r.Barangay === barangay);
     console.log("🔍 Barangay reports for hotspot calculation:", barangayReports);
     
-    // Simple density-based hotspot detection with larger grid for better clustering
-    const gridSize = 0.002; // ~200m grid cells (increased from 100m)
+    // Filter for verified reports only (avoid counting unverified incidents)
+    const verifiedReports = barangayReports.filter(r => r.Status === 'Verified');
+    console.log("✅ Verified reports for hotspot calculation:", verifiedReports.length);
+    
+    // Simple density-based hotspot detection with standardized grid
+    const gridSize = 0.002; // ~200m grid cells (standardized)
     const locations = {};
     
-    barangayReports.forEach(report => {
+    verifiedReports.forEach(report => {
       if (report.Latitude && report.Longitude) {
-        // Create grid key for grouping nearby incidents
+        // Create grid key for grouping nearby incidents (standardized method)
         const gridLat = Math.floor(report.Latitude / gridSize) * gridSize;
         const gridLng = Math.floor(report.Longitude / gridSize) * gridSize;
         const key = `${gridLat.toFixed(3)}_${gridLng.toFixed(3)}`;
@@ -93,7 +97,7 @@ console.log("👤 Reports page - Current user:", user);
     
     console.log("🗂️ Grid locations:", locations);
     
-    // Lower threshold to catch your 4 clustered pins
+    // Consistent threshold and mapping
     const hotspotThreshold = 2; // 2+ incidents = hotspot
     const hotspots = Object.values(locations)
       .filter(location => location.count >= hotspotThreshold)
@@ -101,7 +105,7 @@ console.log("👤 Reports page - Current user:", user);
         lat: location.lat,
         lng: location.lng,
         incidentCount: location.count,
-        // Risk level classification:
+        // Standardized risk level classification:
         // Low risk (2 incidents) = Yellow circles 🟡
         // Medium risk (3-4 incidents) = Orange circles 🟠
         // High risk (5+ incidents) = Red circles 🔴

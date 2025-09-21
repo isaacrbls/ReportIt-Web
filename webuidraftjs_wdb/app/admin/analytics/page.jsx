@@ -46,60 +46,78 @@ export default function AnalyticsPage() {
     const filteredReports = barangay === 'All' ? reports : reports.filter(r => r.Barangay === barangay);
     console.log("Analytics - Filtered reports for", barangay + ":", filteredReports.length);
     
-    // Create a grid to group nearby incidents
-    const gridSize = 0.002; // ~200m grid cells
-    const grid = {};
+    // Filter for recent reports (last 30 days) to identify truly "emerging" hotspots
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
     
-    filteredReports.forEach(report => {
+    const recentReports = filteredReports.filter(report => {
+      if (!report.DateTime) return false;
+      const reportDate = new Date(report.DateTime);
+      return reportDate >= thirtyDaysAgo;
+    });
+    
+    console.log("Analytics - Recent reports (last 30 days):", recentReports.length);
+    
+    // Standardized grid calculation (same as ReportsPageClient.jsx)
+    const gridSize = 0.002; // ~200m grid cells
+    const locations = {};
+    
+    recentReports.forEach(report => {
       if (report.Latitude && report.Longitude) {
-        const gridX = Math.floor(report.Latitude / gridSize);
-        const gridY = Math.floor(report.Longitude / gridSize);
-        const gridKey = `${gridX},${gridY}`;
+        // Create grid key for grouping nearby incidents (standardized method)
+        const gridLat = Math.floor(report.Latitude / gridSize) * gridSize;
+        const gridLng = Math.floor(report.Longitude / gridSize) * gridSize;
+        const key = `${gridLat.toFixed(3)}_${gridLng.toFixed(3)}`;
         
-        if (!grid[gridKey]) {
-          grid[gridKey] = [];
+        if (!locations[key]) {
+          locations[key] = {
+            lat: gridLat + (gridSize / 2), // Center of grid cell
+            lng: gridLng + (gridSize / 2),
+            incidents: [],
+            count: 0,
+            gridKey: key
+          };
         }
-        grid[gridKey].push(report);
+        
+        locations[key].incidents.push(report);
+        locations[key].count++;
       }
     });
     
-    // Find hotspots (cells with 2+ incidents)
-    const hotspots = [];
-    Object.entries(grid).forEach(([gridKey, incidents]) => {
-      if (incidents.length >= 2) {
-        const avgLat = incidents.reduce((sum, inc) => sum + inc.Latitude, 0) / incidents.length;
-        const avgLng = incidents.reduce((sum, inc) => sum + inc.Longitude, 0) / incidents.length;
-        
+    // Find hotspots (cells with 2+ incidents) 
+    const hotspotThreshold = 2;
+    const hotspots = Object.values(locations)
+      .filter(location => location.count >= hotspotThreshold)
+      .map(location => {
         // Determine most common incident type
         const incidentTypes = {};
-        incidents.forEach(inc => {
+        location.incidents.forEach(inc => {
           incidentTypes[inc.IncidentType] = (incidentTypes[inc.IncidentType] || 0) + 1;
         });
         const mostCommonType = Object.keys(incidentTypes).reduce((a, b) => 
           incidentTypes[a] > incidentTypes[b] ? a : b
         );
         
-        // Determine risk level based on incident count
-        // Low risk (2 incidents) = Yellow circles
-        // Medium risk (3-4 incidents) = Orange circles  
-        // High risk (5+ incidents) = Red circles
+        // Determine risk level based on incident count (standardized)
         let riskLevel = 'Low';
-        if (incidents.length >= 5) riskLevel = 'High';
-        else if (incidents.length >= 3) riskLevel = 'Medium';
+        if (location.count >= 5) riskLevel = 'High';
+        else if (location.count >= 3) riskLevel = 'Medium';
         else riskLevel = 'Low'; // 2 incidents
         
-        hotspots.push({
-          id: gridKey,
-          latitude: avgLat,
-          longitude: avgLng,
-          incidentCount: incidents.length,
+        // Create meaningful area name instead of generic grid
+        const areaName = `${barangay} Area (${location.lat.toFixed(4)}, ${location.lng.toFixed(4)})`;
+        
+        return {
+          id: location.gridKey,
+          latitude: location.lat,
+          longitude: location.lng,
+          incidentCount: location.count,
           incidentType: mostCommonType,
           riskLevel: riskLevel,
-          area: `Grid ${gridKey}`,
-          incidents: incidents
-        });
-      }
-    });
+          area: areaName,
+          incidents: location.incidents
+        };
+      })
     
     console.log("Analytics - Found hotspots:", hotspots);
     return hotspots.sort((a, b) => b.incidentCount - a.incidentCount);
