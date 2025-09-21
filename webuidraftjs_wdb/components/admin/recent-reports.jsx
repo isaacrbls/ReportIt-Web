@@ -4,10 +4,9 @@ import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { CheckCircle, XCircle, ChevronLeft, ChevronRight } from "lucide-react";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
-import { collection, getDocs, doc, updateDoc, query as fsQuery, where } from "firebase/firestore";
-import { db } from "@/firebase";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { isUserAdmin } from "@/lib/userMapping";
+import { useReports } from "@/contexts/ReportsContext";
 import "@/styles/recent-reports-custom.css";
 
 export function RecentReports({ 
@@ -20,34 +19,61 @@ export function RecentReports({
 	enablePagination = false, // New prop to enable pagination
 	reportsPerPage = 3 // Default to 3 reports for dashboard
 }) {
-	const [allReports, setAllReports] = useState(singleReport ? [singleReport] : []);
 	const [actionStatus, setActionStatus] = useState({}); // { [id]: 'verified' | 'rejected' }
 	const [currentPage, setCurrentPage] = useState(1);
 	const { user } = useCurrentUser();
+	const { reports, getReportsByBarangay } = useReports();
 	const isAdmin = isUserAdmin(user?.email);
 
-	// Calculate pagination data
+	// Get reports from context or use single report prop
+	const allReports = singleReport ? [singleReport] : getReportsByBarangay(barangay);
+
+	// Reset to first page when reports change
+	useEffect(() => {
+		setCurrentPage(1);
+	}, [allReports]);
+
+	// Filter reports based on status if needed
+	const filteredReports = useMemo(() => {
+		if (!statusFilter || statusFilter === "all") return allReports;
+		
+		const normalized = statusFilter.toString().trim().toLowerCase();
+		const statusValue = normalized.charAt(0).toUpperCase() + normalized.slice(1);
+		
+		return allReports.filter(report => report.Status === statusValue);
+	}, [allReports, statusFilter]);
+
+	// Sort reports by date (newest first)
+	const sortedReports = useMemo(() => {
+		return [...filteredReports].sort((a, b) => {
+			const dateA = a.DateTime?.seconds ? new Date(a.DateTime.seconds * 1000) : new Date(a.DateTime || 0);
+			const dateB = b.DateTime?.seconds ? new Date(b.DateTime.seconds * 1000) : new Date(b.DateTime || 0);
+			return dateB - dateA;
+		});
+	}, [filteredReports]);
+
+	// Calculate pagination data using sorted reports
 	const paginationData = useMemo(() => {
 		// Filter out sensitive reports for non-admin users
-		const filteredReports = allReports.filter(report => {
+		const accessibleReports = sortedReports.filter(report => {
 			return isAdmin || !report?.isSensitive;
 		});
 
 		if (!enablePagination) {
 			return {
-				currentReports: filteredReports,
-				totalReports: filteredReports.length,
+				currentReports: accessibleReports,
+				totalReports: accessibleReports.length,
 				totalPages: 1,
 				startIndex: 1,
-				endIndex: filteredReports.length
+				endIndex: accessibleReports.length
 			};
 		}
 
-		const totalReports = filteredReports.length;
+		const totalReports = accessibleReports.length;
 		const totalPages = Math.ceil(totalReports / reportsPerPage);
 		const startIndex = (currentPage - 1) * reportsPerPage;
 		const endIndex = Math.min(startIndex + reportsPerPage, totalReports);
-		const currentReports = filteredReports.slice(startIndex, endIndex);
+		const currentReports = accessibleReports.slice(startIndex, endIndex);
 
 		return {
 			currentReports,
@@ -56,12 +82,7 @@ export function RecentReports({
 			startIndex: startIndex + 1,
 			endIndex
 		};
-	}, [allReports, currentPage, reportsPerPage, enablePagination, isAdmin]);
-
-	// Reset to first page when reports change
-	useEffect(() => {
-		setCurrentPage(1);
-	}, [allReports]);
+	}, [sortedReports, currentPage, reportsPerPage, enablePagination, isAdmin]);
 
 	const handlePreviousPage = () => {
 		setCurrentPage(prev => Math.max(prev - 1, 1));
@@ -74,41 +95,6 @@ export function RecentReports({
 	const handlePageClick = (pageNumber) => {
 		setCurrentPage(pageNumber);
 	};
-
-    useEffect(() => {
-		if (!singleReport) {
-			const fetchReports = async () => {
-				let queryRef = collection(db, "reports");
-				const normalized = (statusFilter || "").toString().trim().toLowerCase();
-				let filters = [];
-				if (normalized && normalized !== "all") {
-					const statusValue = normalized.charAt(0).toUpperCase() + normalized.slice(1);
-					filters.push(where("Status", "==", statusValue));
-				}
-				if (barangay) {
-					filters.push(where("Barangay", "==", barangay));
-				}
-				if (filters.length > 0) {
-					queryRef = fsQuery(queryRef, ...filters);
-				}
-				const querySnapshot = await getDocs(queryRef);
-				const reportsData = querySnapshot.docs.map((doc) => ({
-					id: doc.id,
-					...doc.data(),
-				}));
-				// Sort by date (newest first)
-				const sortedReports = reportsData.sort((a, b) => {
-					const dateA = a.DateTime?.seconds ? new Date(a.DateTime.seconds * 1000) : new Date(a.DateTime || 0);
-					const dateB = b.DateTime?.seconds ? new Date(b.DateTime.seconds * 1000) : new Date(b.DateTime || 0);
-					return dateB - dateA;
-				});
-				setAllReports(sortedReports);
-			};
-			fetchReports();
-		} else {
-			setAllReports([singleReport]);
-		}
-	}, [singleReport, statusFilter, barangay]);
 
 	const formatDate = (dateValue) => {
 		if (!dateValue) return "-";

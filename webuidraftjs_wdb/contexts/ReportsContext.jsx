@@ -1,0 +1,157 @@
+"use client";
+
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
+import { db } from '@/firebase';
+
+// Create the context
+const ReportsContext = createContext();
+
+// Custom hook to use the reports context
+export const useReports = () => {
+  const context = useContext(ReportsContext);
+  if (!context) {
+    throw new Error('useReports must be used within a ReportsProvider');
+  }
+  return context;
+};
+
+// Reports provider component
+export const ReportsProvider = ({ children }) => {
+  const [reports, setReports] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    console.log('🔄 ReportsProvider: Setting up Firebase listener');
+    setIsLoading(true);
+    
+    // Create Firebase query
+    const q = query(collection(db, "reports"), orderBy("DateTime", "desc"));
+    
+    // Set up real-time listener
+    const unsubscribe = onSnapshot(
+      q, 
+      (snapshot) => {
+        try {
+          const reportsData = snapshot.docs.map((doc) => ({ 
+            id: doc.id, 
+            ...doc.data() 
+          }));
+          
+          console.log('📊 ReportsProvider: Fetched reports:', reportsData.length);
+          setReports(reportsData);
+          setError(null);
+        } catch (err) {
+          console.error('❌ ReportsProvider: Error processing reports:', err);
+          setError(err);
+        } finally {
+          setIsLoading(false);
+        }
+      },
+      (err) => {
+        console.error('❌ ReportsProvider: Firebase listener error:', err);
+        setError(err);
+        setIsLoading(false);
+      }
+    );
+
+    // Cleanup listener on unmount
+    return () => {
+      console.log('🧹 ReportsProvider: Cleaning up Firebase listener');
+      unsubscribe();
+    };
+  }, []);
+
+  // Calculate hotspots for a specific barangay
+  const calculateBarangayHotspots = (targetBarangay) => {
+    if (!targetBarangay || !reports.length) return [];
+    
+    const barangayReports = reports.filter(r => r.Barangay === targetBarangay && r.Status === "Verified");
+    
+    // Improved density-based hotspot detection
+    const gridSize = 0.001; // ~100m grid cells (smaller for better precision)
+    const locations = {};
+    
+    barangayReports.forEach(report => {
+      if (report.Latitude && report.Longitude) {
+        // Create grid key for grouping nearby incidents
+        const gridLat = Math.floor(report.Latitude / gridSize) * gridSize;
+        const gridLng = Math.floor(report.Longitude / gridSize) * gridSize;
+        const key = `${gridLat.toFixed(3)}_${gridLng.toFixed(3)}`;
+        
+        if (!locations[key]) {
+          locations[key] = {
+            lat: gridLat + (gridSize / 2), // Center of grid cell
+            lng: gridLng + (gridSize / 2),
+            incidents: [],
+            count: 0
+          };
+        }
+        
+        locations[key].incidents.push(report);
+        locations[key].count++;
+      }
+    });
+    
+    // Filter and classify hotspots
+    const hotspotThreshold = 2; // 2+ incidents = hotspot
+    const calculatedHotspots = Object.values(locations)
+      .filter(location => location.count >= hotspotThreshold)
+      .map(location => ({
+        lat: location.lat,
+        lng: location.lng,
+        incidentCount: location.count,
+        riskLevel: location.count >= 5 ? 'high' : location.count >= 3 ? 'medium' : 'low',
+        incidents: location.incidents,
+        // Improved radius calculation: logarithmic scaling with min/max bounds
+        radius: Math.max(50, Math.min(Math.sqrt(location.count) * 60, 150)) // 50-150m range
+      }))
+      .sort((a, b) => b.incidentCount - a.incidentCount); // Sort by incident count
+
+    console.log('🔥 ReportsProvider: Calculated hotspots for', targetBarangay, ':', calculatedHotspots.length);
+    return calculatedHotspots;
+  };
+
+  // Filter reports by barangay
+  const getReportsByBarangay = (barangay) => {
+    if (!barangay || barangay === 'All') return reports;
+    return reports.filter(r => r.Barangay === barangay);
+  };
+
+  // Get verified reports only
+  const getVerifiedReports = (barangay = null) => {
+    const filtered = barangay ? getReportsByBarangay(barangay) : reports;
+    return filtered.filter(r => r.Status === "Verified");
+  };
+
+  // Get pending reports only
+  const getPendingReports = (barangay = null) => {
+    const filtered = barangay ? getReportsByBarangay(barangay) : reports;
+    return filtered.filter(r => (r.Status ?? "").toLowerCase() === "pending");
+  };
+
+  const value = {
+    // Raw data
+    reports,
+    isLoading,
+    error,
+    
+    // Utility functions
+    calculateBarangayHotspots,
+    getReportsByBarangay,
+    getVerifiedReports,
+    getPendingReports,
+    
+    // Convenience getters
+    totalReports: reports.length,
+    verifiedReportsCount: reports.filter(r => r.Status === "Verified").length,
+    pendingReportsCount: reports.filter(r => (r.Status ?? "").toLowerCase() === "pending").length,
+  };
+
+  return (
+    <ReportsContext.Provider value={value}>
+      {children}
+    </ReportsContext.Provider>
+  );
+};

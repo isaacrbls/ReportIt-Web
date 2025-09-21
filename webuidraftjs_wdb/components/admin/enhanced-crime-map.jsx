@@ -5,8 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { collection, onSnapshot, query, orderBy } from "firebase/firestore";
-import { db } from "@/firebase";
+import { useReports } from "@/contexts/ReportsContext";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import dynamic from "next/dynamic";
 import { MapPin, Zap, Layers, Eye, EyeOff } from "lucide-react";
@@ -24,31 +23,31 @@ const HeatmapComponent = dynamic(() => import("./heatmap-component"), {
 });
 
 export function EnhancedCrimeMap() {
-  const [reports, setReports] = useState([]);
   const [viewMode, setViewMode] = useState("hybrid"); // "incidents", "heatmap", "hybrid"
   const [showPins, setShowPins] = useState(true);
   const [showHotspots, setShowHotspots] = useState(true);
   const [showHeatmap, setShowHeatmap] = useState(true);
   const { user, isLoading: isUserLoading } = useCurrentUser();
+  const { reports, getReportsByBarangay } = useReports();
 
   // Use centralized user mapping
   const userEmail = user?.email || "";
   const barangay = getUserBarangay(userEmail) || 'All';
 
+  // Remove the Firebase useEffect since we're using global context
   // Fetch reports from Firebase
-  useEffect(() => {
-    const q = query(collection(db, "reports"), orderBy("DateTime", "desc"));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const reportsData = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-      console.log("📊 Enhanced Crime Map - Fetched reports:", reportsData.length);
-      setReports(reportsData);
-    });
-    return () => unsubscribe();
-  }, []);
+  // useEffect(() => {
+  //   const q = query(collection(db, "reports"), orderBy("DateTime", "desc"));
+  //   const unsubscribe = onSnapshot(q, (snapshot) => {
+  //     const reportsData = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+  //     console.log("📊 Enhanced Crime Map - Fetched reports:", reportsData.length);
+  //     setReports(reportsData);
+  //   });
+  //   return () => unsubscribe();
+  // }, []);
 
   // Filter reports based on user's barangay
-  const filteredReports = barangay === 'All' ? reports : 
-                         reports.filter(r => r.Barangay === barangay);
+  const filteredReports = getReportsByBarangay(barangay === 'All' ? null : barangay);
 
   // Update view toggles based on view mode
   useEffect(() => {

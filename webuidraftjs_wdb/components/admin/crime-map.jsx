@@ -9,8 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertCircle, MapPin, X } from "lucide-react";
 import dynamic from "next/dynamic";
-import { collection, onSnapshot, query, orderBy } from "firebase/firestore";
-import { db } from "@/firebase";
+import { useReports } from "@/contexts/ReportsContext";
 
 // Dynamically import the map components with no SSR
 const MapWithNoSSR = dynamic(() => import("./map-component"), {
@@ -23,8 +22,8 @@ export function CrimeMap({ barangay, showPins = true, showHotspots = true, showC
   const [addingIncident, setAddingIncident] = useState(false);
   const [newIncidentLocation, setNewIncidentLocation] = useState(null);
   const [showIncidentForm, setShowIncidentForm] = useState(false);
-  const [reports, setReports] = useState([]);
   const [hotspots, setHotspots] = useState([]);
+  const { reports, calculateBarangayHotspots } = useReports();
   const [newIncident, setNewIncident] = useState({
     title: "",
     description: "",
@@ -34,73 +33,27 @@ export function CrimeMap({ barangay, showPins = true, showHotspots = true, showC
     time: new Date().toTimeString().split(" ")[0].substring(0, 5),
   });
 
+  // Remove the Firebase useEffect since we're using global context
   // Fetch reports from Firebase
-  useEffect(() => {
-    const q = query(collection(db, "reports"), orderBy("DateTime", "desc"));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const reportsData = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-      setReports(reportsData);
-    });
-    return () => unsubscribe();
-  }, []);
-
-  // Calculate hotspots from reports
-  const calculateBarangayHotspots = (reports, targetBarangay) => {
-    if (!targetBarangay || !reports.length) return [];
-    
-    const barangayReports = reports.filter(r => r.Barangay === targetBarangay && r.Status === "Verified");
-    
-    // Improved density-based hotspot detection
-    const gridSize = 0.001; // ~100m grid cells (smaller for better precision)
-    const locations = {};
-    
-    barangayReports.forEach(report => {
-      if (report.Latitude && report.Longitude) {
-        // Create grid key for grouping nearby incidents
-        const gridLat = Math.floor(report.Latitude / gridSize) * gridSize;
-        const gridLng = Math.floor(report.Longitude / gridSize) * gridSize;
-        const key = `${gridLat.toFixed(3)}_${gridLng.toFixed(3)}`;
-        
-        if (!locations[key]) {
-          locations[key] = {
-            lat: gridLat + (gridSize / 2), // Center of grid cell
-            lng: gridLng + (gridSize / 2),
-            incidents: [],
-            count: 0
-          };
-        }
-        
-        locations[key].incidents.push(report);
-        locations[key].count++;
-      }
-    });
-    
-    // Filter and classify hotspots
-    const hotspotThreshold = 2; // 2+ incidents = hotspot
-    return Object.values(locations)
-      .filter(location => location.count >= hotspotThreshold)
-      .map(location => ({
-        lat: location.lat,
-        lng: location.lng,
-        incidentCount: location.count,
-        riskLevel: location.count >= 5 ? 'high' : location.count >= 3 ? 'medium' : 'low',
-        incidents: location.incidents,
-        // Improved radius calculation: logarithmic scaling with min/max bounds
-        radius: Math.max(50, Math.min(Math.sqrt(location.count) * 60, 150)) // 50-150m range
-      }))
-      .sort((a, b) => b.incidentCount - a.incidentCount); // Sort by incident count
-  };
+  // useEffect(() => {
+  //   const q = query(collection(db, "reports"), orderBy("DateTime", "desc"));
+  //   const unsubscribe = onSnapshot(q, (snapshot) => {
+  //     const reportsData = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+  //     setReports(reportsData);
+  //   });
+  //   return () => unsubscribe();
+  // }, []);
 
   // Calculate hotspots when reports or barangay changes
   useEffect(() => {
     if (showHotspots && barangay && reports.length > 0) {
-      const calculatedHotspots = calculateBarangayHotspots(reports, barangay);
+      const calculatedHotspots = calculateBarangayHotspots(barangay);
       setHotspots(calculatedHotspots);
       console.log("🔥 CrimeMap hotspots calculated for", barangay, ":", calculatedHotspots);
     } else {
       setHotspots([]);
     }
-  }, [reports, barangay, showHotspots]);
+  }, [reports, barangay, showHotspots, calculateBarangayHotspots]);
 
   const handleAddIncident = () => {
     setAddingIncident(true);

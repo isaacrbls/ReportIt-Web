@@ -13,28 +13,31 @@ import LogoutConfirmationModal from "@/components/admin/LogoutConfirmationModal"
 import { useRouter } from "next/navigation";
 import React from "react";
 import Image from "next/image";
-import { collection, getDocs } from "firebase/firestore";
-import { db } from "@/firebase";
 import Sidebar from "@/components/admin/Sidebar";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { updateReportStatus } from "@/lib/reportUtils";
 import { getMapCoordinatesForUser, getUserBarangay } from "@/lib/userMapping";
+import { useReports } from "@/contexts/ReportsContext";
 
 export default function AdminDashboard() {
   const [showHighRiskDialog, setShowHighRiskDialog] = React.useState(false);
   const [showLogoutModal, setShowLogoutModal] = React.useState(false);
-  const [totalReports, setTotalReports] = React.useState(0);
-  const [pendingReports, setPendingReports] = React.useState(0);
   const [highRiskCount, setHighRiskCount] = React.useState(0);
   const [selectedReport, setSelectedReport] = React.useState(null);
   const [isDialogOpen, setIsDialogOpen] = React.useState(false);
   const router = useRouter();
   const { user, isLoading: isUserLoading } = useCurrentUser();
+  const { reports, getPendingReports, getReportsByBarangay } = useReports();
   
   // Use centralized user mapping - only get coordinates when user is loaded
   const userEmail = user?.email || "";
   const userBarangay = getUserBarangay(userEmail);
   const userCoordinates = isUserLoading ? { center: [14.8527, 120.816], zoom: 16 } : getMapCoordinatesForUser(userEmail);
+
+  // Get filtered reports and statistics from context
+  const filteredReports = getReportsByBarangay(userBarangay);
+  const totalReports = filteredReports.length;
+  const pendingReports = getPendingReports(userBarangay).length;
 
   console.log("👤 Admin page - Current user:", user);
   console.log("📧 Admin page - User email:", userEmail);
@@ -43,49 +46,15 @@ export default function AdminDashboard() {
   console.log("🔄 Admin page - Is user loading:", isUserLoading);
 
   React.useEffect(() => {
-    fetchReportStats();
-  }, [userBarangay]);
+    calculateHighRiskAreas();
+  }, [reports]); // Update when reports change
 
-  const handleLogout = () => {
-    setShowLogoutModal(false);
-    router.push("/");
-  };
-
-  const handleVerify = async (id) => {
-    const success = await updateReportStatus(id, "Verified");
-    if (success) {
-      console.log("Report verified successfully");
-      // Refresh the stats
-      fetchReportStats();
-    }
-  };
-
-  const handleReject = async (id) => {
-    const success = await updateReportStatus(id, "Rejected");
-    if (success) {
-      console.log("Report rejected successfully");
-      // Refresh the stats
-      fetchReportStats();
-    }
-  };
-
-  const fetchReportStats = async () => {
-    const querySnapshot = await getDocs(collection(db, "reports"));
-    let total = 0;
-    let pending = 0;
+  const calculateHighRiskAreas = () => {
     const locationData = {};
 
-    querySnapshot.forEach(doc => {
-      const data = doc.data();
-      if (!userBarangay || data.Barangay === userBarangay) {
-        total++;
-        if ((data.Status ?? "").toLowerCase() === "pending") {
-          pending++;
-        }
-      }
-
+    reports.forEach(report => {
       // Calculate high-risk areas (for all data, not filtered by user barangay)
-      let barangay = data.Barangay || data.barangay || data.Location || data.location;
+      let barangay = report.Barangay || report.barangay || report.Location || report.location;
       if (barangay && typeof barangay === 'string') {
         barangay = barangay.trim();
         if (barangay.toLowerCase().includes('bulihan')) barangay = 'Bulihan';
@@ -109,14 +78,14 @@ export default function AdminDashboard() {
 
       locationData[barangay].totalIncidents++;
 
-      const incidentType = (data.IncidentType || "").toLowerCase();
+      const incidentType = (report.IncidentType || "").toLowerCase();
       if (incidentType.includes("robbery") || incidentType.includes("assault") || 
           incidentType.includes("violence") || incidentType.includes("murder") ||
           incidentType.includes("kidnap") || incidentType.includes("rape")) {
         locationData[barangay].highSeverityIncidents++;
       }
 
-      const type = data.IncidentType || "Other";
+      const type = report.IncidentType || "Other";
       locationData[barangay].incidentTypes[type] = (locationData[barangay].incidentTypes[type] || 0) + 1;
     });
 
@@ -140,9 +109,28 @@ export default function AdminDashboard() {
       areas: highRiskAreas.map(a => `${a.name}: ${a.riskScore}`)
     });
 
-    setTotalReports(total);
-    setPendingReports(pending);
     setHighRiskCount(highRiskAreas.length);
+  };
+
+  const handleLogout = () => {
+    setShowLogoutModal(false);
+    router.push("/");
+  };
+
+  const handleVerify = async (id) => {
+    const success = await updateReportStatus(id, "Verified");
+    if (success) {
+      console.log("Report verified successfully");
+      // No need to refresh stats as context will update automatically
+    }
+  };
+
+  const handleReject = async (id) => {
+    const success = await updateReportStatus(id, "Rejected");
+    if (success) {
+      console.log("Report rejected successfully");
+      // No need to refresh stats as context will update automatically
+    }
   };
 
   // Remove duplicate mapping logic, use userBarangay from above
