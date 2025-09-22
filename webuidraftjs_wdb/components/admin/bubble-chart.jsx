@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { ScatterChart, Scatter, XAxis, YAxis, ZAxis, Tooltip, ResponsiveContainer } from "recharts";
 
-// Sample data for the bubble chart
 const initialData = [
   { x: 10, y: 30, z: 200, name: "Bulihan", category: "Theft", risk: "High" },
   { x: 40, y: 50, z: 150, name: "Dakila", category: "Robbery", risk: "Medium" },
@@ -17,7 +16,6 @@ export function BubbleChart() {
   const [data, setData] = useState(initialData);
   const [activeIndex, setActiveIndex] = useState(0);
 
-  // Simulate data updates
   useEffect(() => {
     const interval = setInterval(() => {
       setData(
@@ -31,21 +29,19 @@ export function BubbleChart() {
     return () => clearInterval(interval);
   }, [data]);
 
-  // Get color based on risk level
   const getRiskColor = (risk) => {
     switch (risk) {
       case "High":
-        return "#ef4444"; // Red
+        return "#ef4444"; 
       case "Medium":
-        return "#eab308"; // Yellow
+        return "#eab308"; 
       case "Low":
-        return "#22c55e"; // Green
+        return "#22c55e"; 
       default:
         return "#8884d8";
     }
   };
 
-  // Custom tooltip content
   const CustomTooltip = ({ active, payload }) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload;

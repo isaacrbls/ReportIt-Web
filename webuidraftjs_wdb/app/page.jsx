@@ -6,7 +6,6 @@ import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "@/firebase";
 import Sidebar from "@/components/admin/Sidebar";
 
-
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -24,7 +23,7 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex">
-      {/* Left Side */}
+      {}
       <div className="hidden md:flex flex-col justify-center items-center w-1/2 bg-[#F14B51] text-white p-12">
         <div className="flex flex-col items-start w-full max-w-md">
           <div className="flex items-center mb-8">
@@ -38,7 +37,7 @@ export default function LoginPage() {
           </p>
         </div>
       </div>
-      {/* Right Side */}
+      {}
       <div className="flex flex-1 flex-col justify-center items-center bg-white p-8">
         <form onSubmit={handleSubmit} className="w-full max-w-md space-y-8">
           <div>

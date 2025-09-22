@@ -1,6 +1,5 @@
 from django.db import models
 
-
 class Report(models.Model):
     incident_type = models.CharField(max_length=200)
     description = models.TextField()
@@ -18,4 +17,3 @@ class Report(models.Model):
 
     def __str__(self):
         return f"{self.incident_type} - {self.barangay} ({self.created_at:%Y-%m-%d})"
-

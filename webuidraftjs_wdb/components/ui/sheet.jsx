@@ -46,4 +46,3 @@ const sheetVariants = cva(
   }
 )
 
-// ...rest of the component remains unchanged...

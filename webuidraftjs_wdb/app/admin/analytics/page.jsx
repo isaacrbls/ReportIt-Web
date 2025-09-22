@@ -4,6 +4,7 @@ import Link from "next/link";
 import { LayoutDashboard, BarChart2, FileText, LogOut, ShieldAlert, ChevronLeft, ChevronRight } from "lucide-react";
 import { CrimeDistributionChart } from "@/components/admin/crime-distribution-chart";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import React from "react";
 import Image from "next/image";
 import LogoutConfirmationModal from "@/components/admin/LogoutConfirmationModal";
@@ -16,16 +17,15 @@ import { getUserBarangay } from "@/lib/userMapping";
 export default function AnalyticsPage() {
   const [showLogoutModal, setShowLogoutModal] = React.useState(false);
   const [currentPage, setCurrentPage] = React.useState(1);
+  const [timePeriod, setTimePeriod] = React.useState("all");
   const hotspotsPerPage = 5;
   const router = useRouter();
   const { user } = useCurrentUser();
   const { reports, isLoading, calculateBarangayHotspots } = useReports();
 
-  // Get user's barangay using centralized mapping
   const userEmail = user?.email || "";
   const barangay = getUserBarangay(userEmail) || 'All';
 
-  // Use the same hotspot calculation as the map components
   const hotspots = React.useMemo(() => {
     if (!barangay || barangay === 'Unknown') return [];
     
@@ -33,7 +33,6 @@ export default function AnalyticsPage() {
     const calculatedHotspots = calculateBarangayHotspots(barangay);
     console.log("Analytics - Found hotspots:", calculatedHotspots.length);
     
-    // Convert hotspot format to match analytics display
     return calculatedHotspots.map(hotspot => ({
       id: `${hotspot.lat}_${hotspot.lng}`,
       latitude: hotspot.lat,
@@ -51,14 +50,12 @@ export default function AnalyticsPage() {
     router.push("/"); 
   };
 
-  // Pagination calculations
   const totalHotspots = hotspots.length;
   const totalPages = Math.ceil(totalHotspots / hotspotsPerPage);
   const startIndex = (currentPage - 1) * hotspotsPerPage;
   const endIndex = Math.min(startIndex + hotspotsPerPage, totalHotspots);
   const currentHotspots = hotspots.slice(startIndex, endIndex);
 
-  // Reset to first page when hotspots change
   React.useEffect(() => {
     setCurrentPage(1);
   }, [hotspots]);
@@ -77,30 +74,41 @@ export default function AnalyticsPage() {
 
   return (
     <div className="flex min-h-screen bg-white">
-      {/* Sidebar */}
       <Sidebar onLogout={() => setShowLogoutModal(true)} />
       
-      {/* Main Content */}
       <main className="flex-1 ml-64 p-10 bg-white min-h-screen">
         <h1 className="text-3xl font-bold text-red-600 mb-8">Analytics</h1>
         
-        {/* Incident Type Distribution Card */}
         <div className="bg-white rounded-2xl border p-6 shadow-sm mb-6">
-          <h2 className="text-2xl font-bold text-red-500 mb-1">Incident Type Distribution</h2>
-          <p className="text-gray-400 mb-4">Breakdown of incident types in {barangay === 'All' ? 'all areas' : barangay}</p>
+          <div className="flex justify-between items-start mb-4">
+            <div>
+              <h2 className="text-2xl font-bold text-red-500 mb-1">Incident Type Distribution</h2>
+              <p className="text-gray-400">Breakdown of incident types in {barangay === 'All' ? 'all areas' : barangay}</p>
+            </div>
+            <div className="w-48">
+              <Select value={timePeriod} onValueChange={setTimePeriod}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select time period" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Time</SelectItem>
+                  <SelectItem value="monthly">This Month</SelectItem>
+                  <SelectItem value="yearly">This Year</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
           <div className="flex justify-center items-center">
             <div className="w-full max-w-md">
-              <CrimeDistributionChart />
+              <CrimeDistributionChart timePeriod={timePeriod} />
             </div>
           </div>
         </div>
         
-        {/* Crime Hotspots Card */}
         <div className="bg-white rounded-2xl border p-6 shadow-sm">
           <h2 className="text-2xl font-bold text-red-500 mb-1">Crime Hotspots</h2>
           <p className="text-gray-400 mb-4">All active hotspots from the map for {barangay === 'All' ? 'all areas' : barangay}</p>
           
-          {/* Loading State */}
           {isLoading ? (
             <div className="flex items-center justify-center py-12">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600"></div>
@@ -108,7 +116,6 @@ export default function AnalyticsPage() {
             </div>
           ) : (
             <>
-              {/* Pagination Info */}
               {totalHotspots > hotspotsPerPage && (
                 <div className="flex justify-between items-center text-sm text-gray-600 px-1 mb-4">
                   <span>
@@ -154,11 +161,9 @@ export default function AnalyticsPage() {
                     ))}
                   </div>
 
-                  {/* Pagination Controls */}
                   {totalPages > 1 && (
                     <div className="flex justify-center items-center mt-8 pt-6 border-t border-gray-200">
                       <div className="flex items-center gap-2">
-                        {/* Previous Button */}
                         <Button
                           variant="outline"
                           size="sm"
@@ -170,7 +175,6 @@ export default function AnalyticsPage() {
                           <span className="hidden sm:inline">Previous</span>
                         </Button>
 
-                        {/* Page Numbers */}
                         <div className="flex items-center gap-1">
                           {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNumber) => {
                             const showPage = 
@@ -206,7 +210,6 @@ export default function AnalyticsPage() {
                           })}
                         </div>
 
-                        {/* Next Button */}
                         <Button
                           variant="outline"
                           size="sm"
@@ -221,7 +224,6 @@ export default function AnalyticsPage() {
                     </div>
                   )}
 
-                  {/* Mobile-friendly pagination info */}
                   {totalPages > 1 && (
                     <div className="text-center text-xs text-gray-500 mt-2">
                       Scroll up to see more hotspots on previous pages

@@ -28,13 +28,11 @@ export default function AdminDashboard() {
   const router = useRouter();
   const { user, isLoading: isUserLoading } = useCurrentUser();
   const { reports, getPendingReports, getReportsByBarangay } = useReports();
-  
-  // Use centralized user mapping - only get coordinates when user is loaded
+
   const userEmail = user?.email || "";
   const userBarangay = getUserBarangay(userEmail);
   const userCoordinates = isUserLoading ? { center: [14.8527, 120.816], zoom: 16 } : getMapCoordinatesForUser(userEmail);
 
-  // Get filtered reports and statistics from context
   const filteredReports = getReportsByBarangay(userBarangay);
   const totalReports = filteredReports.length;
   const pendingReports = getPendingReports(userBarangay).length;
@@ -47,13 +45,13 @@ export default function AdminDashboard() {
 
   React.useEffect(() => {
     calculateHighRiskAreas();
-  }, [reports]); // Update when reports change
+  }, [reports]); 
 
   const calculateHighRiskAreas = () => {
     const locationData = {};
 
     reports.forEach(report => {
-      // Calculate high-risk areas (for all data, not filtered by user barangay)
+      
       let barangay = report.Barangay || report.barangay || report.Location || report.location;
       if (barangay && typeof barangay === 'string') {
         barangay = barangay.trim();
@@ -89,7 +87,6 @@ export default function AdminDashboard() {
       locationData[barangay].incidentTypes[type] = (locationData[barangay].incidentTypes[type] || 0) + 1;
     });
 
-    // Calculate high-risk areas count using WCRA
     const highRiskAreas = Object.values(locationData)
       .map(area => {
         const frequencyScore = Math.min(Math.log2(area.totalIncidents + 1) * 8, 35);
@@ -99,7 +96,7 @@ export default function AdminDashboard() {
         area.riskScore = Math.round((frequencyScore + severityScore + diversityScore));
         area.riskScore = Math.min(area.riskScore, 100);
         
-        return area.riskScore >= 70 ? area : null; // Only HIGH risk (70+)
+        return area.riskScore >= 70 ? area : null; 
       })
       .filter(area => area !== null);
 
@@ -121,7 +118,7 @@ export default function AdminDashboard() {
     const success = await updateReportStatus(id, "Verified");
     if (success) {
       console.log("Report verified successfully");
-      // No need to refresh stats as context will update automatically
+      
     }
   };
 
@@ -129,33 +126,30 @@ export default function AdminDashboard() {
     const success = await updateReportStatus(id, "Rejected");
     if (success) {
       console.log("Report rejected successfully");
-      // No need to refresh stats as context will update automatically
+      
     }
   };
 
-  // Remove duplicate mapping logic, use userBarangay from above
-  
-
   return (
     <div className="flex min-h-screen bg-white">
-      {/* Sidebar */}
+      {}
       <Sidebar onLogout={() => setShowLogoutModal(true)} />
-      {/* Main Content */}
+      {}
       <main className="flex-1 ml-64 p-8 bg-white min-h-screen">
         <h1 className="text-3xl font-bold text-red-600 mb-6">Dashboard</h1>
-        {/* Dashboard Stat Cards */}
+        {}
         <div className="mb-6 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {/* Total Reports */}
+          {}
           <div className="rounded-lg bg-red-500 text-white shadow-md p-6 flex flex-col items-start">
             <div className="text-sm font-medium mb-2">Total Reports</div>
             <div className="text-3xl font-bold">{totalReports.toLocaleString()}</div>
           </div>
-          {/* Pending Verification */}
+          {}
           <Link href="/admin/reports" className="rounded-lg bg-red-500 text-white shadow-md p-6 flex flex-col items-start transition-transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-red-400">
             <div className="text-sm font-medium mb-2">Pending Verification</div>
             <div className="text-3xl font-bold">{pendingReports}</div>
           </Link>
-          {/* High Risk Areas */}
+          {}
           <div
             role="button"
             tabIndex={0}
@@ -167,14 +161,14 @@ export default function AdminDashboard() {
             <div className="text-sm font-medium mb-2">High Risk Areas</div>
             <div className="text-3xl font-bold">{highRiskCount}</div>
           </div>
-          {/* ML Prediction Accuracy */}
+          {}
           <div className="rounded-lg bg-red-500 text-white shadow-md p-6 flex flex-col items-start">
             <div className="text-sm font-medium mb-2">ML Prediction Accuracy</div>
             <div className="text-3xl font-bold">81%</div>
           </div>
         </div>
 
-        {/* Incident Distribution (Bubble Chart) */}
+        {}
         <div className="mb-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
           <div className="text-2xl font-bold text-red-600 mb-1">Incident Distribution</div>
           <div className="text-xs text-gray-500 mb-4">Bubble size represents incident frequency, color indicates risk levels</div>
@@ -193,7 +187,7 @@ export default function AdminDashboard() {
             />
           )}
         </div>
-        {/* High Risk Areas Dialog (ensure it overlays the map) */}
+        {}
         <HighRiskAreasDialog 
           open={showHighRiskDialog} 
           onOpenChange={setShowHighRiskDialog} 
@@ -201,7 +195,7 @@ export default function AdminDashboard() {
           dialogClassName="relative z-[9999] overflow-hidden"
         />
 
-        {/* Recent Reports */}
+        {}
         <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <div>
@@ -230,11 +224,11 @@ export default function AdminDashboard() {
         onVerify={handleVerify}
         onReject={handleReject}
         onDelete={(reportId) => {
-          // Refresh the stats when a report is deleted
+          
           fetchReportStats();
         }}
         onEdit={(reportId, updates) => {
-          // Refresh the stats when a report is edited
+          
           fetchReportStats();
         }}
       />

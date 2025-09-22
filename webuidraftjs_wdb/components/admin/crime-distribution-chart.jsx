@@ -6,12 +6,11 @@ import { collection, onSnapshot } from "firebase/firestore";
 import { db } from "@/firebase";
 import { useCurrentUser } from "@/hooks/use-current-user";
 
-export function CrimeDistributionChart() {
+export function CrimeDistributionChart({ timePeriod = "all" }) {
   const [chartData, setChartData] = useState([]);
   const [reports, setReports] = useState([]);
   const { user } = useCurrentUser();
 
-  // User-barangay mapping (same as other components)
   const userBarangayMap = {
     "testpinagbakahan@example.com": "Pinagbakahan",
     "testbulihan@example.com": "Bulihan",
@@ -20,24 +19,54 @@ export function CrimeDistributionChart() {
     "testmojon@example.com": "Mojon",
     "testlook@example.com": "Look 1st",
     "testlongos@example.com": "Longos",
-    // Add admin fallback to see all data
     'test@example.com': 'All'
   };
 
-  // Color scheme for different incident types - light to dark based on severity/frequency
   const incidentColors = {
-    "Theft": "#7f1d1d",           // Darkest red (most common/severe)
-    "Robbery": "#991b1b",         // Very dark red
-    "Vehicle Theft": "#b91c1c",   // Dark red
-    "Assault": "#dc2626",         // Medium dark red
-    "Burglary": "#ef4444",        // Main red
-    "Vandalism": "#f87171",       // Light red
-    "Fraud": "#fca5a5",           // Lighter red
-    "Breaking and Entering": "#fecaca", // Very light red
-    "Harassment": "#fee2e2",      // Extremely light red
-    "Other": "#fef2f2"            // Lightest red for unknown/rare types
+    "Theft": "#7f1d1d",
+    "Robbery": "#991b1b",
+    "Vehicle Theft": "#b91c1c",
+    "Assault": "#dc2626",
+    "Burglary": "#ef4444",
+    "Vandalism": "#f87171",
+    "Fraud": "#fca5a5",
+    "Breaking and Entering": "#fecaca",
+    "Harassment": "#fee2e2",
+    "Other": "#fef2f2"
   };
-  // Fetch reports and calculate distribution
+
+  const filterReportsByTimePeriod = (reports, period) => {
+    if (period === "all") return reports;
+    
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth();
+    
+    return reports.filter(report => {
+      if (!report.DateTime) return false;
+      
+      let reportDate;
+      if (report.DateTime.toDate) {
+        reportDate = report.DateTime.toDate();
+      } else if (report.DateTime.seconds) {
+        reportDate = new Date(report.DateTime.seconds * 1000);
+      } else {
+        reportDate = new Date(report.DateTime);
+      }
+      
+      if (isNaN(reportDate.getTime())) return false;
+      
+      if (period === "monthly") {
+        return reportDate.getFullYear() === currentYear && 
+               reportDate.getMonth() === currentMonth;
+      } else if (period === "yearly") {
+        return reportDate.getFullYear() === currentYear;
+      }
+      
+      return true;
+    });
+  };
+
   useEffect(() => {
     const unsubscribe = onSnapshot(collection(db, "reports"), (snapshot) => {
       const reportsData = snapshot.docs.map(doc => ({
@@ -45,21 +74,78 @@ export function CrimeDistributionChart() {
         ...doc.data()
       }));
 
+      if (reportsData.length === 0) {
+        const now = new Date();
+        const currentYear = now.getFullYear();
+        const currentMonth = now.getMonth();
+        
+        const mockReports = [
+          {
+            id: "mock1",
+            IncidentType: "Theft",
+            Barangay: "All",
+            DateTime: { seconds: Math.floor(new Date(currentYear, currentMonth, 15).getTime() / 1000) }
+          },
+          {
+            id: "mock2", 
+            IncidentType: "Robbery",
+            Barangay: "All",
+            DateTime: { seconds: Math.floor(new Date(currentYear, currentMonth, 10).getTime() / 1000) }
+          },
+          
+          {
+            id: "mock3",
+            IncidentType: "Assault", 
+            Barangay: "All",
+            DateTime: { seconds: Math.floor(new Date(currentYear, currentMonth - 1, 5).getTime() / 1000) }
+          },
+          {
+            id: "mock4",
+            IncidentType: "Vandalism",
+            Barangay: "All", 
+            DateTime: { seconds: Math.floor(new Date(currentYear - 1, 5, 10).getTime() / 1000) }
+          }
+        ];
+        
+        console.log("CrimeChart - Using mock data for testing");
+        reportsData.push(...mockReports);
+      }
+
       console.log("CrimeChart - Fetched reports:", reportsData.length);
+      
+      if (reportsData.length > 0) {
+        console.log("CrimeChart - Sample report structure:", {
+          id: reportsData[0].id,
+          DateTime: reportsData[0].DateTime,
+          IncidentType: reportsData[0].IncidentType,
+          Barangay: reportsData[0].Barangay,
+          keys: Object.keys(reportsData[0])
+        });
+      }
+      
       setReports(reportsData);
 
-      // Get user's barangay
       const userEmail = user?.email;
       const barangay = userBarangayMap[userEmail] || 'Unknown';
       console.log("CrimeChart - User email:", userEmail, "Barangay:", barangay);
 
-      // Filter reports by barangay (unless admin viewing all)
-      const filteredReports = barangay === 'All' ? reportsData : 
-                             reportsData.filter(r => r.Barangay === barangay);
+      let filteredReports = barangay === 'All' ? reportsData : 
+                           reportsData.filter(r => r.Barangay === barangay);
       
-      console.log("CrimeChart - Filtered reports for", barangay + ":", filteredReports.length);
+      filteredReports = filterReportsByTimePeriod(filteredReports, timePeriod);
+      
+      console.log("CrimeChart - Time period:", timePeriod);
+      console.log("CrimeChart - Reports before time filter:", barangay === 'All' ? reportsData.length : reportsData.filter(r => r.Barangay === barangay).length);
+      console.log("CrimeChart - Reports after time filter:", filteredReports.length);
+      
+      if (filteredReports.length > 0) {
+        const sampleReport = filteredReports[0];
+        console.log("CrimeChart - Sample report DateTime:", sampleReport.DateTime);
+        if (sampleReport.DateTime?.seconds) {
+          console.log("CrimeChart - Sample report parsed date:", new Date(sampleReport.DateTime.seconds * 1000));
+        }
+      }
 
-      // Calculate incident type distribution
       if (filteredReports.length > 0) {
         const incidentCounts = {};
         
@@ -68,30 +154,27 @@ export function CrimeDistributionChart() {
           incidentCounts[incidentType] = (incidentCounts[incidentType] || 0) + 1;
         });
 
-        // Sort incident types by count to assign colors dynamically
         const sortedIncidents = Object.entries(incidentCounts).sort((a, b) => b[1] - a[1]);
         
-        // Dynamic color assignment - matches the provided screenshot
         const redShades = [
-          "#dc2626",  // Dark red (for highest frequency like Theft 45%)
-          "#ef4444",  // Medium red (for second highest like Robbery 20%)
-          "#f87171",  // Light red (for third like Vehicle Theft 15%)
-          "#fca5a5",  // Very light red (for lower frequency like Burglary 10%)
-          "#fecaca",  // Lightest red (for lowest frequency like Assault 10%)
-          "#fee2e2",  // Extremely light red
-          "#fef2f2",  // Almost white red
-          "#7f1d1d",  // Backup darker red
-          "#991b1d",  // Backup very dark red
-          "#b91c1c"   // Backup dark red
+          "#dc2626",
+          "#ef4444",
+          "#f87171",
+          "#fca5a5",
+          "#fecaca",
+          "#fee2e2",
+          "#fef2f2",
+          "#7f1d1d",
+          "#991b1d",
+          "#b91c1c"
         ];
 
-        // Convert to chart data with percentages and dynamic colors
         const total = filteredReports.length;
         const chartData = sortedIncidents.map(([type, count], index) => ({
           name: type,
           value: Math.round((count / total) * 100),
           count: count,
-          color: redShades[index % redShades.length] // Assign color based on frequency rank
+          color: redShades[index % redShades.length]
         }));
 
         console.log("CrimeChart - Chart data:", chartData);
@@ -102,9 +185,7 @@ export function CrimeDistributionChart() {
     });
 
     return () => unsubscribe();
-  }, [user]);
-
-  // Custom tooltip
+  }, [user, timePeriod]);
   const CustomTooltip = ({ active, payload }) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
@@ -120,20 +201,27 @@ export function CrimeDistributionChart() {
     return null;
   };
 
-  // Show message if no data
   if (chartData.length === 0) {
+    const periodText = timePeriod === "monthly" ? "this month" : 
+                      timePeriod === "yearly" ? "this year" : "all time";
+    
     return (
       <div className="h-[400px] flex items-center justify-center">
         <div className="text-center text-gray-500">
-          <p className="text-lg font-medium">No incident data available</p>
+          <p className="text-lg font-medium">No incident data available for {periodText}</p>
           <p className="text-sm">Chart will update when reports are available</p>
+          {timePeriod !== "all" && (
+            <p className="text-xs mt-2 text-blue-600">
+              Try selecting "All Time" to see all available data
+            </p>
+          )}
         </div>
       </div>
     );
   }
 
   return (
-    <div className="h-[400px]"> {/* Increased height for a larger pie chart */}
+    <div className="h-[400px]">
       <ResponsiveContainer width="100%" height="100%">
         <PieChart>
           <Pie
@@ -141,7 +229,7 @@ export function CrimeDistributionChart() {
             cx="50%"
             cy="50%"
             labelLine={false}
-            outerRadius={120} // Increased from 80 to 120 for a bigger pie
+            outerRadius={120}
             fill="#8884d8"
             dataKey="value"
             label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}

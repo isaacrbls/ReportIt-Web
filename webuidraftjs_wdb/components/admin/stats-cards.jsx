@@ -12,7 +12,6 @@ export function StatsCards() {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [highRiskAreas, setHighRiskAreas] = useState({ count: 0, areas: [] })
 
-  // Calculate high-risk areas using the same WCRA algorithm
   useEffect(() => {
     const calculateHighRiskAreas = async () => {
       try {
@@ -21,8 +20,7 @@ export function StatsCards() {
         
         querySnapshot.forEach((doc) => {
           const data = doc.data();
-          
-          // Clean up barangay names and handle variations
+
           let barangay = data.Barangay || data.barangay || data.Location || data.location;
           if (barangay && typeof barangay === 'string') {
             barangay = barangay.trim();
@@ -33,7 +31,7 @@ export function StatsCards() {
             else if (barangay.toLowerCase().includes('look')) barangay = 'Look 1st';
             else if (barangay.toLowerCase().includes('longos')) barangay = 'Longos';
             else if (barangay.toLowerCase().includes('tiaong')) barangay = 'Tiaong';
-            else return; // Skip unknown entries
+            else return; 
           } else return;
           
           if (!locationData[barangay]) {
@@ -46,8 +44,7 @@ export function StatsCards() {
           }
           
           locationData[barangay].totalIncidents++;
-          
-          // Calculate severity
+
           const incidentType = (data.IncidentType || "").toLowerCase();
           if (incidentType.includes("robbery") || incidentType.includes("assault") || 
               incidentType.includes("violence") || incidentType.includes("murder") ||
@@ -59,7 +56,6 @@ export function StatsCards() {
           locationData[barangay].incidentTypes[type] = (locationData[barangay].incidentTypes[type] || 0) + 1;
         });
 
-        // Apply WCRA algorithm to determine high-risk areas
         const highRiskResults = Object.values(locationData)
           .map(area => {
             const frequencyScore = Math.min(Math.log2(area.totalIncidents + 1) * 8, 35);
@@ -75,7 +71,7 @@ export function StatsCards() {
             
             return area;
           })
-          .filter(area => area.riskLevel === "High") // Only count HIGH risk areas (70+ score)
+          .filter(area => area.riskLevel === "High") 
           .sort((a, b) => b.riskScore - a.riskScore);
 
   console.log("High Risk Areas calculation:", {
@@ -86,7 +82,7 @@ export function StatsCards() {
 
         setHighRiskAreas({
           count: highRiskResults.length,
-          areas: highRiskResults.slice(0, 3).map(area => area.name) // Top 3 for display
+          areas: highRiskResults.slice(0, 3).map(area => area.name) 
         });
       } catch (error) {
         console.error("Error calculating high-risk areas:", error);

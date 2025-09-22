@@ -16,7 +16,6 @@ export default function ForgotPasswordPage() {
   const [captchaError, setCaptchaError] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  
 
   const handleCaptcha = (token) => {
     setCaptchaToken(token);
@@ -45,7 +44,7 @@ export default function ForgotPasswordPage() {
 
   return (
     <div className="min-h-screen flex">
-      {/* Left Side */}
+      {}
       <div className="hidden md:flex flex-col justify-center items-center w-1/2 bg-[#F14B51] text-white p-12">
         <div className="flex flex-col items-start w-full max-w-md">
           <div className="flex items-center mb-8">
@@ -69,10 +68,10 @@ export default function ForgotPasswordPage() {
         </div>
       </div>
 
-      {/* Right Side */}
+      {}
       <div className="flex flex-1 flex-col justify-center items-center bg-white p-8">
         {!sent ? (
-          // STEP 1: Enter Email
+          
           <form
             onSubmit={handleEmailSubmit}
             className="w-full max-w-md space-y-8"
@@ -131,7 +130,7 @@ export default function ForgotPasswordPage() {
             </div>
           </form>
         ) : !resetDone ? (
-          // STEP 2: Message after email sent
+          
           <div className="w-full max-w-md space-y-8 text-center">
             <h2 className="text-2xl font-bold mb-1">Check your inbox</h2>
             <p className="text-gray-400 mb-6">
@@ -146,7 +145,7 @@ export default function ForgotPasswordPage() {
             </a>
           </div>
         ) : (
-          // STEP 3: Done
+          
           <div className="w-full max-w-md space-y-8 text-center">
             <h2 className="text-2xl font-bold mb-1">Password Reset Successful</h2>
             <p className="text-gray-400 mb-6">

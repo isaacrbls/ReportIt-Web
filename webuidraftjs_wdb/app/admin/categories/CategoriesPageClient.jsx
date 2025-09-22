@@ -22,7 +22,6 @@ import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 
-// Sample initial categories data
 const initialCategories = [
   {
     id: 1,
@@ -86,7 +85,6 @@ export default function CategoriesPageClient() {
   const [activeTab, setActiveTab] = useState("all")
   const [searchTerm, setSearchTerm] = useState("")
 
-  // New category form state
   const [newCategory, setNewCategory] = useState({
     name: "",
     description: "",
@@ -95,7 +93,6 @@ export default function CategoriesPageClient() {
     isActive: true,
   })
 
-  // Edit category form state
   const [editCategory, setEditCategory] = useState({
     id: null,
     name: "",
@@ -105,7 +102,6 @@ export default function CategoriesPageClient() {
     isActive: true,
   })
 
-  // Filter categories based on search term and active tab
   const filteredCategories = categories.filter((category) => {
     const matchesSearch = 
       category.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -223,7 +219,7 @@ export default function CategoriesPageClient() {
 
   return (
     <div className="container mx-auto p-4 max-w-7xl">
-      {/* Header */}
+      {}
       <div className="flex items-center gap-4 mb-6">
         <Link href="/admin">
           <Button variant="outline" size="sm">
@@ -237,7 +233,7 @@ export default function CategoriesPageClient() {
         </div>
       </div>
 
-      {/* Stats Cards */}
+      {}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <Card>
           <CardHeader className="pb-2">
@@ -279,7 +275,7 @@ export default function CategoriesPageClient() {
         </Card>
       </div>
 
-      {/* Alert for Machine Learning */}
+      {}
       <Alert className="mb-6 border-blue-200 bg-blue-50">
         <ShieldAlert className="h-4 w-4 text-blue-600" />
         <AlertDescription className="text-blue-800">
@@ -288,7 +284,7 @@ export default function CategoriesPageClient() {
         </AlertDescription>
       </Alert>
 
-      {/* Action Bar */}
+      {}
       <div className="flex flex-col sm:flex-row gap-4 mb-6">
         <div className="flex-1">
           <Button className="bg-red-600 hover:bg-red-700" onClick={() => setIsAddDialogOpen(true)}>
@@ -306,7 +302,7 @@ export default function CategoriesPageClient() {
         </div>
       </div>
 
-      {/* Tabs */}
+      {}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-6">
         <TabsList className="bg-red-100">
           <TabsTrigger value="all" className="data-[state=active]:bg-red-600 data-[state=active]:text-white">
@@ -392,7 +388,7 @@ export default function CategoriesPageClient() {
         </TabsContent>
       </Tabs>
 
-      {/* Add Category Dialog */}
+      {}
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
         <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
           <DialogHeader>
@@ -501,7 +497,7 @@ export default function CategoriesPageClient() {
         </DialogContent>
       </Dialog>
 
-      {/* Edit Category Dialog */}
+      {}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
           <DialogHeader>
@@ -608,7 +604,7 @@ export default function CategoriesPageClient() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation Dialog */}
+      {}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>

@@ -15,8 +15,7 @@ export default function Page() {
   const { user, isLoading: isUserLoading } = useCurrentUser()
   
   const userEmail = user?.email || ""
-  
-  // Use centralized map coordinates - only get coordinates when user is loaded
+
   const userCoordinates = isUserLoading ? { center: [14.8527, 120.816], zoom: 16 } : getMapCoordinatesForUser(userEmail);
   const mapCenter = userCoordinates.center;
   

@@ -2,7 +2,6 @@
 
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis } from "recharts"
 
-// Sample data for model accuracy
 const data = [
   {
     name: "Random Forest",

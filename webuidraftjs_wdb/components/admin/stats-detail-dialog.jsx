@@ -48,7 +48,7 @@ export function StatsDetailDialog({ open, onOpenChange, type }) {
             {type === "ml-accuracy" && "Performance metrics for machine learning prediction models"}
           </DialogDescription>
         </DialogHeader>
-        {/* ...rest of the component remains unchanged... */}
+        {}
       </DialogContent>
     </Dialog>
   )

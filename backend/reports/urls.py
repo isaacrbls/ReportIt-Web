@@ -8,4 +8,3 @@ router.register(r'reports', ReportViewSet, basename='report')
 urlpatterns = [
     path('', include(router.urls)),
 ]
-

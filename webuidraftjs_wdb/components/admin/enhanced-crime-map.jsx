@@ -11,7 +11,6 @@ import dynamic from "next/dynamic";
 import { MapPin, Zap, Layers, Eye, EyeOff } from "lucide-react";
 import { getMapCoordinatesForUser, getUserBarangay } from "@/lib/userMapping";
 
-// Dynamically import components to avoid SSR issues
 const CrimeMap = dynamic(() => import("./crime-map").then(mod => ({ default: mod.CrimeMap })), {
   ssr: false,
   loading: () => <div className="flex h-[500px] w-full items-center justify-center bg-gray-100">Loading map...</div>,
@@ -23,33 +22,18 @@ const HeatmapComponent = dynamic(() => import("./heatmap-component"), {
 });
 
 export function EnhancedCrimeMap() {
-  const [viewMode, setViewMode] = useState("hybrid"); // "incidents", "heatmap", "hybrid"
+  const [viewMode, setViewMode] = useState("hybrid"); 
   const [showPins, setShowPins] = useState(true);
   const [showHotspots, setShowHotspots] = useState(true);
   const [showHeatmap, setShowHeatmap] = useState(true);
   const { user, isLoading: isUserLoading } = useCurrentUser();
   const { reports, getReportsByBarangay, isLoading } = useReports();
 
-  // Use centralized user mapping
   const userEmail = user?.email || "";
   const barangay = getUserBarangay(userEmail) || 'All';
 
-  // Remove the Firebase useEffect since we're using global context
-  // Fetch reports from Firebase
-  // useEffect(() => {
-  //   const q = query(collection(db, "reports"), orderBy("DateTime", "desc"));
-  //   const unsubscribe = onSnapshot(q, (snapshot) => {
-  //     const reportsData = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-  //     console.log("📊 Enhanced Crime Map - Fetched reports:", reportsData.length);
-  //     setReports(reportsData);
-  //   });
-  //   return () => unsubscribe();
-  // }, []);
-
-  // Filter reports based on user's barangay
   const filteredReports = getReportsByBarangay(barangay === 'All' ? null : barangay);
 
-  // Update view toggles based on view mode
   useEffect(() => {
     switch (viewMode) {
       case "incidents":
@@ -64,7 +48,7 @@ export function EnhancedCrimeMap() {
         break;
       case "hybrid":
         setShowPins(true);
-        setShowHotspots(false); // Disable hotspots in hybrid to avoid overlap
+        setShowHotspots(false); 
         setShowHeatmap(true);
         break;
     }
@@ -85,7 +69,7 @@ export function EnhancedCrimeMap() {
               </p>
             </div>
             
-            {/* View Mode Selector */}
+            {}
             <Tabs value={viewMode} onValueChange={setViewMode} className="w-auto">
               <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="incidents" className="flex items-center gap-1">
@@ -106,7 +90,7 @@ export function EnhancedCrimeMap() {
         </CardHeader>
         
         <CardContent>
-          {/* Layer Controls - only show in hybrid mode */}
+          {}
           {viewMode === "hybrid" && (
             <div className="mb-4 flex items-center justify-between">
               <div className="flex items-center gap-4">
@@ -140,35 +124,35 @@ export function EnhancedCrimeMap() {
             </div>
           )}
 
-          {/* Map Container */}
+          {}
           <div className="relative">
             {viewMode === "heatmap" ? (
-              // Pure heatmap view
+              
               <HeatmapComponent
                 reports={filteredReports}
                 barangay={barangay === 'All' ? null : barangay}
                 className="h-[600px] w-full"
               />
             ) : (
-              // Incidents or hybrid view
+              
               <div className="relative">
                 <CrimeMap
                   barangay={barangay === 'All' ? null : barangay}
                   showPins={showPins}
                   showHotspots={showHotspots}
-                  showControls={false} // Disable controls for cleaner view
+                  showControls={false} 
                   className="h-[600px] w-full"
                 />
                 
-                {/* Overlay heatmap in hybrid mode */}
+                {}
                 {viewMode === "hybrid" && showHeatmap && (
                   <div className="absolute inset-0 pointer-events-none">
                     <HeatmapComponent
                       reports={filteredReports}
                       barangay={barangay === 'All' ? null : barangay}
                       className="h-full w-full"
-                      showLegend={false} // Hide legend to avoid duplication
-                      minOpacity={0.1} // Lower opacity for overlay
+                      showLegend={false} 
+                      minOpacity={0.1} 
                       maxOpacity={0.5}
                     />
                   </div>
@@ -177,7 +161,7 @@ export function EnhancedCrimeMap() {
             )}
           </div>
 
-          {/* Info Panel */}
+          {}
           <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="bg-blue-50 rounded-lg p-3">
               <div className="flex items-center gap-2">
@@ -210,7 +194,7 @@ export function EnhancedCrimeMap() {
             </div>
           </div>
 
-          {/* Statistics */}
+          {}
           <div className="mt-4 text-center text-sm text-muted-foreground">
             <p>
               Showing {filteredReports.filter(r => r.Status === "Verified").length} verified incidents

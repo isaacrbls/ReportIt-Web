@@ -24,4 +24,3 @@ const FormField = ({ ...props }) => {
   )
 }
 
-// ...rest of the component remains unchanged...

@@ -2,7 +2,6 @@
 
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
-// Sample data for time series
 const data = [
   { month: "Jan", incidents: 42 },
   { month: "Feb", incidents: 38 },
@@ -13,7 +12,7 @@ const data = [
 ];
 
 export function TimeSeriesChart() {
-  // Custom tooltip
+  
   const CustomTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
       return (

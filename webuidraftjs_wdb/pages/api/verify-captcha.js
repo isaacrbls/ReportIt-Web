@@ -1,11 +1,11 @@
-// API route to verify reCAPTCHA token
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
   const { token } = req.body;
   if (!token) return res.status(400).json({ error: 'No token provided' });
 
   const secret = "6Le5EqYrAAAAAJQPHeByI4hYOSGI0eHCz7ED4COU";
-  const verifyUrl = `https://www.google.com/recaptcha/api/siteverify?secret=${secret}&response=${token}`;
+  const verifyUrl = `https:
 
   try {
     const response = await fetch(verifyUrl, { method: 'POST' });

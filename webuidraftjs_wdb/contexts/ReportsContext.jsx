@@ -4,10 +4,8 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
 import { db } from '@/firebase';
 
-// Create the context
 const ReportsContext = createContext();
 
-// Custom hook to use the reports context
 export const useReports = () => {
   const context = useContext(ReportsContext);
   if (!context) {
@@ -16,21 +14,18 @@ export const useReports = () => {
   return context;
 };
 
-// Reports provider component
 export const ReportsProvider = ({ children }) => {
   const [reports, setReports] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [hotspotsCache, setHotspotsCache] = useState(new Map()); // Cache hotspots by barangay
+  const [hotspotsCache, setHotspotsCache] = useState(new Map()); 
 
   useEffect(() => {
     console.log('🔄 ReportsProvider: Setting up Firebase listener');
     setIsLoading(true);
-    
-    // Create Firebase query
+
     const q = query(collection(db, "reports"), orderBy("DateTime", "desc"));
-    
-    // Set up real-time listener
+
     const unsubscribe = onSnapshot(
       q, 
       (snapshot) => {
@@ -57,18 +52,15 @@ export const ReportsProvider = ({ children }) => {
       }
     );
 
-    // Cleanup listener on unmount
     return () => {
       console.log('🧹 ReportsProvider: Cleaning up Firebase listener');
       unsubscribe();
     };
   }, []);
 
-  // Calculate hotspots for a specific barangay
   const calculateBarangayHotspots = (targetBarangay) => {
     if (!targetBarangay || !reports.length) return [];
-    
-    // Check cache first
+
     const cacheKey = `${targetBarangay}_${reports.length}_${reports.filter(r => r.Status === "Verified").length}`;
     if (hotspotsCache.has(cacheKey)) {
       console.log('🔥 ReportsProvider: Using cached hotspots for', targetBarangay);
@@ -76,21 +68,20 @@ export const ReportsProvider = ({ children }) => {
     }
     
     const barangayReports = reports.filter(r => r.Barangay === targetBarangay && r.Status === "Verified");
-    
-    // Improved density-based hotspot detection
-    const gridSize = 0.001; // ~100m grid cells (smaller for better precision)
+
+    const gridSize = 0.001; 
     const locations = {};
     
     barangayReports.forEach(report => {
       if (report.Latitude && report.Longitude) {
-        // Create grid key for grouping nearby incidents
+        
         const gridLat = Math.floor(report.Latitude / gridSize) * gridSize;
         const gridLng = Math.floor(report.Longitude / gridSize) * gridSize;
         const key = `${gridLat.toFixed(3)}_${gridLng.toFixed(3)}`;
         
         if (!locations[key]) {
           locations[key] = {
-            lat: gridLat + (gridSize / 2), // Center of grid cell
+            lat: gridLat + (gridSize / 2), 
             lng: gridLng + (gridSize / 2),
             incidents: [],
             count: 0
@@ -101,9 +92,8 @@ export const ReportsProvider = ({ children }) => {
         locations[key].count++;
       }
     });
-    
-    // Filter and classify hotspots
-    const hotspotThreshold = 2; // 2+ incidents = hotspot
+
+    const hotspotThreshold = 2; 
     const calculatedHotspots = Object.values(locations)
       .filter(location => location.count >= hotspotThreshold)
       .map(location => ({
@@ -112,18 +102,17 @@ export const ReportsProvider = ({ children }) => {
         incidentCount: location.count,
         riskLevel: location.count >= 5 ? 'high' : location.count >= 3 ? 'medium' : 'low',
         incidents: location.incidents,
-        // Improved radius calculation: logarithmic scaling with min/max bounds
-        radius: Math.max(50, Math.min(Math.sqrt(location.count) * 60, 150)) // 50-150m range
+        
+        radius: Math.max(50, Math.min(Math.sqrt(location.count) * 60, 150)) 
       }))
-      .sort((a, b) => b.incidentCount - a.incidentCount); // Sort by incident count
+      .sort((a, b) => b.incidentCount - a.incidentCount); 
 
     console.log('🔥 ReportsProvider: Calculated hotspots for', targetBarangay, ':', calculatedHotspots.length);
-    
-    // Cache the result
+
     setHotspotsCache(prevCache => {
       const newCache = new Map(prevCache);
       newCache.set(cacheKey, calculatedHotspots);
-      // Keep only recent 10 cache entries to prevent memory bloat
+      
       if (newCache.size > 10) {
         const firstKey = newCache.keys().next().value;
         newCache.delete(firstKey);
@@ -134,37 +123,32 @@ export const ReportsProvider = ({ children }) => {
     return calculatedHotspots;
   };
 
-  // Filter reports by barangay
   const getReportsByBarangay = (barangay) => {
     if (!barangay || barangay === 'All') return reports;
     return reports.filter(r => r.Barangay === barangay);
   };
 
-  // Get verified reports only
   const getVerifiedReports = (barangay = null) => {
     const filtered = barangay ? getReportsByBarangay(barangay) : reports;
     return filtered.filter(r => r.Status === "Verified");
   };
 
-  // Get pending reports only
   const getPendingReports = (barangay = null) => {
     const filtered = barangay ? getReportsByBarangay(barangay) : reports;
     return filtered.filter(r => (r.Status ?? "").toLowerCase() === "pending");
   };
 
   const value = {
-    // Raw data
+    
     reports,
     isLoading,
     error,
-    
-    // Utility functions
+
     calculateBarangayHotspots,
     getReportsByBarangay,
     getVerifiedReports,
     getPendingReports,
-    
-    // Convenience getters
+
     totalReports: reports.length,
     verifiedReportsCount: reports.filter(r => r.Status === "Verified").length,
     pendingReportsCount: reports.filter(r => (r.Status ?? "").toLowerCase() === "pending").length,

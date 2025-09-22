@@ -45,7 +45,6 @@ export default function ReportsPageClient() {
     return () => unsubscribe();
   }, []);
 
-// Use centralized user mapping
 const userEmail = user?.email || "";
 const userBarangay = getUserBarangay(userEmail);
 const isAdmin = isUserAdmin(userEmail);
@@ -55,24 +54,21 @@ console.log("👤 Reports page - Current user:", user);
   console.log("🔐 Reports page - Is admin:", isAdmin);
   console.log("📊 Reports page - Total reports loaded:", reports.length);
 
-  // Phase 1: Basic Hotspot Calculation
   const calculateBarangayHotspots = (reports, barangay) => {
     if (!barangay || !reports.length) return [];
     
     const barangayReports = reports.filter(r => r.Barangay === barangay);
     console.log("🔍 Barangay reports for hotspot calculation:", barangayReports);
-    
-    // Filter for verified reports only (avoid counting unverified incidents)
+
     const verifiedReports = barangayReports.filter(r => r.Status === 'Verified');
     console.log("✅ Verified reports for hotspot calculation:", verifiedReports.length);
-    
-    // Simple density-based hotspot detection with standardized grid
-    const gridSize = 0.002; // ~200m grid cells (standardized)
+
+    const gridSize = 0.002; 
     const locations = {};
     
     verifiedReports.forEach(report => {
       if (report.Latitude && report.Longitude) {
-        // Create grid key for grouping nearby incidents (standardized method)
+        
         const gridLat = Math.floor(report.Latitude / gridSize) * gridSize;
         const gridLng = Math.floor(report.Longitude / gridSize) * gridSize;
         const key = `${gridLat.toFixed(3)}_${gridLng.toFixed(3)}`;
@@ -81,7 +77,7 @@ console.log("👤 Reports page - Current user:", user);
         
         if (!locations[key]) {
           locations[key] = {
-            lat: gridLat + (gridSize / 2), // Center of grid cell
+            lat: gridLat + (gridSize / 2), 
             lng: gridLng + (gridSize / 2),
             incidents: [],
             count: 0
@@ -96,30 +92,25 @@ console.log("👤 Reports page - Current user:", user);
     });
     
     console.log("🗂️ Grid locations:", locations);
-    
-    // Consistent threshold and mapping
-    const hotspotThreshold = 2; // 2+ incidents = hotspot
+
+    const hotspotThreshold = 2; 
     const hotspots = Object.values(locations)
       .filter(location => location.count >= hotspotThreshold)
       .map(location => ({
         lat: location.lat,
         lng: location.lng,
         incidentCount: location.count,
-        // Standardized risk level classification:
-        // Low risk (2 incidents) = Yellow circles 🟡
-        // Medium risk (3-4 incidents) = Orange circles 🟠
-        // High risk (5+ incidents) = Red circles 🔴
+
         riskLevel: location.count >= 5 ? 'high' : location.count >= 3 ? 'medium' : 'low',
         incidents: location.incidents,
-        radius: Math.min(location.count * 50, 200) // Dynamic radius based on incident count
+        radius: Math.min(location.count * 50, 200) 
       }))
-      .sort((a, b) => b.incidentCount - a.incidentCount); // Sort by incident count
+      .sort((a, b) => b.incidentCount - a.incidentCount); 
     
     console.log("🔥 Final hotspots:", hotspots);
     return hotspots;
   };
 
-  // Calculate hotspots when reports or barangay changes
   useEffect(() => {
     if (userBarangay && reports.length > 0) {
       const calculatedHotspots = calculateBarangayHotspots(reports, userBarangay);
@@ -144,13 +135,10 @@ console.log("👤 Reports page - Current user:", user);
     const effectiveStatus = normalizedStatus || "pending";
     const matchesStatus = statusFilter === "all" || effectiveStatus === statusFilter;
 
-    // Only show reports for the user's barangay - strict filtering
     const matchesBarangay = userBarangay ? report?.Barangay === userBarangay : false;
-    
-    // Filter out sensitive reports for non-admin users
+
     const canViewSensitive = isAdmin || !report?.isSensitive;
-    
-    // Debug logging for each report
+
     if (report?.id) {
       console.log(`🔍 Report ${report.id}: Barangay="${report?.Barangay}" vs UserBarangay="${userBarangay}" = ${matchesBarangay}, Sensitive=${report?.isSensitive}, CanView=${canViewSensitive}`);
     }
@@ -165,7 +153,7 @@ console.log("👤 Reports page - Current user:", user);
   const handleVerify = async (id) => {
     const success = await updateReportStatus(id, "Verified");
     if (success) {
-      // The reports will be updated automatically through the onSnapshot listener
+      
       console.log("Report verified successfully");
     }
   };
@@ -173,22 +161,22 @@ console.log("👤 Reports page - Current user:", user);
   const handleReject = async (id, reason) => {
     const success = await updateReportStatus(id, "Rejected", reason);
     if (success) {
-      // The reports will be updated automatically through the onSnapshot listener
+      
       console.log("Report rejected successfully");
     }
   };
 
   const handleLogout = () => {
     setShowLogoutModal(false);
-    router.push("/"); // Redirect to root (login)
+    router.push("/"); 
   };
 
   return (
     <>
       <div className="flex min-h-screen bg-white">
-        {/* Sidebar */}
+        {}
         <Sidebar onLogout={() => setShowLogoutModal(true)} />
-        {/* Main Content */}
+        {}
         <main className="flex-1 ml-64 p-10 bg-white min-h-screen">
           <div className="flex items-center justify-between mb-8">
             <h1 className="text-3xl font-bold text-red-600">Manage Reports</h1>
@@ -249,7 +237,7 @@ console.log("👤 Reports page - Current user:", user);
                     setIsDialogOpen(true);
                   }}
                   statusFilter={statusFilter}
-                  reportsPerPage={6} // Show 6 reports per page
+                  reportsPerPage={6} 
                 />
               </>
             ) : (
@@ -262,11 +250,11 @@ console.log("👤 Reports page - Current user:", user);
               onVerify={handleVerify}
               onReject={handleReject}
               onDelete={(reportId) => {
-                // The reports will be updated automatically through the onSnapshot listener
+                
                 console.log("Report deleted successfully");
               }}
               onEdit={(reportId, updates) => {
-                // The reports will be updated automatically through the onSnapshot listener
+                
                 console.log("Report edited successfully");
               }}
             />

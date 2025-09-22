@@ -8,7 +8,6 @@ import { db } from "@/firebase";
 import dynamic from 'next/dynamic';
 import { getMapCoordinatesForBarangay } from "@/lib/userMapping";
 
-// Dynamically import the map component to avoid SSR issues
 const MapComponent = dynamic(() => import('./map-component'), { 
   ssr: false,
   loading: () => <div className="w-full h-full bg-gray-100 rounded-lg flex items-center justify-center">Loading map...</div>
@@ -23,15 +22,14 @@ export const HighRiskAreasDialog = ({ open, onOpenChange, userBarangay }) => {
 
     const fetchHighRiskAreas = async () => {
       const querySnapshot = await getDocs(collection(db, "reports"));
-      const locationData = {}; // Changed from barangayData to locationData
-      const incidents = []; // For map display
+      const locationData = {}; 
+      const incidents = []; 
       let unknownCount = 0;
       let totalProcessed = 0;
       
       querySnapshot.forEach((doc) => {
         const data = doc.data();
-        
-        // Debug first few documents
+
         if (totalProcessed < 3) {
           console.log(`🔍 Document ${totalProcessed + 1} data:`, {
             id: doc.id,
@@ -42,14 +40,12 @@ export const HighRiskAreasDialog = ({ open, onOpenChange, userBarangay }) => {
             Barangay: data.Barangay || data.barangay || data.Location || data.location
           });
         }
-        
-        // Improved barangay detection with multiple fallbacks
+
         let barangay = data.Barangay || data.barangay || data.Location || data.location;
-        
-        // Clean up barangay names and handle variations
+
         if (barangay && typeof barangay === 'string') {
           barangay = barangay.trim();
-          // Handle common variations and clean up
+          
           if (barangay.toLowerCase().includes('bulihan')) barangay = 'Bulihan';
           else if (barangay.toLowerCase().includes('mojon')) barangay = 'Mojon';
           else if (barangay.toLowerCase().includes('dakila')) barangay = 'Dakila';
@@ -58,10 +54,9 @@ export const HighRiskAreasDialog = ({ open, onOpenChange, userBarangay }) => {
           else if (barangay.toLowerCase().includes('longos')) barangay = 'Longos';
           else if (barangay.toLowerCase().includes('tiaong')) barangay = 'Tiaong';
         }
-        
-        // If still no valid barangay, try to infer from coordinates or submitter email
+
         if (!barangay || barangay === '' || barangay.toLowerCase() === 'unknown') {
-          // Try to infer from submitter email
+          
           const email = data.SubmittedByEmail || '';
           if (email.includes('bulihan')) barangay = 'Bulihan';
           else if (email.includes('mojon')) barangay = 'Mojon';
@@ -72,11 +67,10 @@ export const HighRiskAreasDialog = ({ open, onOpenChange, userBarangay }) => {
           else if (email.includes('tiaong')) barangay = 'Tiaong';
           else {
             unknownCount++;
-            barangay = 'Unknown'; // Keep unknown entries for display
+            barangay = 'Unknown'; 
           }
         }
-        
-        // If user has a specific barangay, only analyze reports from that barangay
+
         if (userBarangay && barangay !== userBarangay) {
           return;
         }
@@ -94,35 +88,31 @@ export const HighRiskAreasDialog = ({ open, onOpenChange, userBarangay }) => {
         }
         
         locationData[barangay].totalIncidents++;
-        
-        // Calculate severity based on incident type
+
         const incidentType = (data.IncidentType || "").toLowerCase();
         if (incidentType.includes("robbery") || incidentType.includes("assault") || 
             incidentType.includes("violence") || incidentType.includes("murder") ||
             incidentType.includes("kidnap") || incidentType.includes("rape")) {
           locationData[barangay].highSeverityIncidents++;
         }
-        
-        // Track incident types
+
         const type = data.IncidentType || "Other";
         locationData[barangay].incidentTypes[type] = (locationData[barangay].incidentTypes[type] || 0) + 1;
-        
-        // Add to map data if coordinates exist and incident is valid
+
         if (data.Latitude && data.Longitude && 
             typeof data.Latitude === 'number' && typeof data.Longitude === 'number' &&
             !isNaN(data.Latitude) && !isNaN(data.Longitude) &&
             data.Latitude !== 0 && data.Longitude !== 0) {
-          
-          // Check various verification status formats
+
           const isVerified = data.Status === 'verified' || 
                            data.status === 'verified' || 
                            data.Status === 'Verified' ||
                            data.status === 'Verified' ||
-                           !data.Status || // Auto-verified reports might not have status
+                           !data.Status || 
                            data.Status === '';
           
           if (isVerified) {
-            // Determine risk level based on incident type
+            
             let riskLevel = 'low';
             if (incidentType.includes("robbery") || incidentType.includes("assault") || 
                 incidentType.includes("violence") || incidentType.includes("murder") ||
@@ -148,31 +138,22 @@ export const HighRiskAreasDialog = ({ open, onOpenChange, userBarangay }) => {
         }
       });
 
-      // Calculate risk scores using Weighted Crime Risk Assessment (WCRA) Algorithm
       const highRiskAreas = Object.values(locationData)
         .map(area => {
-          // WCRA Formula: Balanced scoring based on frequency, severity, and pattern diversity
-          // Components:
-          // 1. Frequency Score: Logarithmic scale to prevent over-weighting high-volume areas
-          // 2. Severity Score: Linear scale with high penalty for dangerous crimes
-          // 3. Diversity Score: Moderate weight for crime pattern complexity
-          
-          const frequencyScore = Math.min(Math.log2(area.totalIncidents + 1) * 8, 35); // Max 35 points, logarithmic
-          const severityScore = area.highSeverityIncidents * 25; // 25 points per high-severity incident
-          const diversityScore = Math.min(Object.keys(area.incidentTypes).length * 4, 20); // Max 20 points, 4 per type
-          
-          // Apply population density factor (optional enhancement)
-          const populationFactor = 1.0; // Could be adjusted based on barangay population
+
+          const frequencyScore = Math.min(Math.log2(area.totalIncidents + 1) * 8, 35); 
+          const severityScore = area.highSeverityIncidents * 25; 
+          const diversityScore = Math.min(Object.keys(area.incidentTypes).length * 4, 20); 
+
+          const populationFactor = 1.0; 
           
           area.riskScore = Math.round((frequencyScore + severityScore + diversityScore) * populationFactor);
-          area.riskScore = Math.min(area.riskScore, 100); // Cap at 100
-          
-          // Enhanced risk level thresholds
+          area.riskScore = Math.min(area.riskScore, 100); 
+
           if (area.riskScore >= 70) area.riskLevel = "High";
           else if (area.riskScore >= 40) area.riskLevel = "Medium";
           else area.riskLevel = "Low";
-          
-          // Debug logging for score breakdown
+
           console.log(`📊 ${area.name} WCRA Score Breakdown:`, {
             frequency: Math.round(frequencyScore),
             severity: severityScore,
@@ -185,11 +166,10 @@ export const HighRiskAreasDialog = ({ open, onOpenChange, userBarangay }) => {
           
           return area;
         })
-        .filter(area => area.riskScore >= 25) // Lower threshold to show more relevant areas
+        .filter(area => area.riskScore >= 25) 
         .sort((a, b) => b.riskScore - a.riskScore)
-        .slice(0, 6); // Top 6 high-risk areas
+        .slice(0, 6); 
 
-      // Log analysis info
       console.log(`📊 ${userBarangay || 'All Areas'} Risk Analysis: ${totalProcessed} incidents analyzed, ${Object.keys(locationData).length} areas found, ${unknownCount} unknown entries`);
       console.log(`🗺️ Map Incidents: ${incidents.length} incidents with valid coordinates found for map display`);
       if (incidents.length > 0) {
@@ -213,7 +193,7 @@ export const HighRiskAreasDialog = ({ open, onOpenChange, userBarangay }) => {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4">
         <div className="bg-white rounded-2xl shadow-xl w-full max-w-6xl overflow-hidden">
-          {/* Header */}
+          {}
           <div className="flex items-center justify-between px-8 pt-8 pb-2">
             <div className="flex items-center gap-3">
               <MapPin className="text-red-600 w-8 h-8" />
@@ -226,9 +206,9 @@ export const HighRiskAreasDialog = ({ open, onOpenChange, userBarangay }) => {
             </div>
           </div>
 
-          {/* Main Content */}
+          {}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 px-8 py-8">
-            {/* Left: Risk Areas Map */}
+            {}
             <div className="bg-white rounded-xl border border-gray-200 relative overflow-hidden min-h-[420px]">
               <div className="absolute top-4 left-4 z-10 bg-white/90 px-3 py-2 rounded-lg shadow-sm border">
                 <div className="text-lg font-bold text-gray-800">Risk Areas Map</div>
@@ -246,7 +226,7 @@ export const HighRiskAreasDialog = ({ open, onOpenChange, userBarangay }) => {
                 />
               </div>
               
-              {/* Map Legend */}
+              {}
               <div className="absolute bottom-4 right-4 z-10 bg-white/90 px-3 py-2 rounded-lg shadow-sm border">
                 <div className="text-xs font-medium text-gray-800 mb-1">Risk Levels</div>
                 <div className="flex items-center gap-3 text-xs">
@@ -266,7 +246,7 @@ export const HighRiskAreasDialog = ({ open, onOpenChange, userBarangay }) => {
               </div>
             </div>
 
-            {/* Right: High Risk Areas Details */}
+            {}
             <div className="bg-white rounded-xl p-6 flex flex-col shadow-sm border border-gray-100">
               <div className="font-bold text-2xl mb-4">High Risk Areas Analysis</div>
               

@@ -9,11 +9,10 @@ export default function ReportList({
   onReject, 
   onViewDetails, 
   statusFilter,
-  reportsPerPage = 5 // Default to 5 reports per page
+  reportsPerPage = 5 
 }) {
   const [currentPage, setCurrentPage] = useState(1);
 
-  // Calculate pagination data
   const paginationData = useMemo(() => {
     if (!Array.isArray(reports)) {
       return {
@@ -35,12 +34,11 @@ export default function ReportList({
       totalReports,
       totalPages,
       currentReports,
-      startIndex: startIndex + 1, // Convert to 1-based indexing for display
+      startIndex: startIndex + 1, 
       endIndex
     };
   }, [reports, currentPage, reportsPerPage]);
 
-  // Reset to first page when reports change
   useEffect(() => {
     setCurrentPage(1);
   }, [reports]);
@@ -57,30 +55,28 @@ export default function ReportList({
 
   const handlePageClick = (pageNumber) => {
     setCurrentPage(pageNumber);
-    // Scroll to top of the reports list when changing pages
+    
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // Generate page numbers to show
   const getVisiblePages = () => {
     const totalPages = paginationData.totalPages;
     const current = currentPage;
     const pages = [];
 
     if (totalPages <= 7) {
-      // Show all pages if 7 or fewer
+      
       for (let i = 1; i <= totalPages; i++) {
         pages.push(i);
       }
     } else {
-      // Always show first page
+      
       pages.push(1);
 
       if (current > 4) {
         pages.push('...');
       }
 
-      // Show current page and surrounding pages
       const start = Math.max(2, current - 1);
       const end = Math.min(totalPages - 1, current + 1);
 
@@ -94,7 +90,6 @@ export default function ReportList({
         pages.push('...');
       }
 
-      // Always show last page
       if (!pages.includes(totalPages)) {
         pages.push(totalPages);
       }
@@ -109,12 +104,12 @@ export default function ReportList({
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Reports List */}
+      {}
       {paginationData.totalReports === 0 ? (
         <div className="text-center text-gray-500 py-10">No reports found for this barangay.</div>
       ) : (
         <>
-          {/* Reports Count Header */}
+          {}
           <div className="flex justify-between items-center text-sm text-gray-600 px-1 mb-2">
             <span>
               Showing {paginationData.startIndex}-{paginationData.endIndex} of {paginationData.totalReports} reports
@@ -126,7 +121,7 @@ export default function ReportList({
             )}
           </div>
 
-          {/* Reports */}
+          {}
           {paginationData.currentReports.map((report) => (
             <div key={report.id}>
               <RecentReports
@@ -139,11 +134,11 @@ export default function ReportList({
             </div>
           ))}
 
-          {/* Pagination Controls */}
+          {}
           {paginationData.totalPages > 1 && (
             <div className="flex justify-center items-center mt-8 pt-6 border-t border-gray-200">
               <div className="flex items-center gap-2">
-                {/* Previous Button */}
+                {}
                 <Button
                   variant="outline"
                   size="sm"
@@ -155,7 +150,7 @@ export default function ReportList({
                   <span className="hidden sm:inline">Previous</span>
                 </Button>
 
-                {/* Page Numbers */}
+                {}
                 <div className="flex items-center gap-1">
                   {getVisiblePages().map((page, index) => {
                     if (page === '...') {
@@ -184,7 +179,7 @@ export default function ReportList({
                   })}
                 </div>
 
-                {/* Next Button */}
+                {}
                 <Button
                   variant="outline"
                   size="sm"
@@ -199,7 +194,7 @@ export default function ReportList({
             </div>
           )}
 
-          {/* Mobile-friendly pagination info */}
+          {}
           {paginationData.totalPages > 1 && (
             <div className="text-center text-xs text-gray-500 mt-2">
               Scroll up to see more reports on previous pages

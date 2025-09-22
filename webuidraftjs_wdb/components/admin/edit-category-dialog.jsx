@@ -8,7 +8,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Trash2, Plus } from "lucide-react";
 
-// Default categories that cannot be deleted
 const DEFAULT_CATEGORIES = [
   "Theft",
   "Reports/Agreement", 
@@ -34,7 +33,6 @@ export function EditCategoryDialog({ open, onOpenChange, onSave, onDelete, categ
   const [activeTab, setActiveTab] = useState("add");
   const [selectedCategoryToDelete, setSelectedCategoryToDelete] = useState("");
 
-  // Get custom categories (non-default categories)
   const customCategories = categories.filter(cat => !DEFAULT_CATEGORIES.includes(cat.name || cat));
 
   const handleAddKeyword = () => {

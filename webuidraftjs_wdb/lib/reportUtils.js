@@ -1,11 +1,6 @@
 import { doc, getDoc, updateDoc, deleteDoc } from "firebase/firestore";
 import { db } from "../firebase";
 
-/**
- * Fetch and format report details from Firebase
- * @param {string} reportId - The ID of the report to fetch
- * @returns {Object|null} - Formatted report data or null if not found
- */
 export async function getReportDetails(reportId) {
   try {
     const docRef = doc(db, "reports", reportId);
@@ -13,18 +8,16 @@ export async function getReportDetails(reportId) {
 
     if (docSnap.exists()) {
       const data = docSnap.data();
-      
-      // Parse the DateTime field to extract date and time
+
       let dateTime = data.DateTime || "";
       let datePart = "Unknown date";
       let timePart = "Unknown time";
-      
-      // Handle different types of DateTime values
+
       if (typeof dateTime === 'string' && dateTime.includes(" at ")) {
         [datePart, timePart] = dateTime.split(" at ");
-        timePart = timePart?.split(" ")[0] || "Unknown time"; // Remove timezone
+        timePart = timePart?.split(" ")[0] || "Unknown time"; 
       } else if (dateTime?.seconds) {
-        // Handle Firebase Timestamp
+        
         const date = new Date(dateTime.seconds * 1000);
         datePart = date.toLocaleDateString("en-US", { 
           year: 'numeric', 
@@ -38,7 +31,7 @@ export async function getReportDetails(reportId) {
           hour12: true 
         });
       } else if (dateTime) {
-        // Try to parse as regular date
+        
         const date = new Date(dateTime);
         if (!isNaN(date.getTime())) {
           datePart = date.toLocaleDateString("en-US", { 
@@ -66,14 +59,14 @@ export async function getReportDetails(reportId) {
           geo: data.GeoLocation || ""
         },
         date: datePart || "Unknown date",
-        time: timePart?.split(" ")[0] || "Unknown time", // Remove timezone part
+        time: timePart?.split(" ")[0] || "Unknown time", 
         submittedBy: data.SubmittedByEmail || "Unknown",
         status: data.Status || "Pending",
         hasMedia: data.hasMedia || false,
         mediaType: data.MediaType || null,
         mediaURL: data.MediaURL || null,
         timestamp: dateTime,
-        // Keep original data for backward compatibility
+        
         ...data
       };
     } else {
@@ -84,12 +77,6 @@ export async function getReportDetails(reportId) {
   }
 }
 
-/**
- * Update report status in Firebase
- * @param {string} reportId - The ID of the report to update
- * @param {string} status - New status ("Verified", "Rejected", "Pending")
- * @param {string} rejectionReason - Reason for rejection (optional)
- */
 export async function updateReportStatus(reportId, status, rejectionReason = null) {
   try {
     const docRef = doc(db, "reports", reportId);
@@ -106,10 +93,6 @@ export async function updateReportStatus(reportId, status, rejectionReason = nul
   }
 }
 
-/**
- * Delete a report from Firebase
- * @param {string} reportId - The ID of the report to delete
- */
 export async function deleteReport(reportId) {
   try {
     const docRef = doc(db, "reports", reportId);
@@ -121,11 +104,6 @@ export async function deleteReport(reportId) {
   }
 }
 
-/**
- * Update report details in Firebase
- * @param {string} reportId - The ID of the report to update
- * @param {Object} updates - Object containing the fields to update
- */
 export async function updateReportDetails(reportId, updates) {
   try {
     const docRef = doc(db, "reports", reportId);
@@ -137,25 +115,18 @@ export async function updateReportDetails(reportId, updates) {
   }
 }
 
-/**
- * Format report data for display in components
- * @param {Object} report - Raw report data from Firebase
- * @returns {Object} - Formatted report data
- */
 export function formatReportForDisplay(report) {
   if (!report) return null;
 
-  // Safely handle DateTime field
   let dateTime = report.DateTime || "";
   let datePart = "Unknown date";
   let timePart = "Unknown time";
-  
-  // Handle different types of DateTime values
+
   if (typeof dateTime === 'string' && dateTime.includes(" at ")) {
     [datePart, timePart] = dateTime.split(" at ");
-    timePart = timePart?.split(" ")[0] || "Unknown time"; // Remove timezone
+    timePart = timePart?.split(" ")[0] || "Unknown time"; 
   } else if (dateTime?.seconds) {
-    // Handle Firebase Timestamp
+    
     const date = new Date(dateTime.seconds * 1000);
     datePart = date.toLocaleDateString("en-US", { 
       year: 'numeric', 
@@ -169,7 +140,7 @@ export function formatReportForDisplay(report) {
       hour12: true 
     });
   } else if (dateTime) {
-    // Try to parse as regular date
+    
     const date = new Date(dateTime);
     if (!isNaN(date.getTime())) {
       datePart = date.toLocaleDateString("en-US", { 

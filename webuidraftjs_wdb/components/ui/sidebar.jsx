@@ -19,4 +19,3 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 
-// ...rest of the component remains unchanged...

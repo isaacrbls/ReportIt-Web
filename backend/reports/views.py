@@ -5,7 +5,6 @@ from rest_framework.response import Response
 from .models import Report
 from .serializers import ReportSerializer
 
-
 class ReportViewSet(viewsets.ModelViewSet):
     queryset = Report.objects.all()
     serializer_class = ReportSerializer
@@ -18,4 +17,3 @@ class ReportViewSet(viewsets.ModelViewSet):
         self.perform_create(serializer)
         headers = self.get_success_headers(serializer.data)
         return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
-

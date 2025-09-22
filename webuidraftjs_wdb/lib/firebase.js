@@ -1,4 +1,4 @@
-// lib/firebase.js
+
 import { initializeApp, getApps } from "firebase/app";
 import { getAuth } from "firebase/auth";
 
@@ -11,7 +11,6 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-// Prevent re-initializing during hot reloads
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApps()[0];
 
 export const auth = getAuth(app);

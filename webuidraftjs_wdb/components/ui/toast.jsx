@@ -48,4 +48,3 @@ const Toast = React.forwardRef(({ className, variant, ...props }, ref) => {
 })
 Toast.displayName = ToastPrimitives.Root.displayName
 
-// ...rest of the component remains unchanged...

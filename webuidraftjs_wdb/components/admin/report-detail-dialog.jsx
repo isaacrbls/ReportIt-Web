@@ -13,7 +13,6 @@ import { Input } from "@/components/ui/input"
 import { updateReportStatus, formatReportForDisplay, deleteReport, updateReportDetails } from "@/lib/reportUtils"
 import { useToast } from "@/hooks/use-toast"
 
-// Dynamically import the map component with no SSR
 const MapWithNoSSR = dynamic(() => import("./map-component"), {
   ssr: false,
   loading: () => <div className="flex h-[250px] w-full items-center justify-center bg-gray-100 rounded-lg">Loading map...</div>,
@@ -34,34 +33,30 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const { toast } = useToast()
 
-  // Update local report data when props change
   useEffect(() => {
     if (report) {
       setCurrentReportData(report)
     }
   }, [report])
 
-  // Handle dialog opening - trigger map refresh after dialog is visible
   useEffect(() => {
     if (open) {
-      // Add a small delay to ensure dialog is fully rendered and has proper dimensions
+      
       const refreshTimeout = setTimeout(() => {
-        // Trigger window resize event to force map to recalculate dimensions
+        
         window.dispatchEvent(new Event('resize'));
-      }, 150); // Slightly longer delay than map initialization
+      }, 150); 
 
       return () => clearTimeout(refreshTimeout);
     }
   }, [open])
 
-  // Format the report data to match Firebase structure
   const formattedReport = useMemo(() => {
     return formatReportForDisplay(currentReportData || report)
   }, [currentReportData, report])
 
-  // Create stable display data for the map area that won't change during editing
   const stableDisplayData = useMemo(() => {
-    const originalReport = report // Always use original report for stable display
+    const originalReport = report 
     const formatted = formatReportForDisplay(originalReport)
     
     return {
@@ -82,17 +77,15 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
     report?.isSensitive,
     report?.Status,
     report?.SubmittedBy
-  ]) // Only depend on original report properties
+  ]) 
 
-  // Memoize map data to prevent unnecessary re-renders during editing
   const mapData = useMemo(() => {
-    // Use original report data for map display to prevent re-renders during editing
-    const reportData = report // Always use original report for map coordinates
+    
+    const reportData = report 
     const latitude = reportData?.Latitude
     const longitude = reportData?.Longitude
     const barangay = reportData?.Barangay
-    
-    // Create a stable incident object that won't change during editing
+
     const stableIncident = {
       id: reportData?.id || reportData?.ReportID,
       Latitude: latitude,
@@ -122,9 +115,8 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
     report?.DateTime,
     report?.Status,
     report?.isSensitive
-  ]) // Only depend on original report data that won't change during editing
+  ]) 
 
-  // Initialize edit form when opening edit mode
   useEffect(() => {
     if (isEditMode && (currentReportData || report)) {
       const reportToEdit = currentReportData || report
@@ -138,7 +130,6 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
     }
   }, [isEditMode, currentReportData, report])
 
-  // Reset states when dialog closes
   useEffect(() => {
     if (!open) {
       setError("")
@@ -154,7 +145,6 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
     }
   }, [open, deleteTimeout])
 
-  // Add keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (!open) return
@@ -179,7 +169,6 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
     return () => document.removeEventListener('keydown', handleKeyDown)
   }, [open, isEditMode, isSaving])
 
-  // Early return after all hooks
   if (!report) return null
 
   const handleVerify = async () => {
@@ -187,7 +176,7 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
     try {
       const success = await updateReportStatus(report.id, "Verified")
       if (success) {
-        // Update local report data to reflect status change
+        
         setCurrentReportData(prevData => ({
           ...(prevData || report),
           Status: "Verified"
@@ -223,7 +212,7 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
     try {
       const success = await updateReportStatus(report.id, "Rejected")
       if (success) {
-        // Update local report data to reflect status change
+        
         setCurrentReportData(prevData => ({
           ...(prevData || report),
           Status: "Rejected"
@@ -304,8 +293,7 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
   const handleSaveEdit = async () => {
     setIsSaving(true)
     setError("")
-    
-    // Basic validation
+
     if (!editedReport.Title?.trim()) {
       setError("Title is required")
       setIsSaving(false)
@@ -325,7 +313,7 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
     try {
       const success = await updateReportDetails(report.id, editedReport)
       if (success) {
-        // Update local report data to reflect changes immediately
+        
         setCurrentReportData(prevData => ({
           ...(prevData || report),
           ...editedReport
@@ -507,18 +495,16 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
             
             <script>
               window.onload = function() {
-                // Small delay to ensure content is fully loaded
+                
                 setTimeout(function() {
                   window.print();
                 }, 100);
-                
-                // Close window after print dialog
+
                 setTimeout(function() {
                   window.close();
                 }, 1000);
               }
-              
-              // Handle print cancel/complete
+
               window.onafterprint = function() {
                 setTimeout(function() {
                   window.close();
@@ -528,15 +514,12 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
           </body>
         </html>
       `
-      
-      // Create a blob URL for the content
+
       const blob = new Blob([printContent], { type: 'text/html' });
       const url = URL.createObjectURL(blob);
-      
-      // Open the URL directly
+
       const printWindow = window.open(url, '_blank', 'width=800,height=600');
-      
-      // Clean up the blob URL after a delay
+
       setTimeout(() => {
         URL.revokeObjectURL(url);
       }, 3000);
@@ -560,7 +543,7 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
       <DialogContent className="max-w-4xl w-full p-0 bg-transparent border-none shadow-none flex items-center justify-center min-h-screen overflow-y-auto">
         <div className="bg-white rounded-2xl p-10 shadow-sm w-[900px] max-w-full max-h-[95vh] overflow-y-auto flex flex-col gap-8">
           <div className="grid grid-cols-1 md:grid-cols-[1fr,400px] gap-8">
-            {/* Left: Details */}
+            {}
             <div className="min-w-[320px]">
               <div className="flex items-center gap-3 mb-4">
                 <h2 className="text-[#F14B51] text-2xl font-bold">Report Details</h2>
@@ -577,7 +560,7 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
                 </div>
               )}
               
-              {/* Title */}
+              {}
               <div className="flex items-center mb-4 gap-2">
                 <span className="font-bold text-lg text-[#F14B51]">Title:</span>
                 {isEditMode ? (
@@ -594,7 +577,7 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
                 )}
               </div>
 
-              {/* Category/Incident Type */}
+              {}
               <div className="flex items-center gap-2 mb-4">
                 <Tag className="w-5 h-5 text-[#F14B51]" />
                 {isEditMode ? (
@@ -625,7 +608,7 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
                 )}
               </div>
               
-              {/* Location */}
+              {}
               <div className="flex items-center gap-2 mb-2">
                 <MapPin className="w-5 h-5 text-[#F14B51]" />
                 {isEditMode ? (
@@ -666,7 +649,7 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
                 />
               )}
               
-              {/* Edit mode buttons */}
+              {}
               {isEditMode && (
                 <div className="flex gap-3 mb-6">
                   <Button
@@ -731,7 +714,7 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
                 <div className="text-xs text-gray-400 mb-4">No media attachments available</div>
               )}
               
-              {/* Action buttons - only show when not in edit mode */}
+              {}
               {!isEditMode && (
                 <div className="flex gap-3 mt-8 flex-wrap">
                   <button 
@@ -756,7 +739,7 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
               )}
             </div>
             
-            {/* Right: Map */}
+            {}
             <div className="w-full flex flex-col items-center justify-start">
               <div className="font-bold text-[#F14B51] text-xl mb-2 text-center">Incident Location</div>
               <div className="w-full h-[280px] bg-[#F8E3DE] rounded-lg flex items-center justify-center overflow-hidden mb-2">
@@ -780,7 +763,7 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
                 )}
               </div>
               
-              {/* Incident Details - moved from popup to below map */}
+              {}
               <div className="w-full bg-white border border-gray-200 rounded-lg p-4 mb-3">
                 <div className="flex items-center gap-2 mb-2">
                   <h3 className="font-medium text-sm text-[#F14B51]">{stableDisplayData?.title}</h3>
@@ -814,7 +797,7 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
             </div>
           </div>
           
-          {/* Close button with better spacing */}
+          {}
           <div className="flex justify-end mt-8 pt-6 border-t border-gray-200">
             <button 
               className="border border-gray-400 text-gray-600 px-6 py-2 rounded-md hover:bg-gray-50 transition-colors" 
@@ -826,7 +809,7 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
         </div>
       </DialogContent>
 
-      {/* Delete Confirmation Dialog */}
+      {}
       {showDeleteConfirm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100]">
           <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">

@@ -11,7 +11,6 @@ import { AlertCircle, MapPin, X } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useReports } from "@/contexts/ReportsContext";
 
-// Dynamically import the map components with no SSR
 const MapWithNoSSR = dynamic(() => import("./map-component"), {
   ssr: false,
   loading: () => <div className="flex h-[500px] w-full items-center justify-center bg-gray-100">Loading map...</div>,
@@ -33,20 +32,8 @@ export function CrimeMap({ barangay, showPins = true, showHotspots = true, showC
     time: new Date().toTimeString().split(" ")[0].substring(0, 5),
   });
 
-  // Remove the Firebase useEffect since we're using global context
-  // Fetch reports from Firebase
-  // useEffect(() => {
-  //   const q = query(collection(db, "reports"), orderBy("DateTime", "desc"));
-  //   const unsubscribe = onSnapshot(q, (snapshot) => {
-  //     const reportsData = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-  //     setReports(reportsData);
-  //   });
-  //   return () => unsubscribe();
-  // }, []);
-
-  // Calculate hotspots when reports or barangay changes
   useEffect(() => {
-    // Don't clear hotspots while data is loading
+    
     if (isLoading) {
       console.log("🔄 CrimeMap: Skipping hotspot calculation while loading");
       return;
@@ -57,7 +44,7 @@ export function CrimeMap({ barangay, showPins = true, showHotspots = true, showC
       setHotspots(calculatedHotspots);
       console.log("🔥 CrimeMap hotspots calculated for", barangay, ":", calculatedHotspots);
     } else if (!isLoading) {
-      // Only clear hotspots if we're not loading data
+      
       setHotspots([]);
       console.log("🔥 CrimeMap hotspots cleared - no data or conditions not met");
     }
@@ -111,7 +98,6 @@ export function CrimeMap({ barangay, showPins = true, showHotspots = true, showC
       isUserCreated: true,
     };
 
-    // Pass the new incident to the map component
     if (typeof window !== "undefined") {
       window.dispatchEvent(
         new CustomEvent("addIncident", {
@@ -131,11 +117,9 @@ export function CrimeMap({ barangay, showPins = true, showHotspots = true, showC
       time: new Date().toTimeString().split(" ")[0].substring(0, 5),
     });
 
-    // Show the newly added incident
     setSelectedIncident(newIncidentData);
   };
 
-  // Get risk color
   const getRiskColor = (risk) => {
     switch (risk) {
       case "High":
@@ -151,7 +135,7 @@ export function CrimeMap({ barangay, showPins = true, showHotspots = true, showC
 
   return (
     <div className="relative h-[500px] w-full">
-      {/* Only show incident controls, pins, and overlays if showPins/hotspots/controls are true */}
+      {}
       {showControls && addingIncident && (
         <div className="absolute left-0 right-0 top-0 z-[1000] bg-red-600 py-2 text-center text-sm font-medium text-white">
           Click on the map to place an incident marker
@@ -176,7 +160,7 @@ export function CrimeMap({ barangay, showPins = true, showHotspots = true, showC
         hotspots={showHotspots ? hotspots : []}
       />
 
-      {/* Add Incident Button */}
+      {}
       {showControls && !addingIncident && !showIncidentForm && (
         <Button
           className="absolute bottom-4 left-4 z-[1] flex items-center gap-2 bg-red-600 hover:bg-red-700"
@@ -187,7 +171,7 @@ export function CrimeMap({ barangay, showPins = true, showHotspots = true, showC
         </Button>
       )}
 
-      {/* New Incident Form */}
+      {}
       {showControls && showIncidentForm && newIncidentLocation && (
         <Card className="absolute bottom-4 left-4 z-[1] w-80 bg-white shadow-lg">
           <CardHeader className="pb-2">
@@ -292,7 +276,7 @@ export function CrimeMap({ barangay, showPins = true, showHotspots = true, showC
         </Card>
       )}
 
-      {/* Selected incident details */}
+      {}
       {showPins && selectedIncident && !showIncidentForm && (
         <Card className="absolute bottom-4 right-4 z-[1000] w-72 bg-white shadow-lg">
           <CardContent className="p-4">

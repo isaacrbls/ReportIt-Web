@@ -16,24 +16,21 @@ export function RecentReports({
 	onViewDetails, 
 	statusFilter, 
 	barangay, 
-	enablePagination = false, // New prop to enable pagination
-	reportsPerPage = 3 // Default to 3 reports for dashboard
+	enablePagination = false, 
+	reportsPerPage = 3 
 }) {
-	const [actionStatus, setActionStatus] = useState({}); // { [id]: 'verified' | 'rejected' }
+	const [actionStatus, setActionStatus] = useState({}); 
 	const [currentPage, setCurrentPage] = useState(1);
 	const { user } = useCurrentUser();
 	const { reports, getReportsByBarangay } = useReports();
 	const isAdmin = isUserAdmin(user?.email);
 
-	// Get reports from context or use single report prop
 	const allReports = singleReport ? [singleReport] : getReportsByBarangay(barangay);
 
-	// Reset to first page when reports change
 	useEffect(() => {
 		setCurrentPage(1);
 	}, [allReports]);
 
-	// Filter reports based on status if needed
 	const filteredReports = useMemo(() => {
 		if (!statusFilter || statusFilter === "all") return allReports;
 		
@@ -43,7 +40,6 @@ export function RecentReports({
 		return allReports.filter(report => report.Status === statusValue);
 	}, [allReports, statusFilter]);
 
-	// Sort reports by date (newest first)
 	const sortedReports = useMemo(() => {
 		return [...filteredReports].sort((a, b) => {
 			const dateA = a.DateTime?.seconds ? new Date(a.DateTime.seconds * 1000) : new Date(a.DateTime || 0);
@@ -52,9 +48,8 @@ export function RecentReports({
 		});
 	}, [filteredReports]);
 
-	// Calculate pagination data using sorted reports
 	const paginationData = useMemo(() => {
-		// Filter out sensitive reports for non-admin users
+		
 		const accessibleReports = sortedReports.filter(report => {
 			return isAdmin || !report?.isSensitive;
 		});
@@ -99,7 +94,7 @@ export function RecentReports({
 	const formatDate = (dateValue) => {
 		if (!dateValue) return "-";
 		let date;
-		// Firestore Timestamp object
+		
 		if (dateValue.seconds) {
 			date = new Date(dateValue.seconds * 1000);
 		} else if (typeof dateValue === "string" || typeof dateValue === "number") {
@@ -138,7 +133,7 @@ export function RecentReports({
 
 	return (
 		<div className="space-y-4">
-			{/* Pagination Info for Dashboard */}
+			{}
 			{enablePagination && paginationData.totalReports > reportsPerPage && (
 				<div className="flex justify-between items-center text-sm text-gray-600 px-1 mb-2">
 					<span>
@@ -230,11 +225,11 @@ export function RecentReports({
 				))
 			)}
 
-			{/* Pagination Controls */}
+			{}
 			{enablePagination && paginationData.totalPages > 1 && (
 				<div className="flex justify-center items-center mt-8 pt-6 border-t border-gray-200">
 					<div className="flex items-center gap-2">
-						{/* Previous Button */}
+						{}
 						<Button
 							variant="outline"
 							size="sm"
@@ -246,17 +241,17 @@ export function RecentReports({
 							<span className="hidden sm:inline">Previous</span>
 						</Button>
 
-						{/* Page Numbers */}
+						{}
 						<div className="flex items-center gap-1">
 							{Array.from({ length: paginationData.totalPages }, (_, i) => i + 1).map((pageNumber) => {
-								// Show first page, last page, current page, and adjacent pages
+								
 								const showPage = 
 									pageNumber === 1 || 
 									pageNumber === paginationData.totalPages || 
 									Math.abs(pageNumber - currentPage) <= 1;
 
 								if (!showPage) {
-									// Show ellipsis for gaps
+									
 									if (pageNumber === 2 && currentPage > 4) {
 										return <span key={pageNumber} className="text-gray-400">...</span>;
 									}
@@ -284,7 +279,7 @@ export function RecentReports({
 							})}
 						</div>
 
-						{/* Next Button */}
+						{}
 						<Button
 							variant="outline"
 							size="sm"
@@ -299,7 +294,7 @@ export function RecentReports({
 				</div>
 			)}
 
-			{/* Mobile-friendly pagination info */}
+			{}
 			{enablePagination && paginationData.totalPages > 1 && (
 				<div className="text-center text-xs text-gray-500 mt-2">
 					Scroll up to see more reports on previous pages

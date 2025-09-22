@@ -39,4 +39,3 @@ const ChartContainer = React.forwardRef(({ id, className, children, config, ...p
 })
 ChartContainer.displayName = "ChartContainer"
 
-// ...rest of the component remains unchanged...

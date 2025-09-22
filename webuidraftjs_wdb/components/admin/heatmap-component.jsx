@@ -10,34 +10,31 @@ export default function HeatmapComponent({
   zoom = 15,
   className = "h-[500px] w-full",
   showLegend = true,
-  baseRadius = 40, // Base radius for intensity circles
-  maxRadius = 120, // Maximum radius for high intensity areas
-  minOpacity = 0.2, // Minimum opacity for visibility
-  maxOpacity = 0.8, // Maximum opacity for high intensity
+  baseRadius = 40, 
+  maxRadius = 120, 
+  minOpacity = 0.2, 
+  maxOpacity = 0.8, 
 }) {
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const heatCirclesRef = useRef([]);
   const [heatmapData, setHeatmapData] = useState([]);
 
-  // Fix for Leaflet marker icons in Next.js
   useEffect(() => {
     delete L.Icon.Default.prototype._getIconUrl;
     L.Icon.Default.mergeOptions({
-      iconRetinaUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png",
-      iconUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png",
-      shadowUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png",
+      iconRetinaUrl: "https:
+      iconUrl: "https:
+      shadowUrl: "https:
     });
   }, []);
 
-  // Process reports into heatmap data with smart intensity calculation
   useEffect(() => {
     if (!reports || reports.length === 0) {
       setHeatmapData([]);
       return;
     }
 
-    // Filter reports by barangay and verified status
     let filteredReports = reports.filter(
       (report) => 
         report.Latitude && 
@@ -51,17 +48,15 @@ export default function HeatmapComponent({
       return;
     }
 
-    // Create density-based heatmap data with weighted intensity
     const processedData = createCustomHeatmapData(filteredReports);
     setHeatmapData(processedData);
   }, [reports, barangay]);
 
-  // Smart custom heatmap data processing function using optimized hybrid clustering
   const createCustomHeatmapData = (reports) => {
-    // Step 1: Enhanced grid-based clustering with spatial indexing
-    const fineGridSize = 0.0002; // ~20m grid for initial grouping
+    
+    const fineGridSize = 0.0002; 
     const initialClusters = {};
-    const spatialIndex = new Map(); // For faster neighbor lookup
+    const spatialIndex = new Map(); 
 
     reports.forEach((report) => {
       const gridLat = Math.floor(report.Latitude / fineGridSize) * fineGridSize;
@@ -77,8 +72,7 @@ export default function HeatmapComponent({
           gridKey: key,
           neighbors: new Set(),
         };
-        
-        // Build spatial index for efficient neighbor finding
+
         const gridX = Math.floor(report.Longitude / fineGridSize);
         const gridY = Math.floor(report.Latitude / fineGridSize);
         spatialIndex.set(key, { x: gridX, y: gridY, cluster: initialClusters[key] });
@@ -89,14 +83,12 @@ export default function HeatmapComponent({
       initialClusters[key].totalWeight += incidentWeight;
     });
 
-    // Step 2: Optimized proximity-based merging using spatial index
     const clusters = Object.values(initialClusters);
     const mergedClusters = [];
     const processed = new Set();
 
-    // Helper function to calculate distance between two points in meters
     const calculateDistance = (lat1, lng1, lat2, lng2) => {
-      const R = 6371e3; // Earth's radius in meters
+      const R = 6371e3; 
       const φ1 = lat1 * Math.PI/180;
       const φ2 = lat2 * Math.PI/180;
       const Δφ = (lat2-lat1) * Math.PI/180;
@@ -107,7 +99,7 @@ export default function HeatmapComponent({
                 Math.sin(Δλ/2) * Math.sin(Δλ/2);
       const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 
-      return R * c; // Distance in meters
+      return R * c; 
     };
 
     clusters.forEach((cluster, index) => {
@@ -120,24 +112,22 @@ export default function HeatmapComponent({
         centerLng: cluster.centerLng,
       };
 
-      // Enhanced dynamic merging strategy with risk assessment
       const incidentCount = cluster.incidents.length;
       const avgWeight = cluster.totalWeight / incidentCount;
       
       let mergeDistanceMeters;
-      // Risk-based merging distances
+      
       if (avgWeight > 0.8 && incidentCount >= 2) {
-        mergeDistanceMeters = 400; // High-risk incidents merge from farther
+        mergeDistanceMeters = 400; 
       } else if (incidentCount === 1) {
-        mergeDistanceMeters = 100; // Conservative merging for isolated incidents
+        mergeDistanceMeters = 100; 
       } else if (incidentCount <= 3) {
-        mergeDistanceMeters = 200; // Medium merge distance for small clusters
+        mergeDistanceMeters = 200; 
       } else {
-        mergeDistanceMeters = 350; // Larger merge distance for established clusters
+        mergeDistanceMeters = 350; 
       }
 
-      // Optimized neighbor search using spatial indexing
-      const searchRadius = Math.ceil(mergeDistanceMeters / 111000 / fineGridSize); // Convert to grid units
+      const searchRadius = Math.ceil(mergeDistanceMeters / 111000 / fineGridSize); 
       const clusterSpatialData = spatialIndex.get(cluster.gridKey);
       
       if (clusterSpatialData) {
@@ -155,7 +145,7 @@ export default function HeatmapComponent({
                 );
                 
                 if (distance <= mergeDistanceMeters) {
-                  // Enhanced merging logic with weight consideration
+                  
                   mergedCluster.incidents.push(...neighborSpatialData.cluster.incidents);
                   mergedCluster.totalWeight += neighborSpatialData.cluster.totalWeight;
                   processed.add(otherIndex);
@@ -166,7 +156,6 @@ export default function HeatmapComponent({
         }
       }
 
-      // Recalculate center using weighted average for better accuracy
       if (mergedCluster.incidents.length > 0) {
         let totalLat = 0, totalLng = 0, totalWeights = 0;
         
@@ -185,7 +174,6 @@ export default function HeatmapComponent({
       processed.add(index);
     });
 
-    // Step 3: Create visual representation with hybrid sizing and strategy
     if (mergedClusters.length === 0) return [];
 
     const maxWeight = Math.max(...mergedClusters.map(c => c.totalWeight));
@@ -196,15 +184,14 @@ export default function HeatmapComponent({
       const incidentCount = cluster.incidents.length;
       const normalizedWeight = weightRange > 0 ? (cluster.totalWeight - minWeight) / weightRange : 0.5;
       const avgWeight = cluster.totalWeight / incidentCount;
-      
-      // Enhanced temporal analysis
+
       const now = new Date();
       const recentIncidents = cluster.incidents.filter(incident => {
         try {
           const incidentDate = incident.DateTime?.seconds ? 
             new Date(incident.DateTime.seconds * 1000) : 
             new Date(incident.DateTime || now);
-          return (now - incidentDate) / (1000 * 60 * 60 * 24) <= 7; // Last 7 days
+          return (now - incidentDate) / (1000 * 60 * 60 * 24) <= 7; 
         } catch {
           return false;
         }
@@ -212,8 +199,7 @@ export default function HeatmapComponent({
       
       const recentActivity = recentIncidents / incidentCount;
       const isHotArea = recentActivity > 0.5 && incidentCount >= 3;
-      
-      // Enhanced visualization strategy with temporal consideration
+
       let radius, visualStrategy, riskLevel;
       
       if (incidentCount === 1) {
@@ -237,20 +223,18 @@ export default function HeatmapComponent({
         visualStrategy = 'major_area';
         riskLevel = 'critical';
       }
-      
-      // Enhanced color system with risk-based gradients
+
       let color;
       if (riskLevel === 'critical') {
-        color = "#dc2626"; // Dark red for critical
+        color = "#dc2626"; 
       } else if (riskLevel === 'high') {
-        color = isHotArea ? "#ef4444" : "#f97316"; // Red/Orange for high risk
+        color = isHotArea ? "#ef4444" : "#f97316"; 
       } else if (riskLevel === 'medium') {
-        color = isHotArea ? "#f59e0b" : "#eab308"; // Orange/Yellow for medium
+        color = isHotArea ? "#f59e0b" : "#eab308"; 
       } else {
-        color = "#3b82f6"; // Blue for low risk
+        color = "#3b82f6"; 
       }
-      
-      // Dynamic opacity based on multiple factors
+
       let opacity = 0.4 + (normalizedWeight * 0.3) + (recentActivity * 0.2);
       if (isHotArea) opacity += 0.1;
       opacity = Math.min(opacity, 0.85);
@@ -289,22 +273,19 @@ export default function HeatmapComponent({
     return processedCircles;
   };
 
-  // Get color based on incident count and intensity - Updated color scheme
   const getIntensityColorByCount = (count, normalizedWeight) => {
     if (count === 1 || count === 2) {
-      return "#3b82f6"; // Blue for 1-2 incidents
+      return "#3b82f6"; 
     } else if (count >= 3 && count <= 5) {
-      return "#eab308"; // Yellow for 3-5 incidents
+      return "#eab308"; 
     } else {
-      return "#ef4444"; // Red for 6+ incidents
+      return "#ef4444"; 
     }
   };
 
-  // Calculate weight for each incident based on type and recency
   const calculateIncidentWeight = (report) => {
-    let weight = 1.0; // Base weight
+    let weight = 1.0; 
 
-    // Weight by incident type (higher weight = more serious)
     const incidentTypeWeights = {
       "Robbery": 1.0,
       "Assault": 0.95,
@@ -320,7 +301,6 @@ export default function HeatmapComponent({
     const typeWeight = incidentTypeWeights[report.IncidentType] || 0.5;
     weight *= typeWeight;
 
-    // Weight by recency (more recent = higher weight)
     const now = new Date();
     let incidentDate;
     
@@ -338,8 +318,7 @@ export default function HeatmapComponent({
       }
 
       const daysDiff = (now - incidentDate) / (1000 * 60 * 60 * 24);
-      
-      // Decay factor: full weight for last 7 days, decreasing to 0.3 after 90 days
+
       let recencyWeight = 1.0;
       if (daysDiff > 7) {
         recencyWeight = Math.max(0.3, 1.0 - (daysDiff - 7) / 83 * 0.7);
@@ -347,18 +326,16 @@ export default function HeatmapComponent({
       
       weight *= recencyWeight;
     } catch (error) {
-      // If date parsing fails, use moderate weight
+      
       weight *= 0.7;
     }
 
     return weight;
   };
 
-  // Initialize map
   useEffect(() => {
     if (!mapRef.current || mapInstanceRef.current) return;
 
-    // Default center coordinates (Tiaong, Quezon)
     const defaultCenter = center || [14.8715, 120.8207];
     
     const map = L.map(mapRef.current, {
@@ -368,9 +345,8 @@ export default function HeatmapComponent({
       attributionControl: true,
     });
 
-    // Add tile layer
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    L.tileLayer("https:
+      attribution: '© <a href="https:
       maxZoom: 19,
     }).addTo(map);
 
@@ -384,11 +360,9 @@ export default function HeatmapComponent({
     };
   }, [center, zoom]);
 
-  // Update heatmap circles with improved styling
   useEffect(() => {
     if (!mapInstanceRef.current) return;
 
-    // Remove existing heatmap circles
     heatCirclesRef.current.forEach(circle => {
       if (circle) {
         mapInstanceRef.current.removeLayer(circle);
@@ -396,21 +370,19 @@ export default function HeatmapComponent({
     });
     heatCirclesRef.current = [];
 
-    // Add new heatmap circles if we have data
     if (heatmapData.length > 0) {
       heatmapData.forEach((data) => {
-        // Create more subtle circles with better visual hierarchy
+        
         const circle = L.circle([data.lat, data.lng], {
           radius: data.radius,
           fillColor: data.color,
           color: data.color,
-          weight: data.incidentCount > 1 ? 2 : 1, // Thicker border for clusters
-          opacity: Math.min(data.opacity + 0.3, 0.9), // Border more visible
+          weight: data.incidentCount > 1 ? 2 : 1, 
+          opacity: Math.min(data.opacity + 0.3, 0.9), 
           fillOpacity: data.opacity,
-          className: 'crime-intensity-circle' // For custom CSS if needed
+          className: 'crime-intensity-circle' 
         }).addTo(mapInstanceRef.current);
 
-        // Create strategy-specific popup
         const getStrategyLabel = (strategy, count) => {
           switch (strategy) {
             case 'individual': return 'Individual Incident';
@@ -473,8 +445,7 @@ export default function HeatmapComponent({
           maxWidth: 250,
           className: 'crime-cluster-popup'
         });
-        
-        // Add click handler for more details
+
         circle.on('click', () => {
           console.log("🔍 Crime cluster clicked:", {
             incidents: data.incidentCount,
@@ -483,7 +454,6 @@ export default function HeatmapComponent({
           });
         });
 
-        // Add hover effects for better UX
         circle.on('mouseover', function(e) {
           this.setStyle({
             fillOpacity: Math.min(data.opacity + 0.2, 0.8),
