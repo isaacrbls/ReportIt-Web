@@ -305,6 +305,12 @@ export default function MapComponent({
 	}, [barangay, preloadedIncidents]);
 
 	useEffect(() => {
+		// Skip this effect if we have preloadedIncidents as they're handled during map initialization
+		if (preloadedIncidents && preloadedIncidents.length > 0) {
+			console.log("⏭️ Skipping marker creation effect - preloaded incidents handled in initialization");
+			return;
+		}
+
 		if (!mapInstanceRef.current || incidents.length === 0) return;
 
 		markersRef.current.forEach(markerData => {
@@ -353,24 +359,16 @@ export default function MapComponent({
 			newMarkers.push(marker);
 		});
 
-		if (preloadedIncidents && newMarkers.length > 0) {
+		// Auto-fit bounds for regular incidents (not preloaded)
+		if (newMarkers.length > 0 && !propCenter) {
 			if (newMarkers.length === 1) {
-				
 				const markerPosition = newMarkers[0].getLatLng();
 				mapInstanceRef.current.setView(markerPosition, 17);
-				console.log("🎯 Centering map on single report marker:", markerPosition, "zoom: 17");
-
-				setTimeout(() => {
-					newMarkers[0].openPopup();
-				}, 500);
-			} else if (!propCenter) {
-				
+				console.log("🎯 Centering map on single incident marker:", markerPosition);
+			} else {
 				const group = new L.featureGroup(newMarkers);
 				mapInstanceRef.current.fitBounds(group.getBounds(), { padding: [20, 20] });
-				console.log("🎯 Fitting map bounds to show all", newMarkers.length, "markers");
-			} else {
-				
-				console.log("🎯 Respecting explicit center coordinates, not auto-fitting bounds to markers");
+				console.log("🎯 Fitting map bounds to show all", newMarkers.length, "incident markers");
 			}
 		}
 	}, [incidents, preloadedIncidents]);
@@ -451,9 +449,28 @@ export default function MapComponent({
 					}
 				})
 
-				console.log("📍 Rendering incidents on map:", incidents.length);
+				// Handle preloaded incidents immediately during map initialization
+				let incidentsToRender = incidents;
+				if (preloadedIncidents && preloadedIncidents.length > 0) {
+					console.log("📍 Processing preloaded incidents during map initialization:", preloadedIncidents);
+					incidentsToRender = preloadedIncidents.map(report => ({
+						id: report.id,
+						location: [report.Latitude, report.Longitude],
+						title: report.IncidentType || "Incident",
+						description: report.Description || "No description available",
+						category: report.IncidentType || "Other",
+						risk: determineRiskLevel(report.IncidentType),
+						date: formatDate(report.DateTime),
+						time: formatTime(report.DateTime),
+						barangay: report.Barangay || "Unknown",
+						status: report.Status || "Pending",
+						isSensitive: report.isSensitive || false
+					}));
+				}
+
+				console.log("📍 Rendering incidents on map:", incidentsToRender.length);
 				
-				incidents.forEach((incident) => {
+				incidentsToRender.forEach((incident) => {
 					const marker = L.marker(incident.location, {
 						icon: createCustomIcon(incident.risk),
 					}).addTo(mapInstance)
@@ -491,6 +508,26 @@ export default function MapComponent({
 
 					markersRef.current.push({ marker, incident })
 				})
+
+				// If we have preloaded incidents, center and focus on them
+				if (preloadedIncidents && preloadedIncidents.length > 0 && markersRef.current.length > 0) {
+					if (preloadedIncidents.length === 1) {
+						// Single report - center on the marker
+						const markerPosition = markersRef.current[0].marker.getLatLng();
+						mapInstance.setView(markerPosition, 17);
+						console.log("🎯 Centering map on single preloaded report:", markerPosition);
+						
+						// Open popup after a short delay to ensure map is ready
+						setTimeout(() => {
+							markersRef.current[0].marker.openPopup();
+						}, 300);
+					} else {
+						// Multiple reports - fit bounds to show all
+						const group = new L.featureGroup(markersRef.current.map(m => m.marker));
+						mapInstance.fitBounds(group.getBounds(), { padding: [20, 20] });
+						console.log("🎯 Fitting map bounds to show all", preloadedIncidents.length, "preloaded reports");
+					}
+				}
 
 				const handleAddIncident = (e) => {
 					const newIncident = e.detail
