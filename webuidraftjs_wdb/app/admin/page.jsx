@@ -18,6 +18,7 @@ import { useCurrentUser } from "@/hooks/use-current-user";
 import { updateReportStatus } from "@/lib/reportUtils";
 import { getMapCoordinatesForUser, getUserBarangay } from "@/lib/userMapping";
 import { useReports } from "@/contexts/ReportsContext";
+import { clusterIncidents } from "@/lib/clusterUtils";
 
 export default function AdminDashboard() {
   const [showHighRiskDialog, setShowHighRiskDialog] = React.useState(false);
@@ -45,68 +46,40 @@ export default function AdminDashboard() {
 
   React.useEffect(() => {
     calculateHighRiskAreas();
-  }, [reports]); 
+  }, [reports, userBarangay]); 
 
   const calculateHighRiskAreas = () => {
-    const locationData = {};
-
-    reports.forEach(report => {
-      
-      let barangay = report.Barangay || report.barangay || report.Location || report.location;
-      if (barangay && typeof barangay === 'string') {
-        barangay = barangay.trim();
-        if (barangay.toLowerCase().includes('bulihan')) barangay = 'Bulihan';
-        else if (barangay.toLowerCase().includes('mojon')) barangay = 'Mojon';
-        else if (barangay.toLowerCase().includes('dakila')) barangay = 'Dakila';
-        else if (barangay.toLowerCase().includes('pinagbakahan')) barangay = 'Pinagbakahan';
-        else if (barangay.toLowerCase().includes('look')) barangay = 'Look 1st';
-        else if (barangay.toLowerCase().includes('longos')) barangay = 'Longos';
-        else if (barangay.toLowerCase().includes('tiaong')) barangay = 'Tiaong';
-        else return;
-      } else return;
-
-      if (!locationData[barangay]) {
-        locationData[barangay] = {
-          name: barangay,
-          totalIncidents: 0,
-          highSeverityIncidents: 0,
-          incidentTypes: {}
-        };
-      }
-
-      locationData[barangay].totalIncidents++;
-
-      const incidentType = (report.IncidentType || "").toLowerCase();
-      if (incidentType.includes("robbery") || incidentType.includes("assault") || 
-          incidentType.includes("violence") || incidentType.includes("murder") ||
-          incidentType.includes("kidnap") || incidentType.includes("rape")) {
-        locationData[barangay].highSeverityIncidents++;
-      }
-
-      const type = report.IncidentType || "Other";
-      locationData[barangay].incidentTypes[type] = (locationData[barangay].incidentTypes[type] || 0) + 1;
+    console.log("🔄 Calculating high-risk areas for dashboard...");
+    console.log("📧 User barangay filter:", userBarangay);
+    
+    // Filter reports by barangay if provided, same as the map
+    const filteredReports = userBarangay 
+      ? reports.filter(report => report.Barangay === userBarangay)
+      : reports;
+    
+    console.log("� Filtered reports for clustering:", {
+      userBarangay,
+      totalReports: reports.length,
+      filteredReports: filteredReports.length
+    });
+    
+    // Use the same clustering logic as the map visualization (clusterIncidents from clusterUtils)
+    // This creates clusters with 6+ incidents within 500m of each other
+    const clusters = clusterIncidents(filteredReports, 500, 6);
+    
+    console.log("� Map-style clusters (red circles):", {
+      userBarangay,
+      clustersFound: clusters.length,
+      clusters: clusters.map(c => ({
+        locationName: c.locationName,
+        count: c.count,
+        location: `[${c.lat.toFixed(4)}, ${c.lng.toFixed(4)}]`
+      })),
+      method: "Using same clusterIncidents function as map (6+ incidents, 500m radius)"
     });
 
-    const highRiskAreas = Object.values(locationData)
-      .map(area => {
-        const frequencyScore = Math.min(Math.log2(area.totalIncidents + 1) * 8, 35);
-        const severityScore = area.highSeverityIncidents * 25;
-        const diversityScore = Math.min(Object.keys(area.incidentTypes).length * 4, 20);
-        
-        area.riskScore = Math.round((frequencyScore + severityScore + diversityScore));
-        area.riskScore = Math.min(area.riskScore, 100);
-        
-        return area.riskScore >= 70 ? area : null; 
-      })
-      .filter(area => area !== null);
-
-    console.log("📊 Dashboard High Risk Calculation:", {
-      totalAreas: Object.keys(locationData).length,
-      highRiskCount: highRiskAreas.length,
-      areas: highRiskAreas.map(a => `${a.name}: ${a.riskScore}`)
-    });
-
-    setHighRiskCount(highRiskAreas.length);
+    // The number of clusters is exactly what shows as red circles on the map
+    setHighRiskCount(clusters.length);
   };
 
   const handleLogout = () => {

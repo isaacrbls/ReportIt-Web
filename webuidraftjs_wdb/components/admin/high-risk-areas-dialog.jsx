@@ -16,9 +16,16 @@ const MapComponent = dynamic(() => import('./map-component'), {
 export const HighRiskAreasDialog = ({ open, onOpenChange, userBarangay }) => {
   const [highRiskAreas, setHighRiskAreas] = useState([]);
   const [mapIncidents, setMapIncidents] = useState([]);
+  const [clusterCenter, setClusterCenter] = useState(null);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      // Reset state when dialog closes
+      setHighRiskAreas([]);
+      setMapIncidents([]);
+      setClusterCenter(null);
+      return;
+    }
 
     const fetchHighRiskAreas = async () => {
       const querySnapshot = await getDocs(collection(db, "reports"));
@@ -178,8 +185,14 @@ export const HighRiskAreasDialog = ({ open, onOpenChange, userBarangay }) => {
           latRange: [Math.min(...incidents.map(i => i.Latitude)), Math.max(...incidents.map(i => i.Latitude))],
           lngRange: [Math.min(...incidents.map(i => i.Longitude)), Math.max(...incidents.map(i => i.Longitude))]
         });
+        
+        // Calculate center of incidents for map centering
+        const centerLat = incidents.reduce((sum, i) => sum + i.Latitude, 0) / incidents.length;
+        const centerLng = incidents.reduce((sum, i) => sum + i.Longitude, 0) / incidents.length;
+        setClusterCenter([centerLat, centerLng]);
       } else {
         console.log(`⚠️ No incidents with valid coordinates found for map display`);
+        setClusterCenter(null);
       }
       
       setHighRiskAreas(highRiskAreas);
@@ -194,7 +207,7 @@ export const HighRiskAreasDialog = ({ open, onOpenChange, userBarangay }) => {
       <DialogContent className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4">
         <div className="bg-white rounded-2xl shadow-xl w-full max-w-6xl overflow-hidden">
           {}
-          <div className="flex items-center justify-between px-8 pt-8 pb-2">
+          <div className="flex items-center px-8 pt-8 pb-2">
             <div className="flex items-center gap-3">
               <MapPin className="text-red-600 w-8 h-8" />
               <div>
@@ -208,121 +221,56 @@ export const HighRiskAreasDialog = ({ open, onOpenChange, userBarangay }) => {
 
           {}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 px-8 py-8">
-            {}
+            {/* Map Section */}
             <div className="bg-white rounded-xl border border-gray-200 relative overflow-hidden min-h-[420px]">
-              <div className="absolute top-4 left-4 z-10 bg-white/90 px-3 py-2 rounded-lg shadow-sm border">
-                <div className="text-lg font-bold text-gray-800">Risk Areas Map</div>
-                <div className="text-xs text-gray-600">
-                  {userBarangay || 'All Areas'} • {mapIncidents.length} verified incidents
-                </div>
-              </div>
-              
               <div className="w-full h-[420px]">
                 <MapComponent 
+                  key={`high-risk-map-${open ? 'open' : 'closed'}-${mapIncidents.length}`}
                   preloadedIncidents={mapIncidents}
-                  showHotspots={true}
-                  center={userBarangay ? getMapCoordinatesForBarangay(userBarangay)?.center : undefined}
-                  zoom={userBarangay ? 15 : 13}
+                  showHotspots={false}
+                  showClusters={true}
+                  showOnlyTopCluster={true}
+                  center={clusterCenter || (userBarangay ? getMapCoordinatesForBarangay(userBarangay)?.center : undefined)}
+                  zoom={15}
                 />
-              </div>
-              
-              {}
-              <div className="absolute bottom-4 right-4 z-10 bg-white/90 px-3 py-2 rounded-lg shadow-sm border">
-                <div className="text-xs font-medium text-gray-800 mb-1">Risk Levels</div>
-                <div className="flex items-center gap-3 text-xs">
-                  <div className="flex items-center gap-1">
-                    <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-                    <span>High</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <div className="w-3 h-3 bg-orange-500 rounded-full"></div>
-                    <span>Medium</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                    <span>Low</span>
-                  </div>
-                </div>
               </div>
             </div>
 
-            {}
+            {/* Risk Assessment Section */}
             <div className="bg-white rounded-xl p-6 flex flex-col shadow-sm border border-gray-100">
-              <div className="font-bold text-2xl mb-4">High Risk Areas Analysis</div>
+              <div className="font-bold text-2xl mb-6">Risk Assessment Criteria</div>
               
-              {highRiskAreas.length > 0 ? (
-                <div className="space-y-4 mb-6">
-                  {highRiskAreas.map((area, idx) => (
-                    <div key={area.name} className={`border-l-4 pl-4 py-3 rounded-r-lg ${
-                      area.riskLevel === "High" ? "border-red-500 bg-red-50" :
-                      area.riskLevel === "Medium" ? "border-orange-500 bg-orange-50" :
-                      "border-green-500 bg-green-50"
-                    }`}>
-                      <div className="flex items-center justify-between mb-2 pr-3">
-                        <span className="font-semibold text-lg">{area.name}</span>
-                        <span className={`px-2 py-0.5 rounded-full text-sm font-medium ${
-                          area.riskLevel === "High" ? "bg-red-100 text-red-800" :
-                          area.riskLevel === "Medium" ? "bg-orange-100 text-orange-800" :
-                          "bg-green-100 text-green-800"
-                        }`}>
-                          {area.riskLevel} Risk
-                        </span>
-                      </div>
-                      <div className="grid grid-cols-2 gap-4 text-sm text-gray-700">
-                        <div>
-                          <div className="font-medium">Risk Score: {area.riskScore}/100</div>
-                          <div>Total Incidents: {area.totalIncidents}</div>
-                          <div>High Severity: {area.highSeverityIncidents}</div>
-                        </div>
-                        <div className="pr-2">
-                          <div className="font-medium mb-2">Top Incident Types:</div>
-                          <div className="text-xs space-y-1">
-                            {Object.entries(area.incidentTypes)
-                              .sort((a, b) => b[1] - a[1])
-                              .slice(0, 3)
-                              .map(([type, count]) => (
-                                <div key={type} className="flex justify-between items-center gap-2 py-1">
-                                  <span className="truncate flex-1">{type}</span>
-                                  <span className="font-medium text-gray-800 px-1 text-xs min-w-[24px] text-center flex-shrink-0">
-                                    {count}
-                                  </span>
-                                </div>
-                              ))}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+              <div className="space-y-4 mb-8">
+                <div className="flex items-center gap-3">
+                  <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
+                  <span className="text-gray-700">Incident frequency</span>
                 </div>
-              ) : (
-                <div className="text-gray-500 text-center py-8">
-                  <MapPin className="w-12 h-12 mx-auto mb-2 text-gray-300" />
-                  <p className="font-medium">No significant risk areas identified</p>
-                  <p className="text-sm">All areas show low risk levels (score &lt; 25)</p>
+                <div className="flex items-center gap-3">
+                  <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
+                  <span className="text-gray-700">Incident severity index</span>
                 </div>
-              )}
-              
-              <div className="border-t pt-4 mt-4">
-                <div className="font-bold text-lg mb-3">📊 WCRA Analysis Details</div>
-                <div className="grid grid-cols-3 gap-4 mb-4">
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-red-600">70+</div>
-                    <div className="text-sm text-gray-600">High Risk</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-orange-600">40-69</div>
-                    <div className="text-sm text-gray-600">Medium Risk</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-green-600">&lt;40</div>
-                    <div className="text-sm text-gray-600">Low Risk</div>
-                  </div>
+                <div className="flex items-center gap-3">
+                  <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
+                  <span className="text-gray-700">Proximity to incident hotspots</span>
                 </div>
-                <div className="text-xs text-gray-500 space-y-1">
-                  <div>• <strong>WCRA Algorithm:</strong> Weighted Crime Risk Assessment with logarithmic scaling</div>
-                  <div>• <strong>Components:</strong> Frequency (35%), Severity (unlimited), Diversity (20%)</div>
-                  <div>• <strong>Scoring:</strong> Logarithmic frequency prevents over-weighting high-volume areas</div>
-                  <div>• Data automatically cleaned and verified incidents only</div>
+              </div>
+
+              <div className="border-t pt-6 mt-6">
+                <div className="font-bold text-2xl mb-6">Risk Level Thresholds</div>
+                
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-4 h-4 bg-red-500 rounded-full"></div>
+                    <span className="text-gray-700 font-medium">High: &gt;75 Risk Score</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="w-4 h-4 bg-orange-500 rounded-full"></div>
+                    <span className="text-gray-700 font-medium">Medium: 40-75 Risk Score</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="w-4 h-4 bg-green-500 rounded-full"></div>
+                    <span className="text-gray-700 font-medium">Low: &lt;40 Risk Score</span>
+                  </div>
                 </div>
               </div>
             </div>

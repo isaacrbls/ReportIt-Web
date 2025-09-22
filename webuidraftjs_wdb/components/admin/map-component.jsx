@@ -7,6 +7,7 @@ import { db } from "@/firebase"
 import { getMapConfig, getMapOptions } from "@/lib/mapUtils"
 import { getMapCoordinatesForBarangay } from "@/lib/userMapping"
 import { useCurrentUser } from "@/hooks/use-current-user"
+import { clusterIncidents } from "@/lib/clusterUtils"
 
 let leafletCSSLoaded = false;
 const loadLeafletCSS = () => {
@@ -89,7 +90,10 @@ export default function MapComponent({
 	zoom: propZoom,
 	hotspots = [], 
 	preloadedIncidents = null, 
-	showPopups = true, 
+	showPopups = true,
+	showHotspots = true,
+	showClusters = false,
+	showOnlyTopCluster = false,
 }) {
 	const [incidents, setIncidents] = useState([]) 
 	const mapRef = useRef(null)
@@ -97,6 +101,7 @@ export default function MapComponent({
 	const { user, isLoading: isUserLoading } = useCurrentUser() 
 	const [isMapReady, setIsMapReady] = useState(false)
 	const [mapError, setMapError] = useState(null)
+	const [clusters, setClusters] = useState([])
 	const cleanupTimeoutRef = useRef(null)
 
 	const renderHotspots = (hotspotsToRender) => {
@@ -163,6 +168,101 @@ export default function MapComponent({
 			return true;
 		} catch (error) {
 			console.error("❌ Error rendering hotspots to map:", error);
+			return false;
+		}
+	};
+
+	const clustersRef = useRef([]);
+
+	const renderClusters = (clustersToRender) => {
+		if (!mapInstanceRef.current || !clustersToRender || clustersToRender.length === 0) {
+			return false;
+		}
+
+		try {
+			// Clear existing cluster markers
+			clustersRef.current.forEach(marker => {
+				if (marker) {
+					try {
+						marker.remove();
+					} catch (error) {
+						console.warn("Warning removing cluster marker:", error);
+					}
+				}
+			});
+			clustersRef.current = [];
+
+			console.log("🎯 Rendering", clustersToRender.length, "clusters to map");
+			
+			clustersToRender.forEach((cluster, index) => {
+				// Create custom icon with count
+				const clusterIcon = L.divIcon({
+					html: `
+						<div class="relative">
+							<div class="w-8 h-8 bg-red-500 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-lg">
+								${cluster.count}
+							</div>
+						</div>
+					`,
+					className: 'cluster-marker',
+					iconSize: [32, 32],
+					iconAnchor: [16, 16],
+				});
+
+				const marker = L.marker([cluster.lat, cluster.lng], { 
+					icon: clusterIcon 
+				}).addTo(mapInstanceRef.current);
+
+				// Add location label
+				const labelIcon = L.divIcon({
+					html: `
+						<div class="bg-white px-2 py-1 rounded shadow-md border text-xs font-medium text-gray-700 whitespace-nowrap">
+							${cluster.locationName}
+						</div>
+					`,
+					className: 'location-label',
+					iconSize: [0, 0],
+					iconAnchor: [-20, -40],
+				});
+
+				const labelMarker = L.marker([cluster.lat, cluster.lng], { 
+					icon: labelIcon,
+					zIndexOffset: 1000
+				}).addTo(mapInstanceRef.current);
+
+				// Popup with cluster details
+				const popupContent = `
+					<div class="p-3">
+						<h3 class="font-medium text-sm mb-2">${cluster.locationName}</h3>
+						<div class="space-y-1">
+							<p class="text-xs text-gray-600">
+								<span class="font-medium">${cluster.count}</span> incidents in this cluster
+							</p>
+							<p class="text-xs text-gray-500">
+								${cluster.lat.toFixed(4)}, ${cluster.lng.toFixed(4)}
+							</p>
+						</div>
+					</div>
+				`;
+
+				marker.bindPopup(popupContent);
+				
+				clustersRef.current.push(marker);
+				clustersRef.current.push(labelMarker);
+			});
+			
+			// Center the map on the top cluster (first cluster, as they're sorted by count)
+			if (clustersToRender.length > 0 && showOnlyTopCluster) {
+				const topCluster = clustersToRender[0];
+				setTimeout(() => {
+					mapInstanceRef.current.setView([topCluster.lat, topCluster.lng], 16);
+					console.log(`🎯 Centered map on top cluster at [${topCluster.lat.toFixed(4)}, ${topCluster.lng.toFixed(4)}] with ${topCluster.count} incidents`);
+				}, 100);
+			}
+			
+			return true;
+		} catch (error) {
+			console.error("❌ Error rendering clusters to map:", error);
 			return false;
 		}
 	};
@@ -299,6 +399,14 @@ export default function MapComponent({
 			}));
 			console.log("Formatted incidents for map:", formattedIncidents);
 			setIncidents(formattedIncidents);
+			
+			// Process clusters if clustering is enabled
+			if (showClusters) {
+				const clusteredData = clusterIncidents(preloadedIncidents, 500, showOnlyTopCluster ? 1 : 6);
+				const finalClusters = showOnlyTopCluster ? clusteredData.slice(0, 1) : clusteredData;
+				console.log("Generated clusters:", finalClusters);
+				setClusters(finalClusters);
+			}
 		} else {
 			fetchReports();
 		}
@@ -470,18 +578,20 @@ export default function MapComponent({
 
 				console.log("📍 Rendering incidents on map:", incidentsToRender.length);
 				
-				incidentsToRender.forEach((incident) => {
-					const marker = L.marker(incident.location, {
-						icon: createCustomIcon(incident.risk),
-					}).addTo(mapInstance)
+				// Only render individual markers if clustering is not active
+				if (!showClusters) {
+					incidentsToRender.forEach((incident) => {
+						const marker = L.marker(incident.location, {
+							icon: createCustomIcon(incident.risk),
+						}).addTo(mapInstance)
 
-					if (showPopups) {
-						const popupContent = `
-							<div class="p-2">
-								<div class="flex items-center gap-2 mb-1">
-									<h3 class="font-medium text-sm">${incident.title}</h3>
-									${incident.isSensitive ? '<span class="px-2 py-0.5 rounded-md bg-orange-100 text-orange-600 text-xs font-medium border border-orange-300">Sensitive</span>' : ''}
-								</div>
+						if (showPopups) {
+							const popupContent = `
+								<div class="p-2">
+									<div class="flex items-center gap-2 mb-1">
+										<h3 class="font-medium text-sm">${incident.title}</h3>
+										${incident.isSensitive ? '<span class="px-2 py-0.5 rounded-md bg-orange-100 text-orange-600 text-xs font-medium border border-orange-300">Sensitive</span>' : ''}
+									</div>
 								<p class="text-xs text-gray-600 mb-1">
 									${incident.date} at ${incident.time}
 								</p>
@@ -508,6 +618,7 @@ export default function MapComponent({
 
 					markersRef.current.push({ marker, incident })
 				})
+				} // End of if (!showClusters) block
 
 				// If we have preloaded incidents, center and focus on them
 				if (preloadedIncidents && preloadedIncidents.length > 0 && markersRef.current.length > 0) {
@@ -628,21 +739,37 @@ export default function MapComponent({
 			return;
 		}
 
-		renderHotspots(hotspots);
-	}, [hotspots]);
-
-	useEffect(() => {
-		if (isMapReady && mapInstanceRef.current && hotspots && hotspots.length > 0) {
-			
-			if (hotspotsRef.current.length > 0) {
-				console.log("🔥 Hotspots already rendered, skipping");
-				return;
-			}
-			
-			console.log("🔥 Map ready - adding deferred hotspots:", hotspots.length);
+		if (showHotspots) {
 			renderHotspots(hotspots);
 		}
-	}, [isMapReady, hotspots]);
+		
+		if (showClusters && clusters.length > 0) {
+			renderClusters(clusters);
+		}
+	}, [hotspots, clusters]);
+
+	useEffect(() => {
+		if (isMapReady && mapInstanceRef.current) {
+			if (showHotspots && hotspots && hotspots.length > 0) {
+				// Skip hotspots if already rendered
+				if (hotspotsRef.current.length > 0) {
+					console.log("🔥 Hotspots already rendered, skipping");
+				} else {
+					console.log("🔥 Map ready - adding deferred hotspots:", hotspots.length);
+					renderHotspots(hotspots);
+				}
+			}
+			
+			if (showClusters && clusters && clusters.length > 0) {
+				if (clustersRef.current.length > 0) {
+					console.log("🎯 Clusters already rendered, skipping");
+				} else {
+					console.log("🎯 Map ready - adding deferred clusters:", clusters.length);
+					renderClusters(clusters);
+				}
+			}
+		}
+	}, [isMapReady, hotspots, clusters, showHotspots, showClusters]);
 
 	useEffect(() => {
 		const handleResize = () => {
