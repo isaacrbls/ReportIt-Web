@@ -283,14 +283,14 @@ export default function AddReportDialog({ open, onClose, barangay, categories = 
             <label className="block text-sm font-medium mb-2">Add photo or video</label>
             <div className="flex gap-4 justify-center">
               <label className="flex flex-col items-center justify-center border rounded-lg px-12 py-8 text-red-500 border-red-200 bg-red-50 hover:bg-red-100 cursor-pointer">
-                <svg xmlns="http:
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-8 h-8 mb-2">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M3 7.5V6a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 6v1.5M3 7.5h18M3 7.5v10.125A2.625 2.625 0 0 0 5.625 20.25h12.75A2.625 2.625 0 0 0 21 17.625V7.5M7.5 11.25l2.25 2.25 3-3.75 4.5 6" />
                 </svg>
                 <span className="font-medium text-base">Photo</span>
                 <input type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
               </label>
               <label className="flex flex-col items-center justify-center border rounded-lg px-12 py-8 text-red-500 border-red-200 bg-red-50 hover:bg-red-100 cursor-pointer">
-                <svg xmlns="http:
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-8 h-8 mb-2">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V6.75A2.25 2.25 0 0 0 13.5 4.5h-3A2.25 2.25 0 0 0 8.25 6.75V9m7.5 0v6m0-6h1.5A2.25 2.25 0 0 1 19.5 11.25v1.5A2.25 2.25 0 0 1 18 15h-1.5m-7.5-6v6m0-6H6.75A2.25 2.25 0 0 0 4.5 11.25v1.5A2.25 2.25 0 0 0 6 15h1.5" />
                 </svg>
                 <span className="font-medium text-base">Video</span>

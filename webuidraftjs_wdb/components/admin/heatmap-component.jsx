@@ -23,9 +23,9 @@ export default function HeatmapComponent({
   useEffect(() => {
     delete L.Icon.Default.prototype._getIconUrl;
     L.Icon.Default.mergeOptions({
-      iconRetinaUrl: "https:
-      iconUrl: "https:
-      shadowUrl: "https:
+      iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
+      iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+      shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png"
     });
   }, []);
 
@@ -345,8 +345,8 @@ export default function HeatmapComponent({
       attributionControl: true,
     });
 
-    L.tileLayer("https:
-      attribution: '© <a href="https:
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
       maxZoom: 19,
     }).addTo(map);
 

@@ -5,7 +5,7 @@ export default async function handler(req, res) {
   if (!token) return res.status(400).json({ error: 'No token provided' });
 
   const secret = "6Le5EqYrAAAAAJQPHeByI4hYOSGI0eHCz7ED4COU";
-  const verifyUrl = `https:
+  const verifyUrl = `https://www.google.com/recaptcha/api/siteverify?secret=${secret}&response=${token}`;
 
   try {
     const response = await fetch(verifyUrl, { method: 'POST' });

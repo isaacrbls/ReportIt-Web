@@ -19,7 +19,7 @@ const loadLeafletCSS = () => {
 			
 			const link = document.createElement('link');
 			link.rel = 'stylesheet';
-			link.href = 'https:
+			link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
 			document.head.appendChild(link);
 			leafletCSSLoaded = true;
 		}
@@ -31,21 +31,46 @@ const fixLeafletIcons = () => {
 	delete L.Icon.Default.prototype._getIconUrl
 
 	L.Icon.Default.mergeOptions({
-		iconRetinaUrl: "https:
-		iconUrl: "https:
-		shadowUrl: "https:
+		iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
+		iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+		shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png"
 	})
 }
 
 const createCustomIcon = (riskLevel) => {
+	const getMarkerColor = (riskLevel) => {
+		switch (riskLevel) {
+			case "High":
+			case "high":
+				return "#ef4444"; // Red
+			case "Medium":
+			case "medium":
+				return "#f97316"; // Orange
+			case "Low":
+			case "low":
+			default:
+				return "#eab308"; // Yellow
+		}
+	};
+
+	const color = getMarkerColor(riskLevel);
+	
+	const markerSvg = `
+		<svg width="25" height="41" viewBox="0 0 25 41" xmlns="http://www.w3.org/2000/svg">
+			<path d="M12.5 0C5.596 0 0 5.596 0 12.5c0 12.5 12.5 28.5 12.5 28.5s12.5-16 12.5-28.5C25 5.596 19.404 0 12.5 0z" 
+				  fill="${color}" 
+				  stroke="#ffffff" 
+				  stroke-width="2"/>
+			<circle cx="12.5" cy="12.5" r="6" fill="#ffffff"/>
+			<circle cx="12.5" cy="12.5" r="3" fill="${color}"/>
+		</svg>
+	`;
+
+	const iconUrl = 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(markerSvg);
+
 	return new L.Icon({
-		iconUrl:
-			riskLevel === "High"
-				? "https:
-				: riskLevel === "Medium"
-				? "https:
-				: "https:
-		shadowUrl: "https:
+		iconUrl: iconUrl,
+		shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
 		iconSize: [25, 41],
 		iconAnchor: [12, 41],
 		popupAnchor: [1, -34],
@@ -415,8 +440,8 @@ export default function MapComponent({
 				const mapInstance = L.map(mapRef.current, mapOptions).setView(mapConfig.center, mapConfig.zoom);
 				mapInstanceRef.current = mapInstance
 
-				L.tileLayer("https:
-					attribution: '&copy; <a href="https:
+				L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+					attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
 				}).addTo(mapInstance)
 
 				mapInstance.on("click", (e) => {
