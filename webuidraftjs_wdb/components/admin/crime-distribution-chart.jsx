@@ -6,7 +6,7 @@ import { collection, onSnapshot } from "firebase/firestore";
 import { db } from "@/firebase";
 import { useCurrentUser } from "@/hooks/use-current-user";
 
-export function CrimeDistributionChart({ timePeriod = "all" }) {
+export function CrimeDistributionChart({ timePeriod = "all", sortBy = "count", sortOrder = "desc" }) {
   const [chartData, setChartData] = useState([]);
   const [reports, setReports] = useState([]);
   const { user } = useCurrentUser();
@@ -154,7 +154,42 @@ export function CrimeDistributionChart({ timePeriod = "all" }) {
           incidentCounts[incidentType] = (incidentCounts[incidentType] || 0) + 1;
         });
 
-        const sortedIncidents = Object.entries(incidentCounts).sort((a, b) => b[1] - a[1]);
+        // Apply sorting based on sortBy and sortOrder props
+        let sortedIncidents;
+        if (sortBy === "name") {
+          sortedIncidents = Object.entries(incidentCounts).sort((a, b) => {
+            return sortOrder === "asc" ? a[0].localeCompare(b[0]) : b[0].localeCompare(a[0]);
+          });
+        } else if (sortBy === "recent") {
+          // For recent sorting, we need to find the most recent incident of each type
+          const incidentDates = {};
+          filteredReports.forEach(report => {
+            const incidentType = report.IncidentType || 'Other';
+            let reportDate;
+            if (report.DateTime.toDate) {
+              reportDate = report.DateTime.toDate();
+            } else if (report.DateTime.seconds) {
+              reportDate = new Date(report.DateTime.seconds * 1000);
+            } else {
+              reportDate = new Date(report.DateTime);
+            }
+            
+            if (!incidentDates[incidentType] || reportDate > incidentDates[incidentType]) {
+              incidentDates[incidentType] = reportDate;
+            }
+          });
+          
+          sortedIncidents = Object.entries(incidentCounts).sort((a, b) => {
+            const dateA = incidentDates[a[0]] || new Date(0);
+            const dateB = incidentDates[b[0]] || new Date(0);
+            return sortOrder === "asc" ? dateA - dateB : dateB - dateA;
+          });
+        } else {
+          // Default: sort by count
+          sortedIncidents = Object.entries(incidentCounts).sort((a, b) => {
+            return sortOrder === "asc" ? a[1] - b[1] : b[1] - a[1];
+          });
+        }
         
         const redShades = [
           "#dc2626",
@@ -185,7 +220,7 @@ export function CrimeDistributionChart({ timePeriod = "all" }) {
     });
 
     return () => unsubscribe();
-  }, [user, timePeriod]);
+  }, [user, timePeriod, sortBy, sortOrder]);
   const CustomTooltip = ({ active, payload }) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload;

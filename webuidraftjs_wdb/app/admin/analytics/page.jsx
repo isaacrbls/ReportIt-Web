@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { LayoutDashboard, BarChart2, FileText, LogOut, ShieldAlert, ChevronLeft, ChevronRight } from "lucide-react";
+import { LayoutDashboard, BarChart2, FileText, LogOut, ShieldAlert, ChevronLeft, ChevronRight, ArrowUpDown } from "lucide-react";
 import { CrimeDistributionChart } from "@/components/admin/crime-distribution-chart";
+import { IncidentTrendChart } from "@/components/admin/incident-trend-chart";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import React from "react";
@@ -18,6 +19,8 @@ export default function AnalyticsPage() {
   const [showLogoutModal, setShowLogoutModal] = React.useState(false);
   const [currentPage, setCurrentPage] = React.useState(1);
   const [timePeriod, setTimePeriod] = React.useState("all");
+  const [sortBy, setSortBy] = React.useState("count");
+  const [sortOrder, setSortOrder] = React.useState("desc");
   const hotspotsPerPage = 5;
   const router = useRouter();
   const { user } = useCurrentUser();
@@ -80,15 +83,34 @@ export default function AnalyticsPage() {
         <h1 className="text-3xl font-bold text-red-600 mb-8">Analytics</h1>
         
         <div className="bg-white rounded-2xl border p-6 shadow-sm mb-6">
-          <div className="flex justify-between items-start mb-4">
+          <div className="flex justify-between items-start mb-6">
             <div>
-              <h2 className="text-2xl font-bold text-red-500 mb-1">Incident Type Distribution</h2>
-              <p className="text-gray-400">Breakdown of incident types in {barangay === 'All' ? 'all areas' : barangay}</p>
+              <h2 className="text-2xl font-bold text-red-500 mb-1">Crime Analytics Dashboard</h2>  
+              <p className="text-gray-400">Comprehensive view of incident data in {barangay === 'All' ? 'all areas' : barangay}</p>
             </div>
-            <div className="w-48">
+            <div className="flex gap-3">
+              <Select value={sortBy} onValueChange={setSortBy}>
+                <SelectTrigger className="w-40">
+                  <SelectValue placeholder="Sort by" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="count">By Count</SelectItem>
+                  <SelectItem value="name">By Name</SelectItem>
+                  <SelectItem value="recent">Most Recent</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
+                className="flex items-center gap-1"
+              >
+                <ArrowUpDown className="h-4 w-4" />
+                {sortOrder === "asc" ? "Asc" : "Desc"}
+              </Button>
               <Select value={timePeriod} onValueChange={setTimePeriod}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select time period" />
+                <SelectTrigger className="w-40">
+                  <SelectValue placeholder="Time period" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Time</SelectItem>
@@ -98,9 +120,23 @@ export default function AnalyticsPage() {
               </Select>
             </div>
           </div>
-          <div className="flex justify-center items-center">
-            <div className="w-full max-w-md">
-              <CrimeDistributionChart timePeriod={timePeriod} />
+          
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div>
+              <h3 className="text-lg font-semibold text-gray-800 mb-4">Incident Type Distribution</h3>
+              <CrimeDistributionChart 
+                timePeriod={timePeriod} 
+                sortBy={sortBy}
+                sortOrder={sortOrder}
+              />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-gray-800 mb-4">Incident Trends Over Time</h3>
+              <IncidentTrendChart 
+                timePeriod={timePeriod}
+                sortBy={sortBy}
+                sortOrder={sortOrder}
+              />
             </div>
           </div>
         </div>

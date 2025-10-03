@@ -16,7 +16,9 @@ import { useToast } from "@/hooks/use-toast"
 const MapWithNoSSR = dynamic(() => import("./map-component"), {
   ssr: false,
   loading: () => <div className="flex h-[250px] w-full items-center justify-center bg-gray-100 rounded-lg">Loading map...</div>,
-});
+})
+
+;
 
 export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onReject, onDelete, onEdit }) {
   const [rejectionReason, setRejectionReason] = useState("")
@@ -79,43 +81,13 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
     report?.SubmittedBy
   ]) 
 
-  const mapData = useMemo(() => {
-    
-    const reportData = report 
-    const latitude = reportData?.Latitude
-    const longitude = reportData?.Longitude
-    const barangay = reportData?.Barangay
-
-    const stableIncident = {
-      id: reportData?.id || reportData?.ReportID,
-      Latitude: latitude,
-      Longitude: longitude,
-      Barangay: barangay,
-      IncidentType: reportData?.IncidentType,
-      Description: reportData?.Description,
-      DateTime: reportData?.DateTime,
-      Status: reportData?.Status,
-      isSensitive: reportData?.isSensitive
-    }
-    
-    return {
-      latitude,
-      longitude,
-      barangay,
-      incident: stableIncident
-    }
-  }, [
-    report?.id, 
-    report?.ReportID, 
-    report?.Latitude, 
-    report?.Longitude, 
-    report?.Barangay,
-    report?.IncidentType,
-    report?.Description,
-    report?.DateTime,
-    report?.Status,
-    report?.isSensitive
-  ]) 
+  // Simple map data exactly like add report dialog - no preloadedIncidents
+  const mapLatitude = report?.Latitude;
+  const mapLongitude = report?.Longitude;
+  const mapBarangay = report?.Barangay;
+  
+  // Create a stable location array like add report uses newIncidentLocation
+  const reportLocation = mapLatitude && mapLongitude ? [mapLatitude, mapLongitude] : null; 
 
   useEffect(() => {
     if (isEditMode && (currentReportData || report)) {
@@ -791,17 +763,17 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
             <div className="w-full flex flex-col items-center justify-start">
               <div className="font-bold text-[#F14B51] text-xl mb-2 text-center">Incident Location</div>
               <div className="w-full h-[280px] bg-[#F8E3DE] rounded-lg flex items-center justify-center overflow-hidden mb-2">
-                {mapData.latitude && mapData.longitude ? (
+                {mapLatitude && mapLongitude ? (
                   <MapWithNoSSR
-                    key={`stable-map-${report?.id || report?.ReportID}`}
-                    center={[mapData.latitude, mapData.longitude]}
+                    key={`report-location-${report?.id}`}
+                    center={[mapLatitude, mapLongitude]}
                     zoom={18}
                     showPins={true}
                     showHotspots={false}
                     showControls={false}
                     showPopups={false}
-                    preloadedIncidents={[mapData.incident]}
-                    barangay={mapData.barangay}
+                    barangay={mapBarangay}
+                    newIncidentLocation={reportLocation}
                   />
                 ) : (
                   <div className="text-gray-500 text-center">
