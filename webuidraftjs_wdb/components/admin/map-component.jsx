@@ -467,8 +467,8 @@ export default function MapComponent({
 			newMarkers.push(marker);
 		});
 
-		// Auto-fit bounds for regular incidents (not preloaded)
-		if (newMarkers.length > 0 && !propCenter) {
+		// Auto-fit bounds for regular incidents (not preloaded) - skip when adding new incident
+		if (newMarkers.length > 0 && !propCenter && !addingIncident) {
 			if (newMarkers.length === 1) {
 				const markerPosition = newMarkers[0].getLatLng();
 				mapInstanceRef.current.setView(markerPosition, 17);
@@ -479,7 +479,7 @@ export default function MapComponent({
 				console.log("🎯 Fitting map bounds to show all", newMarkers.length, "incident markers");
 			}
 		}
-	}, [incidents, preloadedIncidents]);
+	}, [incidents, preloadedIncidents, addingIncident]);
 	const markersRef = useRef([])
 	const hotspotsRef = useRef([])
 	const newMarkerRef = useRef(null)
@@ -796,6 +796,12 @@ export default function MapComponent({
 	useEffect(() => {
 		if (!mapInstanceRef.current || !barangay) return;
 		
+		// Skip re-centering when adding a new incident to maintain user's preferred view
+		if (addingIncident) {
+			console.log("🚫 Skipping barangay re-centering - adding incident mode");
+			return;
+		}
+		
 		try {
 			
 			const barangayCoordinates = getMapCoordinatesForBarangay(barangay);
@@ -805,7 +811,7 @@ export default function MapComponent({
 		} catch (error) {
 			console.error("❌ Error re-centering map:", error);
 		}
-	}, [barangay]);
+	}, [barangay, addingIncident]);
 
 	useEffect(() => {
 		if (!mapInstanceRef.current) return

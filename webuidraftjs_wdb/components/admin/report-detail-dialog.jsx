@@ -381,8 +381,10 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
                 margin: 0 auto;
                 padding: 40px;
                 background: white;
-                min-height: 100vh;
+                height: 100vh;
                 box-sizing: border-box;
+                display: flex;
+                flex-direction: column;
               }
               
               .report-title {
@@ -428,12 +430,18 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
               }
               
               .footer {
-                margin-top: 40px;
+                margin-top: auto;
                 text-align: center;
                 color: #666;
                 font-size: 12px;
                 border-top: 1px solid #eee;
                 padding-top: 20px;
+                flex-shrink: 0;
+              }
+              
+              .page-break {
+                page-break-before: always;
+                break-before: page;
               }
               
               @media print {
@@ -442,7 +450,7 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
                   height: 297mm;
                   margin: 0;
                   padding: 0;
-                  overflow: hidden;
+                  overflow: visible;
                 }
                 
                 .report-container {
@@ -450,7 +458,13 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
                   margin: 0;
                   max-width: none;
                   width: 100%;
-                  height: 100%;
+                  height: 257mm;
+                  box-sizing: border-box;
+                  page-break-after: avoid;
+                  break-after: avoid;
+                  overflow: hidden;
+                  display: flex;
+                  flex-direction: column;
                 }
                 
                 .report-grid {
@@ -462,7 +476,11 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
             </style>
           </head>
           <body>
-            <div class="report-container">
+            <div class="report-container" style="page-break-after: avoid; break-after: avoid;">
+              <div style="text-align: right; color: #666; font-size: 12px; margin-bottom: 20px;">
+                Individual Report
+              </div>
+              
               <h1 class="report-title">INCIDENT REPORT</h1>
               
               <div class="report-section">
@@ -473,6 +491,7 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
                 <div>
                   <div class="report-field"><strong>Date:</strong> ${formattedReport?.date}</div>
                   <div class="report-field"><strong>Time:</strong> ${formattedReport?.time}</div>
+                  <div class="report-field"><strong>Location:</strong> ${(currentReportData || report)?.Barangay || 'Not specified'}</div>
                 </div>
                 <div>
                   <div class="report-field"><strong>Status:</strong> ${(currentReportData || report)?.Status || 'Pending'}</div>
@@ -487,6 +506,25 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
                   ${formattedReport?.description || "No description provided"}
                 </div>
               </div>
+              
+              ${(currentReportData || report)?.Address ? `
+                <div class="report-section">
+                  <h3 style="color: #F14B51; margin-bottom: 10px;">Address:</h3>
+                  <div style="padding: 10px; background-color: #f5f5f5; border-radius: 4px;">
+                    ${(currentReportData || report)?.Address}
+                  </div>
+                </div>
+              ` : ''}
+              
+              ${(currentReportData || report)?.Latitude && (currentReportData || report)?.Longitude ? `
+                <div class="report-section">
+                  <h3 style="color: #F14B51; margin-bottom: 10px;">Coordinates:</h3>
+                  <div style="padding: 10px; background-color: #f5f5f5; border-radius: 4px;">
+                    Latitude: ${(currentReportData || report)?.Latitude}<br>
+                    Longitude: ${(currentReportData || report)?.Longitude}
+                  </div>
+                </div>
+              ` : ''}
               
               <div class="footer">
                 Generated on ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}
@@ -518,11 +556,17 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
       const blob = new Blob([printContent], { type: 'text/html' });
       const url = URL.createObjectURL(blob);
 
-      const printWindow = window.open(url, '_blank', 'width=800,height=600');
+      const printWindow = window.open(url, '_blank', 'width=900,height=700,scrollbars=yes,resizable=yes');
+      
+      if (!printWindow) {
+        alert('Pop-up blocked! Please allow pop-ups for this site to generate reports.');
+        URL.revokeObjectURL(url);
+        return;
+      }
 
       setTimeout(() => {
         URL.revokeObjectURL(url);
-      }, 3000);
+      }, 5000);
       
       toast({
         title: "Report Generated",
@@ -693,6 +737,10 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
                         className="w-full max-w-md mx-auto rounded-lg cursor-pointer hover:opacity-80 transition-opacity"
                         style={{ maxHeight: '300px', objectFit: 'contain' }}
                         onClick={() => window.open(report.MediaURL, '_blank')}
+                        onError={(e) => {
+                          e.target.style.display = 'none';
+                          e.target.nextElementSibling.textContent = 'Failed to load image';
+                        }}
                       />
                       <p className="text-sm text-gray-600 text-center mt-2">Click image to view full size</p>
                     </div>
