@@ -552,7 +552,7 @@ console.log("👤 Reports page - Current user:", user);
                 className={`font-medium rounded-lg px-6 py-2 text-base transition-colors ${
                   isGeneratingReport
                     ? 'bg-gray-500 cursor-not-allowed'
-                    : 'bg-green-500 hover:bg-green-600'
+                    : 'bg-red-500 hover:bg-red-600'
                 } text-white`}
                 onClick={handleGenerateMonthlyReport}
                 disabled={isGeneratingReport}

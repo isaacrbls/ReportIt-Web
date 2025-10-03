@@ -18,13 +18,10 @@ const MapWithNoSSR = dynamic(() => import("./map-component"), {
 });
 
 export function CrimeMap({ barangay, showPins = true, showHotspots = true, showControls = true, center, zoom }) {
-  const [selectedIncident, setSelectedIncident] = useState(null);
   const [addingIncident, setAddingIncident] = useState(false);
   const [newIncidentLocation, setNewIncidentLocation] = useState(null);
   const [newIncidentAddress, setNewIncidentAddress] = useState("");
-  const [selectedIncidentAddress, setSelectedIncidentAddress] = useState("");
   const [loadingNewAddress, setLoadingNewAddress] = useState(false);
-  const [loadingSelectedAddress, setLoadingSelectedAddress] = useState(false);
   const [showIncidentForm, setShowIncidentForm] = useState(false);
   const [hotspots, setHotspots] = useState([]);
   const { reports, calculateBarangayHotspots, isLoading } = useReports();
@@ -76,26 +73,7 @@ export function CrimeMap({ barangay, showPins = true, showHotspots = true, showC
     }
   }, [newIncidentLocation]);
 
-  // Fetch street name for selected incident
-  useEffect(() => {
-    if (selectedIncident && selectedIncident.location) {
-      const fetchAddress = async () => {
-        setLoadingSelectedAddress(true);
-        try {
-          const address = await reverseGeocode(selectedIncident.location[0], selectedIncident.location[1]);
-          setSelectedIncidentAddress(address);
-        } catch (error) {
-          console.error('Failed to fetch address for selected incident:', error);
-          setSelectedIncidentAddress(`${selectedIncident.location[0].toFixed(4)}, ${selectedIncident.location[1].toFixed(4)}`);
-        } finally {
-          setLoadingSelectedAddress(false);
-        }
-      };
-      fetchAddress();
-    } else {
-      setSelectedIncidentAddress("");
-    }
-  }, [selectedIncident]);
+
 
   const handleAddIncident = () => {
     setAddingIncident(true);
@@ -117,7 +95,9 @@ export function CrimeMap({ barangay, showPins = true, showHotspots = true, showC
   };
 
   const handleMarkerClick = (incident) => {
-    setSelectedIncident(incident);
+    // This will be handled by the map component's popup, not a separate modal
+    // The popup is already configured in the map-component.jsx
+    console.log("Pin clicked:", incident);
   };
 
   const handleInputChange = (e) => {
@@ -166,7 +146,7 @@ export function CrimeMap({ barangay, showPins = true, showHotspots = true, showC
       time: new Date().toTimeString().split(" ")[0].substring(0, 5),
     });
 
-    setSelectedIncident(newIncidentData);
+    // The new incident will show up on the map with a popup when clicked
   };
 
   const getRiskColor = (risk) => {
@@ -207,6 +187,7 @@ export function CrimeMap({ barangay, showPins = true, showHotspots = true, showC
         center={center}
         zoom={zoom}
         hotspots={showHotspots ? hotspots : []}
+        showPopups={true}
       />
 
       {}
@@ -325,36 +306,7 @@ export function CrimeMap({ barangay, showPins = true, showHotspots = true, showC
         </Card>
       )}
 
-      {}
-      {showPins && selectedIncident && !showIncidentForm && (
-        <Card className="absolute bottom-4 right-4 z-[1000] w-72 bg-white shadow-lg">
-          <CardContent className="p-4">
-            <div className="flex justify-between">
-              <h3 className="font-medium">{selectedIncident.title}</h3>
-              <button onClick={() => setSelectedIncident(null)} className="text-gray-500 hover:text-gray-700">
-                ×
-              </button>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {selectedIncident.date} at {selectedIncident.time}
-            </p>
-            <div
-              className={`mt-1 rounded-full px-2 py-0.5 text-center text-xs font-medium ${getRiskColor(selectedIncident.risk)}`}
-            >
-              {selectedIncident.category} - {selectedIncident.risk} Risk
-            </div>
-            <p className="mt-2 text-sm">{selectedIncident.description}</p>
-            <div className="mt-2 text-xs">
-              <strong>Location:</strong> {loadingSelectedAddress ? "Fetching address..." : selectedIncidentAddress || `${selectedIncident.location[0].toFixed(4)}, ${selectedIncident.location[1].toFixed(4)}`}
-            </div>
-            {selectedIncident.isUserCreated && (
-              <div className="mt-2 flex justify-end">
-                <button className="text-xs text-red-600 hover:underline">Edit</button>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
+      {/* Pin clicks now show popups directly on the map */}
     </div>
   );
 }

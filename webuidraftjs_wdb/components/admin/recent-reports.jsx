@@ -9,6 +9,7 @@ import { isUserAdmin } from "@/lib/userMapping";
 import { useReports } from "@/contexts/ReportsContext";
 import { doc, updateDoc } from "firebase/firestore";
 import { db } from "@/firebase";
+import { reverseGeocode } from "@/lib/mapUtils";
 import "@/styles/recent-reports-custom.css";
 
 export function RecentReports({ 
@@ -23,6 +24,7 @@ export function RecentReports({
 }) {
 	const [actionStatus, setActionStatus] = useState({}); 
 	const [currentPage, setCurrentPage] = useState(1);
+	const [resolvedAddresses, setResolvedAddresses] = useState({});
 	const { user } = useCurrentUser();
 	const { reports, getReportsByBarangay } = useReports();
 	const isAdmin = isUserAdmin(user?.email);
@@ -32,6 +34,33 @@ export function RecentReports({
 	useEffect(() => {
 		setCurrentPage(1);
 	}, [allReports]);
+
+	// Effect to resolve street addresses for all reports
+	useEffect(() => {
+		const resolveAddresses = async () => {
+			const newAddresses = {};
+			
+			for (const report of allReports) {
+				if (report.Latitude && report.Longitude && !resolvedAddresses[report.id]) {
+					try {
+						const address = await reverseGeocode(report.Latitude, report.Longitude);
+						newAddresses[report.id] = address;
+					} catch (error) {
+						console.warn(`Failed to resolve address for report ${report.id}:`, error);
+						newAddresses[report.id] = report.Barangay || "Unknown Location";
+					}
+				}
+			}
+			
+			if (Object.keys(newAddresses).length > 0) {
+				setResolvedAddresses(prev => ({ ...prev, ...newAddresses }));
+			}
+		};
+
+		if (allReports.length > 0) {
+			resolveAddresses();
+		}
+	}, [allReports, resolvedAddresses]);
 
 	const filteredReports = useMemo(() => {
 		if (!statusFilter || statusFilter === "all") return allReports;
@@ -215,6 +244,14 @@ export function RecentReports({
 							<span className="text-sm text-gray-500 font-medium">
 								{report.Barangay || <span className="text-gray-400">- Barangay</span>}
 							</span>
+							{resolvedAddresses[report.id] && (
+								<>
+									<span className="text-sm text-gray-500">•</span>
+									<span className="text-sm text-gray-500">
+										{resolvedAddresses[report.id]}
+									</span>
+								</>
+							)}
 							<span className="text-sm text-gray-500">•</span>
 							<span className="text-sm text-gray-500">
 								{formatDate(report.DateTime)}

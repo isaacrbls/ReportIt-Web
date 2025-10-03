@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react"
 import L from "leaflet"
 import { collection, getDocs } from "firebase/firestore"
 import { db } from "@/firebase"
-import { getMapConfig, getMapOptions } from "@/lib/mapUtils"
+import { getMapConfig, getMapOptions, reverseGeocode } from "@/lib/mapUtils"
 import { getMapCoordinatesForBarangay } from "@/lib/userMapping"
 import { useCurrentUser } from "@/hooks/use-current-user"
 import { clusterIncidents } from "@/lib/clusterUtils"
@@ -436,27 +436,50 @@ export default function MapComponent({
 			}).addTo(mapInstanceRef.current)
 
 			const popupContent = `
-				<div class="p-2">
-					<div class="flex items-center gap-2 mb-1">
-						<h3 class="font-medium text-sm">${incident.title}</h3>
-						${incident.isSensitive ? '<span class="px-2 py-0.5 rounded-md bg-orange-100 text-orange-600 text-xs font-medium border border-orange-300">Sensitive</span>' : ''}
-					</div>
-					<p class="text-xs text-gray-600 mb-1">
+				<div class="p-3 min-w-[200px]">
+					<h3 class="font-semibold text-base mb-2 text-gray-800">${incident.title}</h3>
+					<p class="text-xs text-gray-600 mb-2">
 						${incident.date} at ${incident.time}
 					</p>
-					<p class="text-xs text-gray-600 mb-1">
-						${incident.barangay} • Status: ${incident.status}
-					</p>
-					<div class="mt-1 rounded-full px-2 py-0.5 text-center text-xs font-medium bg-${
-						incident.risk === "High" ? "red" : incident.risk === "Medium" ? "yellow" : "green"
-					}-100 text-${incident.risk === "High" ? "red" : incident.risk === "Medium" ? "yellow" : "green"}-800">
-						${incident.risk} Risk
+					<div class="flex items-center gap-2 mb-3">
+						<span class="px-2 py-1 rounded-md bg-${
+							incident.risk === "High" ? "red" : incident.risk === "Medium" ? "orange" : "green"
+						}-100 text-${
+							incident.risk === "High" ? "red" : incident.risk === "Medium" ? "orange" : "green"
+						}-700 text-xs font-medium border border-${
+							incident.risk === "High" ? "red" : incident.risk === "Medium" ? "orange" : "green"
+						}-300">${incident.risk} Risk</span>
+						${incident.isSensitive ? '<span class="px-2 py-1 rounded-md bg-orange-100 text-orange-700 text-xs font-medium border border-orange-300">Sensitive</span>' : ''}
 					</div>
-					<p class="mt-1 text-xs">${incident.description}</p>
+					<p class="text-sm text-gray-700 mb-2">${incident.description}</p>
+					<div id="location-${incident.id}" class="text-xs text-gray-600 mt-2 pt-2 border-t border-gray-200">
+						<strong>Location:</strong> Loading address...
+					</div>
 				</div>
 			`
 
 			marker.bindPopup(popupContent)
+			
+			// Asynchronously fetch street address and update popup
+			reverseGeocode(incident.location[0], incident.location[1])
+				.then(streetAddress => {
+					if (streetAddress && streetAddress !== 'Unknown location') {
+						const updatedContent = popupContent.replace(
+							`<strong>Location:</strong> Loading address...`,
+							`<strong>Location:</strong> ${streetAddress}`
+						);
+						marker.setPopupContent(updatedContent);
+					}
+				})
+				.catch(error => {
+					console.error('Failed to get street address:', error);
+					const fallbackContent = popupContent.replace(
+						`<strong>Location:</strong> Loading address...`,
+						`<strong>Location:</strong> ${incident.location[0].toFixed(4)}, ${incident.location[1].toFixed(4)}`
+					);
+					marker.setPopupContent(fallbackContent);
+				});
+			
 			marker.on("click", () => {
 				if (onMarkerClick) {
 					onMarkerClick(incident)
@@ -585,32 +608,52 @@ export default function MapComponent({
 							icon: createCustomIcon(incident.risk),
 						}).addTo(mapInstance)
 
-						if (showPopups) {
-							const popupContent = `
-								<div class="p-2">
-									<div class="flex items-center gap-2 mb-1">
-										<h3 class="font-medium text-sm">${incident.title}</h3>
-										${incident.isSensitive ? '<span class="px-2 py-0.5 rounded-md bg-orange-100 text-orange-600 text-xs font-medium border border-orange-300">Sensitive</span>' : ''}
-									</div>
-								<p class="text-xs text-gray-600 mb-1">
+					if (showPopups) {
+						const popupContent = `
+							<div class="p-3 min-w-[200px]">
+								<h3 class="font-semibold text-base mb-2 text-gray-800">${incident.title}</h3>
+								<p class="text-xs text-gray-600 mb-2">
 									${incident.date} at ${incident.time}
 								</p>
-								<p class="text-xs text-gray-600 mb-1">
-									📍 ${incident.barangay} • Status: ${incident.status}
-								</p>
-								<div class="mt-1 rounded-full px-2 py-0.5 text-center text-xs font-medium bg-${
-									incident.risk === "High" ? "red" : incident.risk === "Medium" ? "yellow" : "green"
-								}-100 text-${incident.risk === "High" ? "red" : incident.risk === "Medium" ? "yellow" : "green"}-800">
-									${incident.risk} Risk
+								<div class="flex items-center gap-2 mb-3">
+									<span class="px-2 py-1 rounded-md bg-${
+										incident.risk === "High" ? "red" : incident.risk === "Medium" ? "orange" : "green"
+									}-100 text-${
+										incident.risk === "High" ? "red" : incident.risk === "Medium" ? "orange" : "green"
+									}-700 text-xs font-medium border border-${
+										incident.risk === "High" ? "red" : incident.risk === "Medium" ? "orange" : "green"
+									}-300">${incident.risk} Risk</span>
+									${incident.isSensitive ? '<span class="px-2 py-1 rounded-md bg-orange-100 text-orange-700 text-xs font-medium border border-orange-300">Sensitive</span>' : ''}
 								</div>
-								<p class="mt-1 text-xs">${incident.description}</p>
+								<p class="text-sm text-gray-700 mb-2">${incident.description}</p>
+								<div id="location-${incident.id}" class="text-xs text-gray-600 mt-2 pt-2 border-t border-gray-200">
+									<strong>Location:</strong> Loading address...
+								</div>
 							</div>
 						`
 
 						marker.bindPopup(popupContent)
-					}
-
-					if (showPopups && onMarkerClick) {
+						
+						// Asynchronously fetch street address and update popup
+						reverseGeocode(incident.location[0], incident.location[1])
+							.then(streetAddress => {
+								if (streetAddress && streetAddress !== 'Unknown location') {
+									const updatedContent = popupContent.replace(
+										`<strong>Location:</strong> Loading address...`,
+										`<strong>Location:</strong> ${streetAddress}`
+									);
+									marker.setPopupContent(updatedContent);
+								}
+							})
+							.catch(error => {
+								console.error('Failed to get street address:', error);
+								const fallbackContent = popupContent.replace(
+									`<strong>Location:</strong> Loading address...`,
+									`<strong>Location:</strong> ${incident.location[0].toFixed(4)}, ${incident.location[1].toFixed(4)}`
+								);
+								marker.setPopupContent(fallbackContent);
+							});
+					}					if (showPopups && onMarkerClick) {
 						marker.on("click", () => {
 							onMarkerClick(incident)
 						})

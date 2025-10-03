@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react"
 import dynamic from "next/dynamic"
-import { Calendar, CheckCircle, Clock, ImageIcon, MapPin, Tag, XCircle, Edit, Trash2, Printer } from "lucide-react"
+import { Calendar, CheckCircle, Clock, FileText, ImageIcon, MapPin, Tag, XCircle, Edit, Trash2, Printer } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Input } from "@/components/ui/input"
 import { updateReportStatus, formatReportForDisplay, deleteReport, updateReportDetails } from "@/lib/reportUtils"
+import { reverseGeocode } from "@/lib/mapUtils"
 import { useToast } from "@/hooks/use-toast"
 
 const MapWithNoSSR = dynamic(() => import("./map-component"), {
@@ -33,6 +34,7 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
   const [deleteTimeout, setDeleteTimeout] = useState(null)
   const [currentReportData, setCurrentReportData] = useState(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [resolvedAddress, setResolvedAddress] = useState("")
   const { toast } = useToast()
 
   useEffect(() => {
@@ -52,6 +54,25 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
       return () => clearTimeout(refreshTimeout);
     }
   }, [open])
+
+  // Effect to resolve street address for the report
+  useEffect(() => {
+    const resolveAddress = async () => {
+      if (report && report.Latitude && report.Longitude) {
+        try {
+          const address = await reverseGeocode(report.Latitude, report.Longitude);
+          setResolvedAddress(address);
+        } catch (error) {
+          console.warn('Failed to resolve address for report:', error);
+          setResolvedAddress(report.Barangay || "Unknown Location");
+        }
+      }
+    };
+
+    if (open && report) {
+      resolveAddress();
+    }
+  }, [open, report])
 
   const formattedReport = useMemo(() => {
     return formatReportForDisplay(currentReportData || report)
@@ -587,7 +608,7 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
                     className={`flex-1 ${!editedReport.Title?.trim() && error ? 'border-red-500 focus:ring-red-500' : ''}`}
                   />
                 ) : (
-                  <div className="text-lg font-bold text-[#F14B51]">
+                  <div className="text-lg font-bold">
                     {(currentReportData || report)?.Title || formattedReport?.title}
                   </div>
                 )}
@@ -620,12 +641,12 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
                     <option value="Others">Others</option>
                   </select>
                 ) : (
-                  <span className="font-semibold text-[#F14B51]">{formattedReport?.category}</span>
+                  <span>{formattedReport?.category}</span>
                 )}
               </div>
               
               {}
-              <div className="flex items-center gap-2 mb-2">
+              <div className="flex items-center gap-2 mb-4">
                 <MapPin className="w-5 h-5 text-[#F14B51]" />
                 {isEditMode ? (
                   <Input
@@ -635,11 +656,16 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
                     className="flex-1"
                   />
                 ) : (
-                  <span>{formattedReport?.location}</span>
+                  <div className="flex flex-col gap-1">
+                    <span>{formattedReport?.location}</span>
+                    {resolvedAddress && resolvedAddress !== formattedReport?.location && (
+                      <span className="text-sm text-gray-600">{resolvedAddress}</span>
+                    )}
+                  </div>
                 )}
               </div>
               
-              <div className="flex items-center gap-2 mb-2">
+              <div className="flex items-center gap-2 mb-4">
                 <Calendar className="w-5 h-5 text-[#F14B51]" />
                 <span>{formattedReport?.date}</span>
               </div>
@@ -649,7 +675,10 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
                 <span>{formattedReport?.time}</span>
               </div>
               
-              <div className="mb-2 font-semibold">Description</div>
+              <div className="flex items-center gap-2 mb-2">
+                <FileText className="w-5 h-5 text-[#F14B51]" />
+                <span className="font-medium">Description:</span>
+              </div>
               {isEditMode ? (
                 <Textarea
                   className={`w-full border rounded-lg px-4 py-2 focus:outline-none min-h-[80px] mb-4 ${!editedReport.Description?.trim() && error ? 'border-red-500 focus:ring-red-500' : ''}`}
@@ -797,18 +826,8 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
                   {stableDisplayData?.date} at {stableDisplayData?.time}
                 </p>
                 <p className="text-xs text-gray-600 mb-1">
-                  📍 {stableDisplayData?.location} • Status: {stableDisplayData?.status}
+                  {resolvedAddress || stableDisplayData?.location} • Status: {stableDisplayData?.status}
                 </p>
-                <div className="mt-2">
-                  <span className={`inline-block rounded-full px-2 py-0.5 text-center text-xs font-medium ${
-                    stableDisplayData?.category === 'Theft' ? 'bg-red-100 text-red-800' :
-                    stableDisplayData?.category === 'Accident' ? 'bg-yellow-100 text-yellow-800' :
-                    stableDisplayData?.category === 'Assault/Harassment' ? 'bg-red-100 text-red-800' :
-                    'bg-green-100 text-green-800'
-                  }`}>
-                    {stableDisplayData?.category}
-                  </span>
-                </div>
               </div>
               
               <div className="w-full text-center text-gray-500 text-sm">
