@@ -33,6 +33,7 @@ export default function ReportsPageClient() {
   const [categories, setCategories] = useState([]);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [hotspots, setHotspots] = useState([]);
+  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
   const router = useRouter();
   const { user } = useCurrentUser();
 
@@ -171,6 +172,355 @@ console.log("👤 Reports page - Current user:", user);
     router.push("/"); 
   };
 
+  const handleGenerateMonthlyReport = async () => {
+    if (isGeneratingReport) return;
+    
+    try {
+      setIsGeneratingReport(true);
+      
+      // Check if we have data loaded from Firebase
+      if (!reports || reports.length === 0) {
+        alert('Reports are still loading from Firebase. Please wait a moment and try again.');
+        return;
+      }
+
+      const currentMonth = new Date().getMonth() + 1;
+      const currentYear = new Date().getFullYear();
+      const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'];
+      
+      console.log(`🗓️ Generating report for: ${monthNames[currentMonth - 1]} ${currentYear} (Month: ${currentMonth})`);
+      console.log(`📊 Total reports available from Firebase:`, reports.length);
+      console.log(`🏘️ User barangay:`, userBarangay);
+
+      if (!userBarangay) {
+        alert('Unable to generate report: No barangay assigned to your account. Please contact admin.');
+        return;
+      }
+      
+      // Filter reports for current month and verified status from user's barangay
+      const currentMonthReports = reports.filter(report => {
+        // Handle Firebase Timestamp objects properly
+        let reportDate;
+        try {
+          if (report.DateTime?.seconds) {
+            // Firebase Timestamp format
+            reportDate = new Date(report.DateTime.seconds * 1000);
+          } else if (report.DateTime?.toDate && typeof report.DateTime.toDate === 'function') {
+            // Firebase Timestamp object with toDate method
+            reportDate = report.DateTime.toDate();
+          } else if (report.DateTime) {
+            // Regular date string or Date object
+            reportDate = new Date(report.DateTime);
+          } else {
+            console.warn(`⚠️ Report ${report.id}: Invalid or missing DateTime`);
+            return false;
+          }
+        } catch (error) {
+          console.error(`❌ Report ${report.id}: Error parsing DateTime:`, error);
+          return false;
+        }
+        
+        // Validate date
+        if (isNaN(reportDate.getTime())) {
+          console.warn(`⚠️ Report ${report.id}: Invalid date format`);
+          return false;
+        }
+        
+        const reportMonth = reportDate.getMonth() + 1;
+        const reportYear = reportDate.getFullYear();
+        const isCurrentMonth = reportMonth === currentMonth && reportYear === currentYear;
+        const isVerified = report.Status === 'Verified';
+        const isFromUserBarangay = report.Barangay === userBarangay;
+        
+        console.log(`🔍 Report ${report.id}: Date=${reportDate.toLocaleDateString()}, Status=${report.Status}, Barangay=${report.Barangay} → Include: ${isCurrentMonth && isVerified && isFromUserBarangay}`);
+        
+        return isCurrentMonth && isVerified && isFromUserBarangay;
+      });
+
+      console.log(`✅ Found ${currentMonthReports.length} verified reports for ${monthNames[currentMonth - 1]} ${currentYear} in ${userBarangay}`);
+      console.log('📋 Reports that will be included in monthly report:');
+      currentMonthReports.forEach((report, i) => {
+        console.log(`  ${i + 1}. ${report.IncidentType || 'No type'} - ${report.id} - Status: ${report.Status}`);
+      });
+      
+      if (currentMonthReports.length === 0) {
+        alert(`No verified reports found for ${monthNames[currentMonth - 1]} ${currentYear} in ${userBarangay}.\n\nThis could mean:\n• No reports were submitted this month\n• No reports have been verified yet\n• Reports are from other barangays`);
+        return;
+      }
+
+      // Generate HTML content for monthly report
+      const reportTitle = `Monthly Incident Reports - ${userBarangay}`;
+      const reportSubtitle = `${monthNames[currentMonth - 1]} ${currentYear}`;
+      
+      const printContent = `
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <title>${reportTitle}</title>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <style>
+              * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+              }
+              
+              html, body {
+                width: 100%;
+                height: 100%;
+                font-family: Arial, sans-serif;
+                background: white;
+                overflow: hidden;
+              }
+              
+              .report-container {
+                max-width: 800px;
+                margin: 0 auto;
+                padding: 40px;
+                background: white;
+                height: 100vh;
+                box-sizing: border-box;
+                display: flex;
+                flex-direction: column;
+              }
+              
+              .report-title {
+                color: #F14B51;
+                text-align: center;
+                margin-bottom: 30px;
+                font-size: 28px;
+                font-weight: bold;
+              }
+              
+              .report-subtitle {
+                color: #F14B51;
+                border-bottom: 2px solid #F14B51;
+                padding-bottom: 5px;
+                margin-bottom: 20px;
+                font-size: 20px;
+                font-weight: bold;
+              }
+              
+              .report-grid {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 20px;
+                margin-bottom: 20px;
+              }
+              
+              .report-field {
+                margin-bottom: 8px;
+                line-height: 1.5;
+              }
+              
+              .report-section {
+                margin-bottom: 20px;
+              }
+              
+              .description-box {
+                border: 1px solid #ddd;
+                padding: 15px;
+                background-color: #f9f9f9;
+                border-radius: 4px;
+                line-height: 1.6;
+                word-wrap: break-word;
+              }
+              
+              .footer {
+                margin-top: auto;
+                text-align: center;
+                color: #666;
+                font-size: 12px;
+                border-top: 1px solid #eee;
+                padding-top: 20px;
+                flex-shrink: 0;
+              }
+              
+              .page-break {
+                page-break-before: always;
+                break-before: page;
+              }
+              
+              @media print {
+                html, body {
+                  width: 210mm;
+                  height: 297mm;
+                  margin: 0;
+                  padding: 0;
+                  overflow: visible;
+                }
+                
+                .report-container {
+                  padding: 20mm;
+                  margin: 0;
+                  max-width: none;
+                  width: 100%;
+                  height: 257mm;
+                  box-sizing: border-box;
+                  page-break-after: always;
+                  break-after: page;
+                  overflow: hidden;
+                  display: flex;
+                  flex-direction: column;
+                }
+                
+                .report-container:last-child {
+                  page-break-after: avoid;
+                  break-after: avoid;
+                }
+                
+                .report-grid {
+                  display: grid;
+                  grid-template-columns: 1fr 1fr;
+                  gap: 20px;
+                }
+                
+                .page-break {
+                  page-break-before: always;
+                  break-before: page;
+                }
+              }
+            </style>
+          </head>
+          <body>
+            ${currentMonthReports.map((report, index) => {
+              // Handle different DateTime formats properly
+              let reportDate;
+              let formattedDate = 'Unknown Date';
+              let formattedTime = 'Unknown Time';
+              
+              try {
+                if (report.DateTime?.seconds) {
+                  reportDate = new Date(report.DateTime.seconds * 1000);
+                } else if (report.DateTime?.toDate && typeof report.DateTime.toDate === 'function') {
+                  reportDate = report.DateTime.toDate();
+                } else {
+                  reportDate = new Date(report.DateTime);
+                }
+                
+                if (reportDate && !isNaN(reportDate.getTime())) {
+                  formattedDate = reportDate.toLocaleDateString();
+                  formattedTime = reportDate.toLocaleTimeString();
+                }
+              } catch (error) {
+                console.error('Error formatting date for report:', report.id, error);
+              }
+              
+              return `
+                <div class="report-container" style="${index === currentMonthReports.length - 1 ? 'page-break-after: avoid; break-after: avoid;' : 'page-break-after: always; break-after: page;'}">
+                  <div style="text-align: right; color: #666; font-size: 12px; margin-bottom: 20px;">
+                    ${monthNames[currentMonth - 1]} ${currentYear} - Report ${index + 1} of ${currentMonthReports.length}
+                  </div>
+                  
+                  <h1 class="report-title">INCIDENT REPORT</h1>
+                  
+                  <div class="report-section">
+                    <h2 class="report-subtitle">${report.IncidentType || report.Title || 'Untitled Report'}</h2>
+                  </div>
+                  
+                  <div class="report-grid">
+                    <div>
+                      <div class="report-field"><strong>Date:</strong> ${formattedDate}</div>
+                      <div class="report-field"><strong>Time:</strong> ${formattedTime}</div>
+                      <div class="report-field"><strong>Location:</strong> ${report.Barangay || 'Not specified'}</div>
+                    </div>
+                    <div>
+                      <div class="report-field"><strong>Status:</strong> Verified</div>
+                      <div class="report-field"><strong>Submitted by:</strong> ${report.SubmittedByEmail || 'Anonymous'}</div>
+                      <div class="report-field"><strong>Report ID:</strong> ${report.id}</div>
+                    </div>
+                  </div>
+                  
+                  <div class="report-section">
+                    <h3 style="color: #F14B51; margin-bottom: 10px;">Description:</h3>
+                    <div class="description-box">
+                      ${report.Description || "No description provided"}
+                    </div>
+                  </div>
+                  
+                  ${report.Address ? `
+                    <div class="report-section">
+                      <h3 style="color: #F14B51; margin-bottom: 10px;">Address:</h3>
+                      <div style="padding: 10px; background-color: #f5f5f5; border-radius: 4px;">
+                        ${report.Address}
+                      </div>
+                    </div>
+                  ` : ''}
+                  
+                  ${report.Latitude && report.Longitude ? `
+                    <div class="report-section">
+                      <h3 style="color: #F14B51; margin-bottom: 10px;">Coordinates:</h3>
+                      <div style="padding: 10px; background-color: #f5f5f5; border-radius: 4px;">
+                        Latitude: ${report.Latitude}<br>
+                        Longitude: ${report.Longitude}
+                      </div>
+                    </div>
+                  ` : ''}
+                  
+                  <div class="footer">
+                    <div style="text-align: center; margin-bottom: 10px;">
+                      <strong>${userBarangay} - Monthly Report</strong>
+                    </div>
+                    <div style="text-align: center;">
+                      Generated on ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}
+                    </div>
+                  </div>
+                </div>
+              `;
+            }).join('')}
+            
+            <script>
+              window.onload = function() {
+                setTimeout(function() {
+                  window.print();
+                }, 100);
+
+                setTimeout(function() {
+                  window.close();
+                }, 1000);
+              }
+
+              window.onafterprint = function() {
+                setTimeout(function() {
+                  window.close();
+                }, 100);
+              }
+            </script>
+          </body>
+        </html>
+      `;
+
+      // Generate and open the report
+      const blob = new Blob([printContent], { type: 'text/html' });
+      const url = URL.createObjectURL(blob);
+
+      const printWindow = window.open(url, '_blank', 'width=900,height=700,scrollbars=yes,resizable=yes');
+      
+      if (!printWindow) {
+        alert('Pop-up blocked! Please allow pop-ups for this site to generate reports.');
+        URL.revokeObjectURL(url);
+        return;
+      }
+
+      console.log(`📄 Monthly report generated successfully with ${currentMonthReports.length} pages (1 page per report)`);
+
+      // Clean up the blob URL after a delay
+      setTimeout(() => {
+        URL.revokeObjectURL(url);
+      }, 5000);
+      
+    } catch (error) {
+      console.error('❌ Error generating monthly report:', error);
+      alert(`Error generating monthly report: ${error.message}\n\nPlease check the console for more details and try again.`);
+    } finally {
+      setIsGeneratingReport(false);
+    }
+  };
+
+
+
   return (
     <>
       <div className="flex min-h-screen bg-white">
@@ -181,6 +531,18 @@ console.log("👤 Reports page - Current user:", user);
           <div className="flex items-center justify-between mb-8">
             <h1 className="text-3xl font-bold text-red-600">Manage Reports</h1>
             <div className="flex gap-4">
+              <button
+                className={`font-medium rounded-lg px-6 py-2 text-base transition-colors ${
+                  isGeneratingReport
+                    ? 'bg-gray-500 cursor-not-allowed'
+                    : 'bg-green-500 hover:bg-green-600'
+                } text-white`}
+                onClick={handleGenerateMonthlyReport}
+                disabled={isGeneratingReport}
+                title={isGeneratingReport ? 'Generating report...' : 'Generate printable report for current month'}
+              >
+                {isGeneratingReport ? 'Generating...' : 'Generate Monthly Report'}
+              </button>
               <button
                 className="bg-red-500 hover:bg-red-600 text-white font-medium rounded-lg px-6 py-2 text-base transition-colors"
                 onClick={() => setIsAddDialogOpen(true)}

@@ -7,6 +7,8 @@ import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { isUserAdmin } from "@/lib/userMapping";
 import { useReports } from "@/contexts/ReportsContext";
+import { doc, updateDoc } from "firebase/firestore";
+import { db } from "@/firebase";
 import "@/styles/recent-reports-custom.css";
 
 export function RecentReports({ 
@@ -112,22 +114,34 @@ export function RecentReports({
 	};
 
 	const handleVerify = async (id) => {
-		try {
-			await updateDoc(doc(db, "reports", id), { Status: "Verified" });
-			setAllReports((prev) => prev.map((r) => r.id === id ? { ...r, Status: "Verified" } : r));
+		if (onVerify) {
+			// Use the onVerify function passed from parent
+			await onVerify(id);
 			setActionStatus((prev) => ({ ...prev, [id]: "verified" }));
-		} catch (e) {
-			console.error(e);
+		} else {
+			// Fallback to direct Firebase update if no onVerify prop
+			try {
+				await updateDoc(doc(db, "reports", id), { Status: "Verified" });
+				setActionStatus((prev) => ({ ...prev, [id]: "verified" }));
+			} catch (e) {
+				console.error("Error verifying report:", e);
+			}
 		}
 	};
 
-	const handleReject = async (id) => {
-		try {
-			await updateDoc(doc(db, "reports", id), { Status: "Rejected" });
-			setAllReports((prev) => prev.map((r) => r.id === id ? { ...r, Status: "Rejected" } : r));
+	const handleReject = async (id, reason = null) => {
+		if (onReject) {
+			// Use the onReject function passed from parent
+			await onReject(id, reason);
 			setActionStatus((prev) => ({ ...prev, [id]: "rejected" }));
-		} catch (e) {
-			console.error(e);
+		} else {
+			// Fallback to direct Firebase update if no onReject prop
+			try {
+				await updateDoc(doc(db, "reports", id), { Status: "Rejected" });
+				setActionStatus((prev) => ({ ...prev, [id]: "rejected" }));
+			} catch (e) {
+				console.error("Error rejecting report:", e);
+			}
 		}
 	};
 
@@ -156,7 +170,19 @@ export function RecentReports({
 					</CardHeader>
 				</Card>
 			) : (
-				paginationData.currentReports.map((report) => (
+				paginationData.currentReports.map((report) => {
+					// Debug logging to help identify status issues
+					console.log(`Report ${report.id}:`, {
+						status: report.Status,
+						statusType: typeof report.Status,
+						statusLower: report.Status?.toLowerCase?.(),
+						canShowButtons: (report.Status?.toLowerCase?.() === "pending" || 
+										!report.Status || 
+										report.Status.toLowerCase() === "pending" ||
+										(typeof report.Status === 'string' && report.Status.trim().toLowerCase() === 'pending'))
+					});
+					
+					return (
 					<Card key={report.id} className="flex flex-col border p-5 rounded-2xl shadow-sm transition-all">
 						<CardHeader className="flex flex-row items-start justify-between p-0 pb-2">
 							<div className="flex-1 flex flex-row items-center gap-3">
@@ -198,7 +224,11 @@ export function RecentReports({
 							)}
 						</div>
 						<div className="flex flex-row gap-3 items-center mt-2 px-1 md:px-2 pb-1">
-							{report.Status?.toLowerCase?.() === "pending" && (
+							{/* Show verify/reject buttons for pending reports (handle various case formats) */}
+							{(report.Status?.toLowerCase?.() === "pending" || 
+							  !report.Status || 
+							  report.Status.toLowerCase() === "pending" ||
+							  (typeof report.Status === 'string' && report.Status.trim().toLowerCase() === 'pending')) && (
 								<>
 									<Button
 										variant="outline"
@@ -211,7 +241,7 @@ export function RecentReports({
 									</Button>
 									<Button
 										variant="outline"
-									size="sm"
+										size="sm"
 										className="flex items-center gap-1 border-red-600 btn-reject px-6 py-2 rounded-lg text-red-600 hover:bg-red-50"
 										onClick={() => handleReject(report.id)}
 									>
@@ -222,7 +252,7 @@ export function RecentReports({
 							)}
 						</div>
 					</Card>
-				))
+				);})
 			)}
 
 			{}
