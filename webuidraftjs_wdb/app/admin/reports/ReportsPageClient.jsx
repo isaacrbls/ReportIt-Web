@@ -21,6 +21,7 @@ import { db } from "@/firebase";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { getUserBarangay, isUserAdmin } from "@/lib/userMapping";
 import { updateReportStatus, formatReportForDisplay } from "@/lib/reportUtils";
+import { reverseGeocode } from "@/lib/mapUtils";
 
 export default function ReportsPageClient() {
   const [reports, setReports] = useState([]);
@@ -249,6 +250,23 @@ console.log("👤 Reports page - Current user:", user);
         return;
       }
 
+      // Fetch street addresses for all reports with coordinates
+      console.log('🗺️ Fetching street addresses for reports...');
+      const reportsWithAddresses = await Promise.all(
+        currentMonthReports.map(async (report) => {
+          if (report.Latitude && report.Longitude) {
+            try {
+              const streetAddress = await reverseGeocode(report.Latitude, report.Longitude);
+              return { ...report, _streetAddress: streetAddress };
+            } catch (error) {
+              console.error(`Failed to fetch address for report ${report.id}:`, error);
+              return { ...report, _streetAddress: `${report.Latitude}, ${report.Longitude}` };
+            }
+          }
+          return report;
+        })
+      );
+
       // Generate HTML content for monthly report
       const reportTitle = `Monthly Incident Reports - ${userBarangay}`;
       const reportSubtitle = `${monthNames[currentMonth - 1]} ${currentYear}`;
@@ -385,7 +403,7 @@ console.log("👤 Reports page - Current user:", user);
             </style>
           </head>
           <body>
-            ${currentMonthReports.map((report, index) => {
+            ${reportsWithAddresses.map((report, index) => {
               // Handle different DateTime formats properly
               let reportDate;
               let formattedDate = 'Unknown Date';
@@ -409,9 +427,9 @@ console.log("👤 Reports page - Current user:", user);
               }
               
               return `
-                <div class="report-container" style="${index === currentMonthReports.length - 1 ? 'page-break-after: avoid; break-after: avoid;' : 'page-break-after: always; break-after: page;'}">
+                <div class="report-container" style="${index === reportsWithAddresses.length - 1 ? 'page-break-after: avoid; break-after: avoid;' : 'page-break-after: always; break-after: page;'}">
                   <div style="text-align: right; color: #666; font-size: 12px; margin-bottom: 20px;">
-                    ${monthNames[currentMonth - 1]} ${currentYear} - Report ${index + 1} of ${currentMonthReports.length}
+                    ${monthNames[currentMonth - 1]} ${currentYear} - Report ${index + 1} of ${reportsWithAddresses.length}
                   </div>
                   
                   <h1 class="report-title">INCIDENT REPORT</h1>
@@ -451,10 +469,9 @@ console.log("👤 Reports page - Current user:", user);
                   
                   ${report.Latitude && report.Longitude ? `
                     <div class="report-section">
-                      <h3 style="color: #F14B51; margin-bottom: 10px;">Coordinates:</h3>
+                      <h3 style="color: #F14B51; margin-bottom: 10px;">Location Details:</h3>
                       <div style="padding: 10px; background-color: #f5f5f5; border-radius: 4px;">
-                        Latitude: ${report.Latitude}<br>
-                        Longitude: ${report.Longitude}
+                        ${report._streetAddress || `${report.Latitude}, ${report.Longitude}`}
                       </div>
                     </div>
                   ` : ''}

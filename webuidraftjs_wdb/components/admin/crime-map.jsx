@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { AlertCircle, MapPin, X } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useReports } from "@/contexts/ReportsContext";
+import { reverseGeocode } from "@/lib/mapUtils";
 
 const MapWithNoSSR = dynamic(() => import("./map-component"), {
   ssr: false,
@@ -20,6 +21,10 @@ export function CrimeMap({ barangay, showPins = true, showHotspots = true, showC
   const [selectedIncident, setSelectedIncident] = useState(null);
   const [addingIncident, setAddingIncident] = useState(false);
   const [newIncidentLocation, setNewIncidentLocation] = useState(null);
+  const [newIncidentAddress, setNewIncidentAddress] = useState("");
+  const [selectedIncidentAddress, setSelectedIncidentAddress] = useState("");
+  const [loadingNewAddress, setLoadingNewAddress] = useState(false);
+  const [loadingSelectedAddress, setLoadingSelectedAddress] = useState(false);
   const [showIncidentForm, setShowIncidentForm] = useState(false);
   const [hotspots, setHotspots] = useState([]);
   const { reports, calculateBarangayHotspots, isLoading } = useReports();
@@ -50,6 +55,48 @@ export function CrimeMap({ barangay, showPins = true, showHotspots = true, showC
     }
   }, [reports, barangay, showHotspots, calculateBarangayHotspots, isLoading]);
 
+  // Fetch street name for new incident location
+  useEffect(() => {
+    if (newIncidentLocation) {
+      const fetchAddress = async () => {
+        setLoadingNewAddress(true);
+        try {
+          const address = await reverseGeocode(newIncidentLocation[0], newIncidentLocation[1]);
+          setNewIncidentAddress(address);
+        } catch (error) {
+          console.error('Failed to fetch address for new incident:', error);
+          setNewIncidentAddress(`${newIncidentLocation[0].toFixed(4)}, ${newIncidentLocation[1].toFixed(4)}`);
+        } finally {
+          setLoadingNewAddress(false);
+        }
+      };
+      fetchAddress();
+    } else {
+      setNewIncidentAddress("");
+    }
+  }, [newIncidentLocation]);
+
+  // Fetch street name for selected incident
+  useEffect(() => {
+    if (selectedIncident && selectedIncident.location) {
+      const fetchAddress = async () => {
+        setLoadingSelectedAddress(true);
+        try {
+          const address = await reverseGeocode(selectedIncident.location[0], selectedIncident.location[1]);
+          setSelectedIncidentAddress(address);
+        } catch (error) {
+          console.error('Failed to fetch address for selected incident:', error);
+          setSelectedIncidentAddress(`${selectedIncident.location[0].toFixed(4)}, ${selectedIncident.location[1].toFixed(4)}`);
+        } finally {
+          setLoadingSelectedAddress(false);
+        }
+      };
+      fetchAddress();
+    } else {
+      setSelectedIncidentAddress("");
+    }
+  }, [selectedIncident]);
+
   const handleAddIncident = () => {
     setAddingIncident(true);
   };
@@ -57,6 +104,7 @@ export function CrimeMap({ barangay, showPins = true, showHotspots = true, showC
   const handleCancelAddIncident = () => {
     setAddingIncident(false);
     setNewIncidentLocation(null);
+    setNewIncidentAddress("");
     setShowIncidentForm(false);
   };
 
@@ -107,6 +155,7 @@ export function CrimeMap({ barangay, showPins = true, showHotspots = true, showC
     }
 
     setNewIncidentLocation(null);
+    setNewIncidentAddress("");
     setShowIncidentForm(false);
     setNewIncident({
       title: "",
@@ -261,7 +310,7 @@ export function CrimeMap({ barangay, showPins = true, showHotspots = true, showC
 
               <div className="flex items-center text-xs text-muted-foreground">
                 <AlertCircle className="mr-1 h-3 w-3" />
-                Location: {newIncidentLocation[0].toFixed(4)}, {newIncidentLocation[1].toFixed(4)}
+                Location: {loadingNewAddress ? "Fetching address..." : newIncidentAddress || `${newIncidentLocation[0].toFixed(4)}, ${newIncidentLocation[1].toFixed(4)}`}
               </div>
             </form>
           </CardContent>
@@ -296,7 +345,7 @@ export function CrimeMap({ barangay, showPins = true, showHotspots = true, showC
             </div>
             <p className="mt-2 text-sm">{selectedIncident.description}</p>
             <div className="mt-2 text-xs">
-              <strong>Location:</strong> {selectedIncident.location[0].toFixed(4)}, {selectedIncident.location[1].toFixed(4)}
+              <strong>Location:</strong> {loadingSelectedAddress ? "Fetching address..." : selectedIncidentAddress || `${selectedIncident.location[0].toFixed(4)}, ${selectedIncident.location[1].toFixed(4)}`}
             </div>
             {selectedIncident.isUserCreated && (
               <div className="mt-2 flex justify-end">

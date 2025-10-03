@@ -14,6 +14,7 @@ import Sidebar from "@/components/admin/Sidebar";
 import { useCurrentUser } from "../../../hooks/use-current-user";
 import { useReports } from "@/contexts/ReportsContext";
 import { getUserBarangay } from "@/lib/userMapping";
+import { generateHotspotName } from "@/lib/mapUtils";
 
 export default function AnalyticsPage() {
   const [showLogoutModal, setShowLogoutModal] = React.useState(false);
@@ -21,6 +22,8 @@ export default function AnalyticsPage() {
   const [timePeriod, setTimePeriod] = React.useState("all");
   const [sortBy, setSortBy] = React.useState("count");
   const [sortOrder, setSortOrder] = React.useState("desc");
+  const [hotspotNames, setHotspotNames] = React.useState(new Map());
+  const [loadingHotspotNames, setLoadingHotspotNames] = React.useState(false);
   const hotspotsPerPage = 5;
   const router = useRouter();
   const { user } = useCurrentUser();
@@ -36,17 +39,22 @@ export default function AnalyticsPage() {
     const calculatedHotspots = calculateBarangayHotspots(barangay);
     console.log("Analytics - Found hotspots:", calculatedHotspots.length);
     
-    return calculatedHotspots.map(hotspot => ({
-      id: `${hotspot.lat}_${hotspot.lng}`,
-      latitude: hotspot.lat,
-      longitude: hotspot.lng,
-      incidentCount: hotspot.incidentCount,
-      incidentType: hotspot.incidents?.[0]?.IncidentType || 'Unknown',
-      riskLevel: hotspot.riskLevel,
-      area: `${barangay} Area (${hotspot.lat.toFixed(4)}, ${hotspot.lng.toFixed(4)})`,
-      incidents: hotspot.incidents || []
-    }));
-  }, [barangay, calculateBarangayHotspots]);
+    return calculatedHotspots.map(hotspot => {
+      const hotspotId = `${hotspot.lat}_${hotspot.lng}`;
+      const cachedName = hotspotNames.get(hotspotId);
+      
+      return {
+        id: hotspotId,
+        latitude: hotspot.lat,
+        longitude: hotspot.lng,
+        incidentCount: hotspot.incidentCount,
+        incidentType: hotspot.incidents?.[0]?.IncidentType || 'Unknown',
+        riskLevel: hotspot.riskLevel,
+        area: cachedName || `${barangay} Area (${hotspot.lat.toFixed(4)}, ${hotspot.lng.toFixed(4)})`,
+        incidents: hotspot.incidents || []
+      };
+    });
+  }, [barangay, calculateBarangayHotspots, hotspotNames]);
 
   const handleLogout = () => {
     setShowLogoutModal(false);
@@ -58,6 +66,44 @@ export default function AnalyticsPage() {
   const startIndex = (currentPage - 1) * hotspotsPerPage;
   const endIndex = Math.min(startIndex + hotspotsPerPage, totalHotspots);
   const currentHotspots = hotspots.slice(startIndex, endIndex);
+
+  // Effect to generate street names for hotspots
+  React.useEffect(() => {
+    const generateHotspotNames = async () => {
+      if (!barangay || barangay === 'Unknown') return;
+      
+      const calculatedHotspots = calculateBarangayHotspots(barangay);
+      if (calculatedHotspots.length === 0) return;
+      
+      setLoadingHotspotNames(true);
+      const newNames = new Map();
+      
+      // Generate names for all hotspots
+      const namePromises = calculatedHotspots.map(async (hotspot) => {
+        const hotspotId = `${hotspot.lat}_${hotspot.lng}`;
+        
+        // Skip if we already have this name cached
+        if (hotspotNames.has(hotspotId)) {
+          newNames.set(hotspotId, hotspotNames.get(hotspotId));
+          return;
+        }
+        
+        try {
+          const streetName = await generateHotspotName(hotspot.lat, hotspot.lng, barangay);
+          newNames.set(hotspotId, streetName);
+        } catch (error) {
+          console.warn('Failed to generate name for hotspot:', hotspotId, error);
+          newNames.set(hotspotId, `${barangay} Area (${hotspot.lat.toFixed(4)}, ${hotspot.lng.toFixed(4)})`);
+        }
+      });
+      
+      await Promise.allSettled(namePromises);
+      setHotspotNames(newNames);
+      setLoadingHotspotNames(false);
+    };
+    
+    generateHotspotNames();
+  }, [barangay, calculateBarangayHotspots]);
 
   React.useEffect(() => {
     setCurrentPage(1);
@@ -145,10 +191,12 @@ export default function AnalyticsPage() {
           <h2 className="text-2xl font-bold text-red-500 mb-1">Crime Hotspots</h2>
           <p className="text-gray-400 mb-4">All active hotspots from the map for {barangay === 'All' ? 'all areas' : barangay}</p>
           
-          {isLoading ? (
+          {isLoading || loadingHotspotNames ? (
             <div className="flex items-center justify-center py-12">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600"></div>
-              <span className="ml-2 text-gray-600">Loading hotspots...</span>
+              <span className="ml-2 text-gray-600">
+                {isLoading ? 'Loading hotspots...' : 'Generating street names...'}
+              </span>
             </div>
           ) : (
             <>
@@ -188,7 +236,9 @@ export default function AnalyticsPage() {
                           Primary incident type: <span className="font-semibold">{hotspot.incidentType}</span>
                         </div>
                         <div className="text-gray-600 text-sm">
-                          Location: {hotspot.latitude.toFixed(6)}, {hotspot.longitude.toFixed(6)}
+                          Location: {hotspot.area === `${barangay} Area (${hotspot.latitude.toFixed(4)}, ${hotspot.longitude.toFixed(4)})` ? 
+                            `${hotspot.latitude.toFixed(6)}, ${hotspot.longitude.toFixed(6)}` : 
+                            hotspot.area}
                         </div>
                         <div className="text-gray-600 text-sm">
                           Radius: ~{Math.max(50, Math.min(Math.sqrt(hotspot.incidentCount) * 60, 150))}m
