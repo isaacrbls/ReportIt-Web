@@ -331,18 +331,13 @@ export default function MapComponent({
 			} else {
 				date = new Date(dateValue);
 			}
-			// Format as "October 3, 2025 at 10:31:52PM UTC+8"
+			// Format as "September 6, 2025" (date only, no time)
 			const options = {
 				year: 'numeric',
 				month: 'long',
-				day: 'numeric',
-				hour: '2-digit',
-				minute: '2-digit',
-				second: '2-digit',
-				hour12: true,
-				timeZoneName: 'short'
+				day: 'numeric'
 			};
-			return date.toLocaleDateString('en-US', options).replace(',', ' at');
+			return date.toLocaleDateString('en-US', options);
 		} catch (error) {
 			return "Unknown date";
 		}
@@ -359,13 +354,11 @@ export default function MapComponent({
 			} else {
 				date = new Date(dateValue);
 			}
-			// Format as "10:31:52PM UTC+8"
+			// Format as "3:00 PM" without timezone
 			const options = {
-				hour: '2-digit',
+				hour: 'numeric',
 				minute: '2-digit',
-				second: '2-digit',
-				hour12: true,
-				timeZoneName: 'short'
+				hour12: true
 			};
 			return date.toLocaleTimeString('en-US', options);
 		} catch (error) {
@@ -585,11 +578,14 @@ export default function MapComponent({
 					return;
 				}
 
-				const mapInstance = L.map(mapRef.current, mapOptions).setView(mapConfig.center, mapConfig.zoom);
+				const mapInstance = L.map(mapRef.current, {
+					...mapOptions,
+					attributionControl: false
+				}).setView(mapConfig.center, mapConfig.zoom);
 				mapInstanceRef.current = mapInstance
 
 				L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-					attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+					attribution: ''
 				}).addTo(mapInstance)
 
 				mapInstance.on("click", (e) => {
@@ -876,19 +872,38 @@ export default function MapComponent({
 	}, [barangay, addingIncident]);
 
 	useEffect(() => {
-		if (!mapInstanceRef.current) return
-
+		if (!mapInstanceRef.current) {
+			console.log("⏳ Map instance not ready yet for new incident marker");
+			return;
+		}
+		
 		try {
+			console.log("📍 Updating new incident marker:", newIncidentLocation);
 			
+			// Remove existing marker
 			if (newMarkerRef.current) {
+				console.log("🗑️ Removing old marker");
 				newMarkerRef.current.remove()
 				newMarkerRef.current = null
 			}
 
-			if (newIncidentLocation) {
+			// Add new marker if location exists
+			if (newIncidentLocation && Array.isArray(newIncidentLocation) && newIncidentLocation.length === 2) {
+				console.log("✅ Creating new marker at:", newIncidentLocation);
+				
+				const icon = createCustomIcon(newIncidentRisk || "Medium");
 				newMarkerRef.current = L.marker(newIncidentLocation, {
-					icon: createCustomIcon(newIncidentRisk || "Medium"),
+					icon: icon,
+					draggable: false
 				}).addTo(mapInstanceRef.current)
+				
+				// Center map on the new marker location with smooth animation
+				mapInstanceRef.current.setView(newIncidentLocation, mapInstanceRef.current.getZoom(), {
+					animate: true,
+					duration: 0.5
+				})
+				
+				console.log("✅ Marker created and map centered");
 			}
 		} catch (error) {
 			console.error("❌ Error handling new incident location:", error);

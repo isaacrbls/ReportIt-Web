@@ -197,7 +197,6 @@ export default function ReportList({
           {}
           {paginationData.totalPages > 1 && (
             <div className="text-center text-xs text-gray-500 mt-2">
-              Scroll up to see more reports on previous pages
             </div>
           )}
         </>

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react"
 import dynamic from "next/dynamic"
-import { Calendar, CheckCircle, Clock, FileText, ImageIcon, MapPin, Tag, XCircle, Edit, Trash2, Printer } from "lucide-react"
+import { Calendar, CheckCircle, Clock, FileText, ImageIcon, MapPin, Tag, XCircle, Edit, Trash2, Printer, Move } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input"
 import { updateReportStatus, formatReportForDisplay, deleteReport, updateReportDetails } from "@/lib/reportUtils"
 import { reverseGeocode } from "@/lib/mapUtils"
 import { useToast } from "@/hooks/use-toast"
+import { GeoPoint } from "firebase/firestore"
 
 const MapWithNoSSR = dynamic(() => import("./map-component"), {
   ssr: false,
@@ -30,6 +31,10 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
   const [editedReport, setEditedReport] = useState({})
   const [error, setError] = useState("")
   const [isEditMode, setIsEditMode] = useState(false)
+  const [editedLocation, setEditedLocation] = useState(null)
+  const [editedDateTime, setEditedDateTime] = useState("")
+  const [isEditingPin, setIsEditingPin] = useState(false)
+  const [mapKey, setMapKey] = useState(0)
   const [deleteClickCount, setDeleteClickCount] = useState(0)
   const [deleteTimeout, setDeleteTimeout] = useState(null)
   const [currentReportData, setCurrentReportData] = useState(null)
@@ -45,11 +50,9 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
 
   useEffect(() => {
     if (open) {
-      
       const refreshTimeout = setTimeout(() => {
-        
         window.dispatchEvent(new Event('resize'));
-      }, 150); 
+      }, 150);
 
       return () => clearTimeout(refreshTimeout);
     }
@@ -63,7 +66,6 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
           const address = await reverseGeocode(report.Latitude, report.Longitude);
           setResolvedAddress(address);
         } catch (error) {
-          console.warn('Failed to resolve address for report:', error);
           setResolvedAddress(report.Barangay || "Unknown Location");
         }
       }
@@ -79,7 +81,7 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
   }, [currentReportData, report])
 
   const stableDisplayData = useMemo(() => {
-    const originalReport = report 
+    const originalReport = report
     const formatted = formatReportForDisplay(originalReport)
     
     return {
@@ -100,15 +102,50 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
     report?.isSensitive,
     report?.Status,
     report?.SubmittedBy
-  ]) 
+  ])
 
-  // Simple map data exactly like add report dialog - no preloadedIncidents
-  const mapLatitude = report?.Latitude;
-  const mapLongitude = report?.Longitude;
   const mapBarangay = report?.Barangay;
   
-  // Create a stable location array like add report uses newIncidentLocation
-  const reportLocation = mapLatitude && mapLongitude ? [mapLatitude, mapLongitude] : null; 
+  const reportLocation = useMemo(() => {
+    const mapLatitude = isEditMode && editedLocation ? editedLocation[0] : report?.Latitude;
+    const mapLongitude = isEditMode && editedLocation ? editedLocation[1] : report?.Longitude;
+    return mapLatitude && mapLongitude ? [mapLatitude, mapLongitude] : null;
+  }, [isEditMode, editedLocation, report?.Latitude, report?.Longitude]);
+  
+  const handleMapClick = (location) => {
+    if (isEditMode && isEditingPin) {
+      setEditedLocation(location)
+    }
+  }
+  
+  const renderMapComponent = () => {
+    const addingIncidentProp = isEditMode && isEditingPin;
+    const onMapClickProp = isEditMode && isEditingPin ? handleMapClick : undefined;
+    
+    if (reportLocation && reportLocation.length === 2) {
+      return (
+        <MapWithNoSSR
+          key={`report-map-${mapKey}`}
+          center={reportLocation}
+          zoom={18}
+          showPins={true}
+          showHotspots={false}
+          showControls={false}
+          showPopups={false}
+          barangay={mapBarangay}
+          newIncidentLocation={reportLocation}
+          addingIncident={addingIncidentProp}
+          onMapClick={onMapClickProp}
+        />
+      );
+    }
+    return (
+      <div className="text-gray-500 text-center">
+        <MapPin className="w-12 h-12 mx-auto mb-2 text-gray-400" />
+        <p>No location data available</p>
+      </div>
+    );
+  };
 
   useEffect(() => {
     if (isEditMode && (currentReportData || report)) {
@@ -119,6 +156,24 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
         Description: reportToEdit.Description || "",
         Barangay: reportToEdit.Barangay || ""
       })
+      
+      if (reportToEdit.Latitude && reportToEdit.Longitude) {
+        setEditedLocation([reportToEdit.Latitude, reportToEdit.Longitude])
+      }
+      
+      if (reportToEdit.DateTime) {
+        try {
+          const dateObj = reportToEdit.DateTime.toDate ? reportToEdit.DateTime.toDate() : new Date(reportToEdit.DateTime)
+          const year = dateObj.getFullYear()
+          const month = String(dateObj.getMonth() + 1).padStart(2, '0')
+          const day = String(dateObj.getDate()).padStart(2, '0')
+          const hours = String(dateObj.getHours()).padStart(2, '0')
+          const minutes = String(dateObj.getMinutes()).padStart(2, '0')
+          setEditedDateTime(`${year}-${month}-${day}T${hours}:${minutes}`)
+        } catch (e) {
+        }
+      }
+      
       setError("")
     }
   }, [isEditMode, currentReportData, report])
@@ -131,6 +186,9 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
       setDeleteClickCount(0)
       setCurrentReportData(null)
       setShowDeleteConfirm(false)
+      setEditedLocation(null)
+      setEditedDateTime("")
+      setIsEditingPin(false)
       if (deleteTimeout) {
         clearTimeout(deleteTimeout)
         setDeleteTimeout(null)
@@ -169,7 +227,6 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
     try {
       const success = await updateReportStatus(report.id, "Verified")
       if (success) {
-        
         setCurrentReportData(prevData => ({
           ...(prevData || report),
           Status: "Verified"
@@ -189,7 +246,6 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
         })
       }
     } catch (error) {
-      console.error("Error verifying report:", error)
       toast({
         title: "Error",
         description: `Error verifying report: ${error.message}`,
@@ -205,7 +261,6 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
     try {
       const success = await updateReportStatus(report.id, "Rejected")
       if (success) {
-        
         setCurrentReportData(prevData => ({
           ...(prevData || report),
           Status: "Rejected"
@@ -225,7 +280,6 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
         })
       }
     } catch (error) {
-      console.error("Error rejecting report:", error)
       toast({
         title: "Error",
         description: `Error rejecting report: ${error.message}`,
@@ -261,7 +315,6 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
         })
       }
     } catch (error) {
-      console.error("Error deleting report:", error)
       const errorMessage = `Error deleting report: ${error.message}`
       setError(errorMessage)
       toast({
@@ -304,19 +357,30 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
     }
 
     try {
-      const success = await updateReportDetails(report.id, editedReport)
+      const updateData = { ...editedReport }
+      
+      if (editedLocation) {
+        updateData.Latitude = editedLocation[0]
+        updateData.Longitude = editedLocation[1]
+        updateData.GeoLocation = new GeoPoint(editedLocation[0], editedLocation[1])
+      }
+      
+      if (editedDateTime) {
+        updateData.DateTime = new Date(editedDateTime)
+      }
+      
+      const success = await updateReportDetails(report.id, updateData)
       if (success) {
-        
         setCurrentReportData(prevData => ({
           ...(prevData || report),
-          ...editedReport
+          ...updateData
         }))
         
         toast({
           title: "Report Updated",
           description: "The report has been successfully updated.",
         })
-        onEdit?.(report.id, editedReport)
+        onEdit?.(report.id, updateData)
         setIsEditMode(false)
       } else {
         setError("Failed to update report. Please try again.")
@@ -327,7 +391,6 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
         })
       }
     } catch (error) {
-      console.error("Error updating report:", error)
       const errorMessage = `Error updating report: ${error.message}`
       setError(errorMessage)
       toast({
@@ -343,6 +406,9 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
   const handleCancelEdit = () => {
     setIsEditMode(false)
     setError("")
+    setEditedLocation(null)
+    setEditedDateTime("")
+    setIsEditingPin(false)
   }
 
   const handleGenerateReport = () => {
@@ -566,7 +632,6 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
         description: "Print dialog has been opened for the report.",
       })
     } catch (error) {
-      console.error("Error generating report:", error)
       toast({
         title: "Error",
         description: "Failed to generate report. Please try again.",
@@ -580,7 +645,6 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
       <DialogContent className="max-w-4xl w-full p-0 bg-transparent border-none shadow-none flex items-center justify-center min-h-screen overflow-y-auto">
         <div className="bg-white rounded-2xl p-10 shadow-sm w-[900px] max-w-full max-h-[95vh] overflow-y-auto flex flex-col gap-8">
           <div className="grid grid-cols-1 md:grid-cols-[1fr,400px] gap-8">
-            {}
             <div className="min-w-[320px]">
               <div className="flex items-center gap-3 mb-4">
                 <h2 className="text-[#F14B51] text-2xl font-bold">Report Details</h2>
@@ -665,15 +729,34 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
                 )}
               </div>
               
-              <div className="flex items-center gap-2 mb-4">
-                <Calendar className="w-5 h-5 text-[#F14B51]" />
-                <span>{formattedReport?.date}</span>
-              </div>
-              
-              <div className="flex items-center gap-2 mb-4">
-                <Clock className="w-5 h-5 text-[#F14B51]" />
-                <span>{formattedReport?.time}</span>
-              </div>
+              {isEditMode ? (
+                <div className="mb-4">
+                  <label className="flex items-center gap-2 text-sm font-medium mb-2">
+                    <Calendar className="w-5 h-5 text-[#F14B51]" />
+                    <Clock className="w-5 h-5 text-[#F14B51]" />
+                    <span>Date and Time:</span>
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={editedDateTime}
+                    onChange={(e) => setEditedDateTime(e.target.value)}
+                    className="w-full border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#F14B51]"
+                    placeholder="Select date and time"
+                  />
+                </div>
+              ) : (
+                <>
+                  <div className="flex items-center gap-2 mb-4">
+                    <Calendar className="w-5 h-5 text-[#F14B51]" />
+                    <span>{formattedReport?.date}</span>
+                  </div>
+                  
+                  <div className="flex items-center gap-2 mb-4">
+                    <Clock className="w-5 h-5 text-[#F14B51]" />
+                    <span>{formattedReport?.time}</span>
+                  </div>
+                </>
+              )}
               
               <div className="flex items-center gap-2 mb-2">
                 <FileText className="w-5 h-5 text-[#F14B51]" />
@@ -790,27 +873,50 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
             </div>
             
             {}
+            {/* Map Section */}
             <div className="w-full flex flex-col items-center justify-start">
-              <div className="font-bold text-[#F14B51] text-xl mb-2 text-center">Incident Location</div>
-              <div className="w-full h-[280px] bg-[#F8E3DE] rounded-lg flex items-center justify-center overflow-hidden mb-2">
-                {mapLatitude && mapLongitude ? (
-                  <MapWithNoSSR
-                    key={`report-location-${report?.id}`}
-                    center={[mapLatitude, mapLongitude]}
-                    zoom={18}
-                    showPins={true}
-                    showHotspots={false}
-                    showControls={false}
-                    showPopups={false}
-                    barangay={mapBarangay}
-                    newIncidentLocation={reportLocation}
-                  />
-                ) : (
-                  <div className="text-gray-500 text-center">
-                    <MapPin className="w-12 h-12 mx-auto mb-2 text-gray-400" />
-                    <p>No location data available</p>
-                  </div>
+              <div className="flex items-center justify-between w-full mb-2">
+                <div className="font-bold text-[#F14B51] text-xl text-center flex-1">Incident Location</div>
+                {isEditMode && (
+                  <button
+                    onClick={() => setIsEditingPin(!isEditingPin)}
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                      isEditingPin 
+                        ? 'bg-green-500 text-white hover:bg-green-600' 
+                        : 'bg-blue-500 text-white hover:bg-blue-600'
+                    }`}
+                  >
+                    <Move className="w-4 h-4" />
+                    {isEditingPin ? 'Done Editing' : 'Edit Pin Location'}
+                  </button>
                 )}
+              </div>
+              {isEditMode && isEditingPin && !editedLocation && (
+                <div className="w-full mb-2 text-sm text-center text-gray-600 bg-blue-50 py-2 px-3 rounded-lg border border-blue-200">
+                  <span className="font-medium text-blue-700 flex items-center justify-center gap-2">
+                    <MapPin className="w-4 h-4" />
+                    Click on the map to set the new incident location (Map Key: {mapKey})
+                  </span>
+                </div>
+              )}
+              {isEditMode && isEditingPin && editedLocation && (
+                <div className="w-full mb-2 text-sm text-center text-green-600 bg-green-50 py-2 px-3 rounded-lg border border-green-200">
+                  <span className="font-medium flex items-center justify-center gap-2">
+                    <CheckCircle className="w-4 h-4" />
+                    Location updated to [{editedLocation[0].toFixed(6)}, {editedLocation[1].toFixed(6)}]! Click "Done Editing" to finish.
+                  </span>
+                </div>
+              )}
+              {isEditMode && editedLocation && !isEditingPin && (
+                <div className="w-full mb-2 text-sm text-center text-green-600 bg-green-50 py-2 px-3 rounded-lg border border-green-200">
+                  <span className="font-medium flex items-center justify-center gap-2">
+                    <CheckCircle className="w-4 h-4" />
+                    Location updated! Remember to save your changes.
+                  </span>
+                </div>
+              )}
+              <div className="w-full h-[280px] bg-[#F8E3DE] rounded-lg flex items-center justify-center overflow-hidden mb-2">
+                {renderMapComponent()}
               </div>
               
               {}

@@ -26,8 +26,7 @@ export async function getReportDetails(reportId) {
         });
         timePart = date.toLocaleTimeString("en-US", { 
           hour: 'numeric', 
-          minute: '2-digit', 
-          second: '2-digit',
+          minute: '2-digit',
           hour12: true 
         });
       } else if (dateTime) {
@@ -41,8 +40,7 @@ export async function getReportDetails(reportId) {
           });
           timePart = date.toLocaleTimeString("en-US", { 
             hour: 'numeric', 
-            minute: '2-digit', 
-            second: '2-digit',
+            minute: '2-digit',
             hour12: true 
           });
         }
@@ -59,7 +57,7 @@ export async function getReportDetails(reportId) {
           geo: data.GeoLocation || ""
         },
         date: datePart || "Unknown date",
-        time: timePart?.split(" ")[0] || "Unknown time", 
+        time: timePart || "Unknown time", 
         submittedBy: data.SubmittedByEmail || "Unknown",
         status: data.Status || "Pending",
         hasMedia: data.hasMedia || false,
@@ -135,8 +133,7 @@ export function formatReportForDisplay(report) {
     });
     timePart = date.toLocaleTimeString("en-US", { 
       hour: 'numeric', 
-      minute: '2-digit', 
-      second: '2-digit',
+      minute: '2-digit',
       hour12: true 
     });
   } else if (dateTime) {
@@ -150,8 +147,7 @@ export function formatReportForDisplay(report) {
       });
       timePart = date.toLocaleTimeString("en-US", { 
         hour: 'numeric', 
-        minute: '2-digit', 
-        second: '2-digit',
+        minute: '2-digit',
         hour12: true 
       });
     }
