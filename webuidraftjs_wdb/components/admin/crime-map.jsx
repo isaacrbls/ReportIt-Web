@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { AlertCircle, MapPin, X } from "lucide-react";
+import { AlertCircle, MapPin, X, RefreshCw } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useReports } from "@/contexts/ReportsContext";
 import { reverseGeocode } from "@/lib/mapUtils";
@@ -24,6 +24,7 @@ export function CrimeMap({ barangay, showPins = true, showHotspots = true, showC
   const [loadingNewAddress, setLoadingNewAddress] = useState(false);
   const [showIncidentForm, setShowIncidentForm] = useState(false);
   const [hotspots, setHotspots] = useState([]);
+  const [isReloading, setIsReloading] = useState(false);
   const { reports, calculateBarangayHotspots, isLoading } = useReports();
   const [newIncident, setNewIncident] = useState({
     title: "",
@@ -91,6 +92,20 @@ export function CrimeMap({ barangay, showPins = true, showHotspots = true, showC
       setNewIncidentLocation(latlng);
       setShowIncidentForm(true);
       setAddingIncident(false);
+    }
+  };
+
+  const handleReloadData = async () => {
+    setIsReloading(true);
+    console.log("🔄 Refreshing page data like F5...");
+    
+    try {
+      // Force a complete page refresh like pressing F5
+      // This will reload all Firebase data and reset all states
+      window.location.reload();
+    } catch (error) {
+      console.error("❌ Error refreshing page:", error);
+      setIsReloading(false);
     }
   };
 
@@ -193,11 +208,12 @@ export function CrimeMap({ barangay, showPins = true, showHotspots = true, showC
       {}
       {showControls && !addingIncident && !showIncidentForm && (
         <Button
-          className="absolute bottom-4 left-4 z-[1] flex items-center gap-2 bg-red-600 hover:bg-red-700"
-          onClick={handleAddIncident}
+          className="absolute bottom-4 left-4 z-[1] flex items-center gap-2 bg-red-600 hover:bg-red-700 disabled:opacity-50"
+          onClick={handleReloadData}
+          disabled={isReloading || isLoading}
         >
-          <MapPin className="h-4 w-4" />
-          Pin Incident
+          <RefreshCw className={`h-4 w-4 ${isReloading ? 'animate-spin' : ''}`} />
+          {isReloading ? 'Refreshing...' : 'Refresh'}
         </Button>
       )}
 

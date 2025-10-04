@@ -331,7 +331,18 @@ export default function MapComponent({
 			} else {
 				date = new Date(dateValue);
 			}
-			return date.toLocaleDateString();
+			// Format as "October 3, 2025 at 10:31:52PM UTC+8"
+			const options = {
+				year: 'numeric',
+				month: 'long',
+				day: 'numeric',
+				hour: '2-digit',
+				minute: '2-digit',
+				second: '2-digit',
+				hour12: true,
+				timeZoneName: 'short'
+			};
+			return date.toLocaleDateString('en-US', options).replace(',', ' at');
 		} catch (error) {
 			return "Unknown date";
 		}
@@ -348,7 +359,15 @@ export default function MapComponent({
 			} else {
 				date = new Date(dateValue);
 			}
-			return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+			// Format as "10:31:52PM UTC+8"
+			const options = {
+				hour: '2-digit',
+				minute: '2-digit',
+				second: '2-digit',
+				hour12: true,
+				timeZoneName: 'short'
+			};
+			return date.toLocaleTimeString('en-US', options);
 		} catch (error) {
 			return "Unknown time";
 		}

@@ -32,8 +32,9 @@ export function RecentReports({
 	const allReports = singleReport ? [singleReport] : getReportsByBarangay(barangay);
 
 	useEffect(() => {
+		console.log("📄 RecentReports - Resetting page to 1 due to change in reports length/barangay/filter");
 		setCurrentPage(1);
-	}, [allReports]);
+	}, [allReports?.length, barangay, statusFilter]);
 
 	// Effect to resolve street addresses for all reports
 	useEffect(() => {
@@ -101,24 +102,37 @@ export function RecentReports({
 		const endIndex = Math.min(startIndex + reportsPerPage, totalReports);
 		const currentReports = accessibleReports.slice(startIndex, endIndex);
 
-		return {
+		const result = {
 			currentReports,
 			totalReports,
 			totalPages,
 			startIndex: startIndex + 1,
 			endIndex
 		};
+		
+		console.log("📄 RecentReports - Pagination data:", {
+			currentPage,
+			totalPages,
+			totalReports,
+			enablePagination,
+			reportsPerPage
+		});
+		
+		return result;
 	}, [sortedReports, currentPage, reportsPerPage, enablePagination, isAdmin]);
 
 	const handlePreviousPage = () => {
+		console.log("📄 RecentReports - Previous page clicked, current:", currentPage);
 		setCurrentPage(prev => Math.max(prev - 1, 1));
 	};
 
 	const handleNextPage = () => {
+		console.log("📄 RecentReports - Next page clicked, current:", currentPage, "total:", paginationData.totalPages);
 		setCurrentPage(prev => Math.min(prev + 1, paginationData.totalPages));
 	};
 
 	const handlePageClick = (pageNumber) => {
+		console.log("📄 RecentReports - Page number clicked:", pageNumber, "current:", currentPage);
 		setCurrentPage(pageNumber);
 	};
 

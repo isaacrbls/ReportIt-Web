@@ -740,7 +740,8 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
                         onClick={() => window.open(report.MediaURL, '_blank')}
                         onError={(e) => {
                           e.target.style.display = 'none';
-                          e.target.nextElementSibling.textContent = 'Failed to load image';
+                          e.target.nextElementSibling.textContent = 'Image not accessible - stored locally on mobile device';
+                          e.target.nextElementSibling.className = 'text-sm text-orange-600 text-center mt-2 font-medium';
                         }}
                       />
                       <p className="text-sm text-gray-600 text-center mt-2">Click image to view full size</p>

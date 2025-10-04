@@ -41,7 +41,7 @@ export default function ReportList({
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [reports]);
+  }, [reports?.length, statusFilter]);
 
   const handlePreviousPage = () => {
     setCurrentPage(prev => Math.max(prev - 1, 1));

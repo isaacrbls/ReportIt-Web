@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Search, Plus, LogOut, CheckCircle, XCircle, LayoutDashboard, BarChart2, FileText, ShieldAlert } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { collection, getDocs, onSnapshot, query, orderBy } from "firebase/firestore";
@@ -125,28 +125,35 @@ console.log("👤 Reports page - Current user:", user);
 
   console.log("📊 Reports page - Total reports loaded:", reports.length);
 
-  const filteredReports = reports.filter((report) => {
-    const searchTerm = search.trim().toLowerCase();
-    const matchesSearch =
-      report?.id?.toString?.().toLowerCase?.().includes(searchTerm) ||
-      report?.IncidentType?.toString?.().toLowerCase?.().includes(searchTerm) ||
-      report?.Description?.toString?.().toLowerCase?.().includes(searchTerm) ||
-      report?.Barangay?.toString?.().toLowerCase?.().includes(searchTerm);
+  const filteredReports = useMemo(() => {
+    return reports.filter((report) => {
+      const searchTerm = search.trim().toLowerCase();
+      const matchesSearch =
+        report?.id?.toString?.().toLowerCase?.().includes(searchTerm) ||
+        report?.IncidentType?.toString?.().toLowerCase?.().includes(searchTerm) ||
+        report?.Description?.toString?.().toLowerCase?.().includes(searchTerm) ||
+        report?.Barangay?.toString?.().toLowerCase?.().includes(searchTerm);
 
-    const normalizedStatus = (report?.Status ?? "").toString().toLowerCase().trim();
-    const effectiveStatus = normalizedStatus || "pending";
-    const matchesStatus = statusFilter === "all" || effectiveStatus === statusFilter;
+      const normalizedStatus = (report?.Status ?? "").toString().toLowerCase().trim();
+      const effectiveStatus = normalizedStatus || "pending";
+      const matchesStatus = statusFilter === "all" || effectiveStatus === statusFilter;
 
-    const matchesBarangay = userBarangay ? report?.Barangay === userBarangay : false;
+      const matchesBarangay = userBarangay ? report?.Barangay === userBarangay : false;
 
-    const canViewSensitive = isAdmin || !report?.isSensitive;
+      const canViewSensitive = isAdmin || !report?.isSensitive;
 
-    if (report?.id) {
-      console.log(`🔍 Report ${report.id}: Barangay="${report?.Barangay}" vs UserBarangay="${userBarangay}" = ${matchesBarangay}, Sensitive=${report?.isSensitive}, CanView=${canViewSensitive}`);
-    }
+      if (report?.id) {
+        console.log(`🔍 Report ${report.id}: Barangay="${report?.Barangay}" vs UserBarangay="${userBarangay}" = ${matchesBarangay}, Sensitive=${report?.isSensitive}, CanView=${canViewSensitive}`);
+      }
 
-    return matchesSearch && matchesStatus && matchesBarangay && canViewSensitive;
-  });
+      return matchesSearch && matchesStatus && matchesBarangay && canViewSensitive;
+    }).sort((a, b) => {
+      // Sort by DateTime in descending order (latest first)
+      const dateA = a.DateTime ? new Date(a.DateTime.seconds ? a.DateTime.seconds * 1000 : a.DateTime) : new Date(0);
+      const dateB = b.DateTime ? new Date(b.DateTime.seconds ? b.DateTime.seconds * 1000 : b.DateTime) : new Date(0);
+      return dateB - dateA;
+    });
+  }, [reports, search, statusFilter, userBarangay, isAdmin]);
 
   console.log("🔍 Reports page - Filtered reports count:", filteredReports.length);
   console.log("🔍 Reports page - All reports:", reports.map(r => ({ id: r.id, barangay: r.Barangay, status: r.Status })));
@@ -608,6 +615,7 @@ console.log("👤 Reports page - Current user:", user);
             {userBarangay ? (
               <>
                 <ReportList
+                  key={`${search}-${statusFilter}-${userBarangay}`}
                   reports={filteredReports}
                   onVerify={handleVerify}
                   onReject={handleReject}

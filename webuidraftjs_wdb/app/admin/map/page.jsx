@@ -179,7 +179,7 @@ export default function Page() {
                 )}
                 <div className="mt-4 text-sm text-muted-foreground">
                   <p>
-                    <strong>Instructions:</strong> Click the "Pin Incident" button to add a new incident. Click on
+                    <strong>Instructions:</strong> Click the "Refresh Page" button to reload all data (like pressing F5). Click on
                     hotspots (colored circles) to view area details. Click on markers to view incident details.
                   </p>
                 </div>
