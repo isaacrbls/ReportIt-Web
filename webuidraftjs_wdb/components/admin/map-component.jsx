@@ -281,7 +281,7 @@ export default function MapComponent({
 					const incident = {
 						id: doc.id,
 						location: [data.Latitude, data.Longitude],
-						title: data.IncidentType || "Incident",
+						title: data.Title || data.IncidentType || "Incident",
 						description: data.Description || "No description available",
 						category: data.IncidentType || "Other",
 						risk: determineRiskLevel(data.IncidentType),
@@ -292,7 +292,8 @@ export default function MapComponent({
 						isSensitive: data.isSensitive || false
 					};
 
-					if ((!barangay || data.Barangay === barangay) && data.Status === "Verified") {
+					if ((!barangay || data.Barangay === barangay) && 
+						(data.Status === "Verified" || data.Status === "Pending")) {
 						reportsData.push(incident);
 					}
 				}
@@ -399,7 +400,7 @@ export default function MapComponent({
 			const formattedIncidents = preloadedIncidents.map(report => ({
 				id: report.id,
 				location: [report.Latitude, report.Longitude],
-				title: report.IncidentType || "Incident",
+				title: report.Title || report.IncidentType || "Incident",
 				description: report.Description || "No description available",
 				category: report.IncidentType || "Other",
 				risk: determineRiskLevel(report.IncidentType),
@@ -448,12 +449,13 @@ export default function MapComponent({
 			}).addTo(mapInstanceRef.current)
 
 			const popupContent = `
-				<div class="p-3 min-w-[200px]">
-					<h3 class="font-semibold text-base mb-2 text-gray-800">${incident.title}</h3>
-					<p class="text-xs text-gray-600 mb-2">
+				<div class="p-4 min-w-[220px]">
+					<h3 class="font-semibold text-lg mb-2 text-gray-800">${incident.title}</h3>
+					<p class="text-sm text-gray-600 mb-3">${incident.category}</p>
+					<p class="text-xs text-gray-600 mb-3">
 						${incident.date} at ${incident.time}
 					</p>
-					<div class="flex items-center gap-2 mb-3">
+					<div class="flex items-center gap-2 mb-3 flex-wrap">
 						<span class="px-2 py-1 rounded-md bg-${
 							incident.risk === "High" ? "red" : incident.risk === "Medium" ? "orange" : "green"
 						}-100 text-${
@@ -461,6 +463,11 @@ export default function MapComponent({
 						}-700 text-xs font-medium border border-${
 							incident.risk === "High" ? "red" : incident.risk === "Medium" ? "orange" : "green"
 						}-300">${incident.risk} Risk</span>
+						<span class="px-2 py-1 rounded-md border text-xs font-medium ${
+							incident.status === "Verified" ? "bg-green-100 text-green-700 border-green-300" :
+							incident.status === "Pending" ? "bg-white text-black border-gray-300" :
+							"bg-red-100 text-red-700 border-red-300"
+						}">${incident.status}</span>
 						${incident.isSensitive ? '<span class="px-2 py-1 rounded-md bg-orange-100 text-orange-700 text-xs font-medium border border-orange-300">Sensitive</span>' : ''}
 					</div>
 					<p class="text-sm text-gray-700 mb-2">${incident.description}</p>
@@ -602,7 +609,7 @@ export default function MapComponent({
 					incidentsToRender = preloadedIncidents.map(report => ({
 						id: report.id,
 						location: [report.Latitude, report.Longitude],
-						title: report.IncidentType || "Incident",
+						title: report.Title || report.IncidentType || "Incident",
 						description: report.Description || "No description available",
 						category: report.IncidentType || "Other",
 						risk: determineRiskLevel(report.IncidentType),
@@ -625,12 +632,13 @@ export default function MapComponent({
 
 					if (showPopups) {
 						const popupContent = `
-							<div class="p-3 min-w-[200px]">
-								<h3 class="font-semibold text-base mb-2 text-gray-800">${incident.title}</h3>
-								<p class="text-xs text-gray-600 mb-2">
+							<div class="p-4 min-w-[220px]">
+								<h3 class="font-semibold text-lg mb-2 text-gray-800">${incident.title}</h3>
+								<p class="text-sm text-gray-600 mb-3">${incident.category}</p>
+								<p class="text-xs text-gray-600 mb-3">
 									${incident.date} at ${incident.time}
 								</p>
-								<div class="flex items-center gap-2 mb-3">
+								<div class="flex items-center gap-2 mb-3 flex-wrap">
 									<span class="px-2 py-1 rounded-md bg-${
 										incident.risk === "High" ? "red" : incident.risk === "Medium" ? "orange" : "green"
 									}-100 text-${
@@ -638,6 +646,11 @@ export default function MapComponent({
 									}-700 text-xs font-medium border border-${
 										incident.risk === "High" ? "red" : incident.risk === "Medium" ? "orange" : "green"
 									}-300">${incident.risk} Risk</span>
+									<span class="px-2 py-1 rounded-md border text-xs font-medium ${
+										incident.status === "Verified" ? "bg-green-100 text-green-700 border-green-300" :
+										incident.status === "Pending" ? "bg-white text-black border-gray-300" :
+										"bg-red-100 text-red-700 border-red-300"
+									}">${incident.status}</span>
 									${incident.isSensitive ? '<span class="px-2 py-1 rounded-md bg-orange-100 text-orange-700 text-xs font-medium border border-orange-300">Sensitive</span>' : ''}
 								</div>
 								<p class="text-sm text-gray-700 mb-2">${incident.description}</p>
@@ -716,10 +729,17 @@ export default function MapComponent({
 								<p class="text-xs text-muted-foreground">
 									${newIncident.date} at ${newIncident.time}
 								</p>
-								<div class="mt-1 rounded-full px-2 py-0.5 text-center text-xs font-medium bg-${
-									newIncident.risk === "High" ? "red" : newIncident.risk === "Medium" ? "yellow" : "green"
-								}-100 text-${newIncident.risk === "High" ? "red" : newIncident.risk === "Medium" ? "yellow" : "green"}-800">
-									${newIncident.risk} Risk
+								<div class="flex items-center gap-2 mt-1 flex-wrap">
+									<div class="rounded-full px-2 py-0.5 text-center text-xs font-medium bg-${
+										newIncident.risk === "High" ? "red" : newIncident.risk === "Medium" ? "yellow" : "green"
+									}-100 text-${newIncident.risk === "High" ? "red" : newIncident.risk === "Medium" ? "yellow" : "green"}-800">
+										${newIncident.risk} Risk
+									</div>
+									${newIncident.status ? `<span class="px-2 py-1 rounded-md border text-xs font-medium ${
+										newIncident.status === "Verified" ? "bg-green-100 text-green-700 border-green-300" :
+										newIncident.status === "Pending" ? "bg-white text-black border-gray-300" :
+										"bg-red-100 text-red-700 border-red-300"
+									}">${newIncident.status}</span>` : ''}
 								</div>
 								<p class="mt-1 text-sm">${newIncident.description}</p>
 							</div>

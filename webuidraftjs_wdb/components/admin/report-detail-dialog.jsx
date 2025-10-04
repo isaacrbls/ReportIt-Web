@@ -22,7 +22,7 @@ const MapWithNoSSR = dynamic(() => import("./map-component"), {
 
 ;
 
-export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onReject, onDelete, onEdit }) {
+export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onReject, onDelete, onEdit, categories = [] }) {
   const [rejectionReason, setRejectionReason] = useState("")
   const [isRejecting, setIsRejecting] = useState(false)
   const [isVerifying, setIsVerifying] = useState(false)
@@ -123,6 +123,9 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
     const onMapClickProp = isEditMode && isEditingPin ? handleMapClick : undefined;
     
     if (reportLocation && reportLocation.length === 2) {
+      // Prepare the report data for the map component
+      const reportForMap = [currentReportData || report];
+      
       return (
         <MapWithNoSSR
           key={`report-map-${mapKey}`}
@@ -134,6 +137,7 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
           showPopups={false}
           barangay={mapBarangay}
           newIncidentLocation={reportLocation}
+          preloadedIncidents={reportForMap}
           addingIncident={addingIncidentProp}
           onMapClick={onMapClickProp}
         />
@@ -154,7 +158,8 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
         Title: reportToEdit.Title || reportToEdit.IncidentType || "",
         IncidentType: reportToEdit.IncidentType || "",
         Description: reportToEdit.Description || "",
-        Barangay: reportToEdit.Barangay || ""
+        Barangay: reportToEdit.Barangay || "",
+        isSensitive: reportToEdit.isSensitive || false
       })
       
       if (reportToEdit.Latitude && reportToEdit.Longitude) {
@@ -662,8 +667,7 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
               )}
               
               {}
-              <div className="flex items-center mb-4 gap-2">
-                <span className="font-bold text-lg text-[#F14B51]">Title:</span>
+              <div className="mb-4">
                 {isEditMode ? (
                   <Input
                     value={editedReport.Title || ""}
@@ -672,7 +676,7 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
                     className={`flex-1 ${!editedReport.Title?.trim() && error ? 'border-red-500 focus:ring-red-500' : ''}`}
                   />
                 ) : (
-                  <div className="text-lg font-bold">
+                  <div className="text-2xl font-bold text-gray-800 mb-3">
                     {(currentReportData || report)?.Title || formattedReport?.title}
                   </div>
                 )}
@@ -688,6 +692,7 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
                     className={`flex-1 border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#F14B51] ${!editedReport.IncidentType?.trim() && error ? 'border-red-500 focus:ring-red-500' : ''}`}
                   >
                     <option value="">Select type of incident</option>
+                    {/* Default categories */}
                     <option value="Theft">Theft</option>
                     <option value="Reports/Agreement">Reports/Agreement</option>
                     <option value="Accident">Accident</option>
@@ -703,9 +708,22 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
                     <option value="Drugs Addiction">Drugs Addiction</option>
                     <option value="Missing Person">Missing Person</option>
                     <option value="Others">Others</option>
+                    {/* Custom categories */}
+                    {categories.length > 0 && (
+                      <>
+                        <option disabled>── Custom Categories ──</option>
+                        {categories.map((category, index) => (
+                          <option key={index} value={category.name || category}>
+                            {category.name || category}
+                          </option>
+                        ))}
+                      </>
+                    )}
                   </select>
                 ) : (
-                  <span>{formattedReport?.category}</span>
+                  <div className="text-lg text-gray-600 mb-6">
+                    {formattedReport?.category}
+                  </div>
                 )}
               </div>
               
@@ -775,6 +793,21 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
                   value={formattedReport?.description || "No description provided"}
                   readOnly
                 />
+              )}
+              
+              {isEditMode && (
+                <div className="flex items-center gap-3 mb-4">
+                  <input
+                    type="checkbox"
+                    id="sensitive-checkbox"
+                    checked={editedReport.isSensitive || false}
+                    onChange={(e) => setEditedReport({...editedReport, isSensitive: e.target.checked})}
+                    className="w-4 h-4 text-[#F14B51] border-gray-300 rounded focus:ring-[#F14B51] focus:ring-2"
+                  />
+                  <label htmlFor="sensitive-checkbox" className="text-sm font-medium text-gray-700">
+                    Mark as Sensitive
+                  </label>
+                </div>
               )}
               
               {}
@@ -923,11 +956,6 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
               <div className="w-full bg-white border border-gray-200 rounded-lg p-4 mb-3">
                 <div className="flex items-center gap-2 mb-2">
                   <h3 className="font-medium text-sm text-[#F14B51]">{stableDisplayData?.title}</h3>
-                  {stableDisplayData?.isSensitive && (
-                    <span className="px-2 py-0.5 rounded-md bg-orange-100 text-orange-600 text-xs font-medium border border-orange-300">
-                      Sensitive
-                    </span>
-                  )}
                 </div>
                 <p className="text-xs text-gray-600 mb-1">
                   {stableDisplayData?.date} at {stableDisplayData?.time}

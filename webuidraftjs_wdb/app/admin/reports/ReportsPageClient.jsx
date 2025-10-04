@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { Search, Plus, LogOut, CheckCircle, XCircle, LayoutDashboard, BarChart2, FileText, ShieldAlert } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { collection, getDocs, onSnapshot, query, orderBy } from "firebase/firestore";
+import { collection, getDocs, onSnapshot, query, orderBy, addDoc, deleteDoc, doc } from "firebase/firestore";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -45,6 +45,27 @@ export default function ReportsPageClient() {
       setReports(reportsData);
     });
     return () => unsubscribe();
+  }, []);
+
+  // Load categories from Firebase
+  useEffect(() => {
+    const loadCategories = async () => {
+      try {
+        const categoriesRef = collection(db, "customCategories");
+        const q = query(categoriesRef, orderBy("createdAt", "desc"));
+        const querySnapshot = await getDocs(q);
+        const loadedCategories = querySnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        setCategories(loadedCategories);
+        console.log("📂 Loaded categories from Firebase:", loadedCategories.length);
+      } catch (error) {
+        console.error("Error loading categories:", error);
+      }
+    };
+    
+    loadCategories();
   }, []);
 
 const userEmail = user?.email || "";
@@ -634,6 +655,7 @@ console.log("👤 Reports page - Current user:", user);
               report={selectedReport}
               open={isDialogOpen}
               onOpenChange={setIsDialogOpen}
+              categories={categories}
               onVerify={handleVerify}
               onReject={handleReject}
               onDelete={(reportId) => {
@@ -649,11 +671,49 @@ console.log("👤 Reports page - Current user:", user);
               open={isAddDialogOpen}
               onOpenChange={setIsAddDialogOpen}
               categories={categories}
-              onSave={({ name, keywords }) => {
-                setCategories((prev) => [...prev, { name, keywords }]);
+              onSave={async ({ name, keywords }) => {
+                try {
+                  // Save to Firebase
+                  const categoriesRef = collection(db, "customCategories");
+                  const newCategory = {
+                    name,
+                    keywords,
+                    createdAt: new Date(),
+                    createdBy: user?.email || "unknown"
+                  };
+                  const docRef = await addDoc(categoriesRef, newCategory);
+                  
+                  // Update local state
+                  setCategories((prev) => [...prev, { id: docRef.id, ...newCategory }]);
+                  
+                  console.log("✅ Category saved to Firebase:", name);
+                } catch (error) {
+                  console.error("Error saving category:", error);
+                  alert("Failed to save category. Please try again.");
+                }
               }}
-              onDelete={(categoryName) => {
-                setCategories((prev) => prev.filter(cat => (cat.name || cat) !== categoryName));
+              onDelete={async (categoryName) => {
+                try {
+                  // Find the category to delete
+                  const categoryToDelete = categories.find(cat => (cat.name || cat) === categoryName);
+                  if (!categoryToDelete) {
+                    console.error("Category not found:", categoryName);
+                    return;
+                  }
+                  
+                  // Delete from Firebase
+                  if (categoryToDelete.id) {
+                    await deleteDoc(doc(db, "customCategories", categoryToDelete.id));
+                  }
+                  
+                  // Update local state
+                  setCategories((prev) => prev.filter(cat => (cat.name || cat) !== categoryName));
+                  
+                  console.log("🗑️ Category deleted from Firebase:", categoryName);
+                } catch (error) {
+                  console.error("Error deleting category:", error);
+                  alert("Failed to delete category. Please try again.");
+                }
               }}
             />
           </div>

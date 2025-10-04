@@ -145,7 +145,7 @@ export default function Page() {
           <TabsContent value="heatmap" className="mt-4">
             <Card>
               <CardHeader>
-                <CardTitle>Crime Hotspots</CardTitle>
+                <CardTitle>Incident Hotspots</CardTitle>
                 <CardDescription>Visualizing high-risk areas based on crime frequency and ML analysis</CardDescription>
               </CardHeader>
               <CardContent>

@@ -131,7 +131,7 @@ export default function AnalyticsPage() {
         <div className="bg-white rounded-2xl border p-6 shadow-sm mb-6">
           <div className="flex justify-between items-start mb-6">
             <div>
-              <h2 className="text-2xl font-bold text-red-500 mb-1">Crime Analytics Dashboard</h2>  
+              <h2 className="text-2xl font-bold text-red-500 mb-1">Incident Analytics Dashboard</h2>  
               <p className="text-gray-400">Comprehensive view of incident data in {barangay === 'All' ? 'all areas' : barangay}</p>
             </div>
             <div className="flex gap-3">
@@ -188,7 +188,7 @@ export default function AnalyticsPage() {
         </div>
         
         <div className="bg-white rounded-2xl border p-6 shadow-sm">
-          <h2 className="text-2xl font-bold text-red-500 mb-1">Crime Hotspots</h2>
+          <h2 className="text-2xl font-bold text-red-500 mb-1">Incident Hotspots</h2>
           <p className="text-gray-400 mb-4">All active hotspots from the map for {barangay === 'All' ? 'all areas' : barangay}</p>
           
           {isLoading || loadingHotspotNames ? (
