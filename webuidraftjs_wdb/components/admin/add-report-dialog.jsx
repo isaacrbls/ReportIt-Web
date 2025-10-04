@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { Dialog, DialogContent, DialogTitle } from "../ui/dialog";
 import dynamic from "next/dynamic";
 import { useCurrentUser } from "@/hooks/use-current-user";
+import { useHybridReports } from "@/contexts/HybridReportsContext";
 import { db, storage } from "@/firebase";
 import { collection, addDoc, serverTimestamp, GeoPoint } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
@@ -51,6 +52,7 @@ export default function AddReportDialog({ open, onClose, barangay, categories = 
   ];
 
   const { user } = useCurrentUser();
+  const { createReport, error: hybridError, setError: setHybridError } = useHybridReports();
 
   console.log("🎯 AddReportDialog - Received barangay prop:", barangay);
   console.log("👤 AddReportDialog - Current user:", user?.email);
@@ -96,94 +98,30 @@ export default function AddReportDialog({ open, onClose, barangay, categories = 
   };
 
   const submitReport = async (skipMedia = false) => {
-
     try {
       setAddingIncident(true);
-      console.log("🚀 Starting report submission...");
-      console.log("📁 Media file:", mediaFile?.name, "Type:", mediaFile?.type);
-
-      let mediaUrl = null;
-      let uploadedMediaType = null;
-
-      if (mediaFile && !skipMedia) {
-        console.log("📤 Uploading media file...");
-        console.log("📊 File size:", (mediaFile.size / 1024 / 1024).toFixed(2), "MB");
-
-        if (mediaFile.size > 10 * 1024 * 1024) {
-          throw new Error("File size too large. Please select a file smaller than 10MB.");
-        }
-        
-        const timestamp = Date.now();
-        const extension = mediaFile.name?.split(".").pop() || "bin";
-        const path = `reports/${timestamp}_${mediaType || "file"}.${extension}`;
-        console.log("📍 Upload path:", path);
-        
-        const storageRef = ref(storage, path);
-
-        try {
-          console.log("🔄 Attempting upload...");
-          await uploadBytes(storageRef, mediaFile, { 
-            contentType: mediaFile.type,
-            customMetadata: {
-              'uploadedBy': user?.email || 'unknown',
-              'timestamp': timestamp.toString()
-            }
-          });
-          
-          mediaUrl = await getDownloadURL(storageRef);
-          uploadedMediaType = mediaType || (mediaFile.type?.startsWith("video") ? "video" : "photo");
-          console.log("✅ Media uploaded successfully:", mediaUrl);
-        } catch (uploadError) {
-          console.error("❌ Upload failed:", uploadError);
-          if (uploadError.code === 'storage/retry-limit-exceeded') {
-            throw new Error("Upload timeout. Please check your internet connection and try again with a smaller file.");
-          } else if (uploadError.code === 'storage/unauthorized') {
-            throw new Error("Upload permission denied. Please contact administrator.");
-          } else if (uploadError.code === 'storage/quota-exceeded') {
-            throw new Error("Storage quota exceeded. Please contact administrator.");
-          } else {
-            throw new Error(`Upload failed: ${uploadError.message}`);
-          }
-        }
-      }
+      setError("");
+      setHybridError(null);
+      console.log("� Starting hybrid report submission...");
 
       const [lat, lng] = incidentLocation;
-      const payload = {
-        Title: title.trim(),
-        IncidentType: incidentType.trim(),
-        Description: description.trim(),
-        Barangay: barangay || "",
-        Latitude: lat,
-        Longitude: lng,
-        GeoLocation: new GeoPoint(lat, lng),
-        DateTime: useCustomTime && customDateTime ? new Date(customDateTime) : serverTimestamp(),
-        Status: "Verified",
-        hasMedia: !!mediaUrl,
-        MediaType: uploadedMediaType,
-        MediaURL: mediaUrl,
-        SubmittedByEmail: user?.email || null,
+      const reportData = {
+        title: title.trim(),
+        incidentType: incidentType.trim(),
+        description: description.trim(),
+        barangay: barangay || "",
+        latitude: lat,
+        longitude: lng,
+        mediaFile: skipMedia ? null : mediaFile,
+        mediaType: mediaType,
         isSensitive: isSensitive,
+        useCustomTime: useCustomTime,
+        customDateTime: customDateTime
       };
-      console.log("💾 Saving to Firestore:", payload);
-      await addDoc(collection(db, "reports"), payload);
-      console.log("✅ Report saved successfully!");
 
-      const apiBase = process.env.NEXT_PUBLIC_API_URL;
-      if (apiBase) {
-        const formData = new FormData();
-        formData.append("title", title.trim());
-        formData.append("incident_type", incidentType.trim());
-        formData.append("description", description.trim());
-        formData.append("barangay", barangay || "");
-        formData.append("latitude", String(lat));
-        formData.append("longitude", String(lng));
-        if (mediaFile) {
-          formData.append("media", mediaFile);
-          formData.append("media_type", uploadedMediaType || "");
-        }
-        if (user?.email) formData.append("submitted_by_email", user.email);
-        fetch(`${apiBase}/api/reports/`, { method: "POST", body: formData }).catch(() => {});
-      }
+      // Use hybrid context to create report (saves to both Firebase and Django)
+      await createReport(reportData, true); // enableDual = true
+      console.log("✅ Report saved successfully via hybrid context!");
 
       setTitle("");
       setIncidentType("");

@@ -4,7 +4,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "@/firebase";
-import Sidebar from "@/components/admin/Sidebar";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
