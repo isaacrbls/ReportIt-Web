@@ -1,9 +1,6 @@
-import ReportsPageClient from "./ReportsPageClient";
+"use client";
 
-export const metadata = {
-  title: "Reports Management - ReportIt Admin",
-  description: "Manage and verify crime reports",
-};
+import ReportsPageClient from "./ReportsPageClient";
 
 export default function ReportsPage() {
   return <ReportsPageClient />;

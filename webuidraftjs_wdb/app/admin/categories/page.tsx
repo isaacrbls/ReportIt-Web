@@ -1,10 +1,6 @@
-import type { Metadata } from "next"
-import CategoriesPageClient from "./CategoriesPageClient"
+"use client";
 
-export const metadata: Metadata = {
-  title: "Categories Management - ReportIt Admin",
-  description: "Manage crime categories and keywords for machine learning categorization",
-}
+import CategoriesPageClient from "./CategoriesPageClient"
 
 export default function CategoriesPage() {
   return <CategoriesPageClient />
