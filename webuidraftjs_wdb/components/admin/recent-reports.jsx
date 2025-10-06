@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
-import { CheckCircle, XCircle, ChevronLeft, ChevronRight } from "lucide-react";
+import { CheckCircle, XCircle, ChevronLeft, ChevronRight, Brain, Shield, AlertTriangle } from "lucide-react";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { isUserAdmin } from "@/lib/userMapping";
@@ -10,6 +10,12 @@ import { useReports } from "@/contexts/ReportsContext";
 import { doc, updateDoc } from "firebase/firestore";
 import { db } from "@/firebase";
 import { reverseGeocode } from "@/lib/mapUtils";
+import { 
+  generateMockMLData, 
+  getRiskBadge, 
+  getConfidenceBadge, 
+  getPriorityBadge 
+} from "@/lib/mlUtils";
 import "@/styles/recent-reports-custom.css";
 
 export function RecentReports({ 
@@ -30,6 +36,43 @@ export function RecentReports({
 	const isAdmin = isUserAdmin(user?.email);
 
 	const allReports = singleReport ? [singleReport] : getReportsByBarangay(barangay);
+
+	// Helper function to get ML data for a report (either from backend or generate mock)
+	const getReportMLData = (report) => {
+		// If report has ML data from backend, use it
+		if (report.ml_processed && report.ml_predicted_category) {
+			return {
+				ml_predicted_category: report.ml_predicted_category,
+				ml_confidence: report.ml_confidence || 0.5,
+				risk_level: report.risk_level || 'medium',
+				priority: report.priority || 'medium',
+				ml_processed: true
+			};
+		}
+
+		// Check for Firebase field names (PascalCase) and map to expected format
+		// Reports use Priority field for risk level
+		const riskLevel = report.RiskLevel || report.Priority || report.risk_level || 'medium';
+		const priority = report.Priority || report.priority || 'medium';
+		
+		console.log("🔍 Report fields:", { 
+			RiskLevel: report.RiskLevel, 
+			Priority: report.Priority,
+			risk_level: report.risk_level, 
+			priority: report.priority,
+			mapped_risk: riskLevel,
+			mapped_priority: priority
+		});
+
+		// Return the mapped values
+		return {
+			ml_predicted_category: report.ml_predicted_category || 'Others',
+			ml_confidence: report.ml_confidence || 0.5,
+			risk_level: riskLevel.toLowerCase(),
+			priority: priority.toLowerCase(),
+			ml_processed: true
+		};
+	};
 
 	useEffect(() => {
 		console.log("📄 RecentReports - Resetting page to 1 due to change in reports length/barangay/filter");
@@ -274,6 +317,43 @@ export function RecentReports({
 								<span className="text-sm text-gray-400">• Has media</span>
 							)}
 						</div>
+
+						{/* ML Features: Risk, Priority, and Confidence Badges */}
+						{(() => {
+							const mlData = getReportMLData(report);
+							const riskBadge = getRiskBadge(mlData.risk_level);
+							const confidenceBadge = getConfidenceBadge(mlData.ml_confidence);
+							const priorityBadge = getPriorityBadge(mlData.priority);
+
+							return (
+								<div className="flex flex-wrap items-center gap-2 mb-3 px-1 md:px-2">
+									{/* Risk Badge */}
+									<span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${riskBadge.bg} ${riskBadge.text}`}>
+										<Shield className="h-3 w-3" />
+										{riskBadge.label}
+									</span>
+
+									{/* Priority Badge */}
+									<span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border ${priorityBadge.bg} ${priorityBadge.text} ${priorityBadge.border}`}>
+										<AlertTriangle className="h-3 w-3" />
+										{priorityBadge.label}
+									</span>
+
+									{/* ML Confidence Badge */}
+									<span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${confidenceBadge.bg} ${confidenceBadge.text}`}>
+										<Brain className="h-3 w-3" />
+										{confidenceBadge.label}
+									</span>
+
+									{/* Predicted Category (if different from incident type) */}
+									{mlData.ml_predicted_category && mlData.ml_predicted_category !== (report.IncidentType || report.incident_type) && (
+										<span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+											ML: {mlData.ml_predicted_category}
+										</span>
+									)}
+								</div>
+							);
+						})()}
 						<div className="flex flex-row gap-3 items-center mt-2 px-1 md:px-2 pb-1">
 							{/* Show verify/reject buttons for pending reports (handle various case formats) */}
 							{(report.Status?.toLowerCase?.() === "pending" || 

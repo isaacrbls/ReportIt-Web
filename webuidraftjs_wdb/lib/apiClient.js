@@ -200,6 +200,24 @@ class HybridApiClient {
     return await this.request('/analytics/stats/');
   }
 
+  // ML Methods
+  async getMLMetrics() {
+    return await this.request('/ml/metrics/');
+  }
+
+  async processReportML(reportData) {
+    return await this.request('/ml/process-report/', {
+      method: 'POST',
+      body: JSON.stringify(reportData),
+    });
+  }
+
+  async batchProcessReports() {
+    return await this.request('/ml/batch-process/', {
+      method: 'POST',
+    });
+  }
+
   logout() {
     this.setToken(null);
     localStorage.removeItem('refresh_token');

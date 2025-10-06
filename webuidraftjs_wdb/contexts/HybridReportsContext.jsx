@@ -106,12 +106,21 @@ export const HybridReportsProvider = ({ children }) => {
         DateTime: reportData.useCustomTime && reportData.customDateTime 
           ? new Date(reportData.customDateTime) 
           : serverTimestamp(),
-        Status: "Pending",
+        Status: reportData.status || "Pending", // Use provided status or default to Pending
         hasMedia: !!mediaUrl,
         MediaType: uploadedMediaType,
         MediaURL: mediaUrl,
         SubmittedByEmail: user?.email || null,
         isSensitive: reportData.isSensitive || false,
+        Priority: reportData.priority || "Low",
+        RiskLevel: reportData.riskLevel || "Low",
+        // Add verification fields if provided
+        ...(reportData.verified_by_email && {
+          verified_by_email: reportData.verified_by_email,
+          verified_at: reportData.verified_at,
+          auto_verified: reportData.auto_verified,
+          verification_reason: reportData.verification_reason
+        })
       };
 
       // Save to Firebase
@@ -131,6 +140,14 @@ export const HybridReportsProvider = ({ children }) => {
           djangoPayload.append("media_type", uploadedMediaType || "");
           djangoPayload.append("submitted_by_email", user?.email || "");
           djangoPayload.append("is_sensitive", reportData.isSensitive || false);
+          djangoPayload.append("status", reportData.status || "Pending");
+          djangoPayload.append("priority", reportData.priority || "Low");
+          djangoPayload.append("risk_level", reportData.riskLevel || "Low");
+          
+          // Add verification timestamp if provided (and status is Verified)
+          if (reportData.verified_at && reportData.status === 'Verified') {
+            djangoPayload.append("verified_at", reportData.verified_at);
+          }
           
           if (reportData.mediaFile) {
             djangoPayload.append("media", reportData.mediaFile);

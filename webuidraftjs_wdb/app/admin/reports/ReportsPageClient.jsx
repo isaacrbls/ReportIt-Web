@@ -22,6 +22,7 @@ import { useCurrentUser } from "@/hooks/use-current-user";
 import { getUserBarangay, isUserAdmin } from "@/lib/userMapping";
 import { updateReportStatus, formatReportForDisplay } from "@/lib/reportUtils";
 import { reverseGeocode } from "@/lib/mapUtils";
+import { apiClient } from "@/lib/apiClient";
 
 export default function ReportsPageClient() {
   const [reports, setReports] = useState([]);
@@ -35,6 +36,8 @@ export default function ReportsPageClient() {
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [hotspots, setHotspots] = useState([]);
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+  const [riskLevelFilter, setRiskLevelFilter] = useState("all");
+  const [predictedCategoryFilter, setPredictedCategoryFilter] = useState("all");
   const router = useRouter();
   const { user } = useCurrentUser();
 
@@ -71,7 +74,7 @@ export default function ReportsPageClient() {
 const userEmail = user?.email || "";
 const userBarangay = getUserBarangay(userEmail);
 const isAdmin = isUserAdmin(userEmail);
-console.log("👤 Reports page - Current user:", user);
+  console.log("👤 Reports page - Current user:", user);
   console.log("📧 Reports page - User email:", userEmail);
   console.log("🏘️ Reports page - Mapped barangay:", userBarangay);
   console.log("🔐 Reports page - Is admin:", isAdmin);
@@ -153,28 +156,55 @@ console.log("👤 Reports page - Current user:", user);
         report?.id?.toString?.().toLowerCase?.().includes(searchTerm) ||
         report?.IncidentType?.toString?.().toLowerCase?.().includes(searchTerm) ||
         report?.Description?.toString?.().toLowerCase?.().includes(searchTerm) ||
-        report?.Barangay?.toString?.().toLowerCase?.().includes(searchTerm);
+        report?.Barangay?.toString?.().toLowerCase?.().includes(searchTerm) ||
+        report?.ml_predicted_category?.toString?.().toLowerCase?.().includes(searchTerm);
 
       const normalizedStatus = (report?.Status ?? "").toString().toLowerCase().trim();
       const effectiveStatus = normalizedStatus || "pending";
       const matchesStatus = statusFilter === "all" || effectiveStatus === statusFilter;
+
+      // ML-based risk level filter - use same logic as display badges
+      // Helper function to get ML data (same as in RecentReports component)
+      const getReportMLData = (report) => {
+        // If report has ML data from backend, use it
+        if (report.ml_processed && report.ml_predicted_category) {
+          return {
+            risk_level: report.risk_level || 'medium'
+          };
+        }
+
+        // Check for Firebase field names - reports use Priority field for risk level
+        const riskLevel = report.RiskLevel || report.Priority || report.risk_level || 'medium';
+        return {
+          risk_level: riskLevel.toLowerCase()
+        };
+      };
+
+      const mlData = getReportMLData(report);
+      const reportRiskLevel = mlData.risk_level;
+      
+      const matchesRiskLevel = riskLevelFilter === "all" || reportRiskLevel === riskLevelFilter;
+
+      // Incident category filter  
+      const reportCategory = report?.IncidentType || '';
+      const matchesPredictedCategory = predictedCategoryFilter === "all" || reportCategory === predictedCategoryFilter;
 
       const matchesBarangay = userBarangay ? report?.Barangay === userBarangay : false;
 
       const canViewSensitive = isAdmin || !report?.isSensitive;
 
       if (report?.id) {
-        console.log(`🔍 Report ${report.id}: Barangay="${report?.Barangay}" vs UserBarangay="${userBarangay}" = ${matchesBarangay}, Sensitive=${report?.isSensitive}, CanView=${canViewSensitive}`);
+        console.log(`🔍 Report ${report.id}: Barangay="${report?.Barangay}" vs UserBarangay="${userBarangay}" = ${matchesBarangay}, Sensitive=${report?.isSensitive}, CanView=${canViewSensitive}, Risk=${reportRiskLevel}, Category=${reportCategory}`);
       }
 
-      return matchesSearch && matchesStatus && matchesBarangay && canViewSensitive;
+      return matchesSearch && matchesStatus && matchesRiskLevel && matchesPredictedCategory && matchesBarangay && canViewSensitive;
     }).sort((a, b) => {
       // Sort by DateTime in descending order (latest first)
       const dateA = a.DateTime ? new Date(a.DateTime.seconds ? a.DateTime.seconds * 1000 : a.DateTime) : new Date(0);
       const dateB = b.DateTime ? new Date(b.DateTime.seconds ? b.DateTime.seconds * 1000 : b.DateTime) : new Date(0);
       return dateB - dateA;
     });
-  }, [reports, search, statusFilter, userBarangay, isAdmin]);
+  }, [reports, search, statusFilter, riskLevelFilter, predictedCategoryFilter, userBarangay, isAdmin]);
 
   console.log("🔍 Reports page - Filtered reports count:", filteredReports.length);
   console.log("🔍 Reports page - All reports:", reports.map(r => ({ id: r.id, barangay: r.Barangay, status: r.Status })));
@@ -623,6 +653,38 @@ console.log("👤 Reports page - Current user:", user);
               <option value="verified">Verified</option>
               <option value="rejected">Rejected</option>
             </select>
+            <select
+              className="border rounded-lg px-4 py-2 text-base text-gray-700 bg-white"
+              value={riskLevelFilter}
+              onChange={(e) => setRiskLevelFilter(e.target.value)}
+            >
+              <option value="all">All Risk Levels</option>
+              <option value="high">High Risk</option>
+              <option value="medium">Medium Risk</option>
+              <option value="low">Low Risk</option>
+            </select>
+            <select
+              className="border rounded-lg px-4 py-2 text-base text-gray-700 bg-white"
+              value={predictedCategoryFilter}
+              onChange={(e) => setPredictedCategoryFilter(e.target.value)}
+            >
+              <option value="all">All Categories</option>
+              <option value="Theft">Theft</option>
+              <option value="Reports/Agreement">Reports/Agreement</option>
+              <option value="Accident">Accident</option>
+              <option value="Debt / Unpaid Wages Report">Debt / Unpaid Wages Report</option>
+              <option value="Defamation Complaint">Defamation Complaint</option>
+              <option value="Assault/Harassment">Assault/Harassment</option>
+              <option value="Property Damage/Incident">Property Damage/Incident</option>
+              <option value="Animal Incident">Animal Incident</option>
+              <option value="Verbal Abuse and Threats">Verbal Abuse and Threats</option>
+              <option value="Alarm and Scandal">Alarm and Scandal</option>
+              <option value="Lost Items">Lost Items</option>
+              <option value="Scam/Fraud">Scam/Fraud</option>
+              <option value="Drugs Addiction">Drugs Addiction</option>
+              <option value="Missing Person">Missing Person</option>
+              <option value="Others">Others</option>
+            </select>
           </div>
           <div className="bg-white rounded-2xl border p-6 shadow-sm">
             <h2 className="text-2xl font-bold text-red-600 mb-1">
@@ -635,6 +697,7 @@ console.log("👤 Reports page - Current user:", user);
             </p>
             {userBarangay ? (
               <>
+
                 <ReportList
                   key={`${search}-${statusFilter}-${userBarangay}`}
                   reports={filteredReports}

@@ -10,6 +10,7 @@ import { StatsCards } from "@/components/admin/stats-cards";
 import { HighRiskAreasDialog } from "../../components/admin/high-risk-areas-dialog.jsx";
 import { ReportDetailDialog } from "@/components/admin/report-detail-dialog.jsx";
 import LogoutConfirmationModal from "@/components/admin/LogoutConfirmationModal";
+import { MLModelHealthWidget } from "@/components/admin/ml-model-health-widget";
 import { useRouter } from "next/navigation";
 import React from "react";
 import Image from "next/image";
@@ -135,10 +136,7 @@ export default function AdminDashboard() {
             <div className="text-3xl font-bold">{highRiskCount}</div>
           </div>
           {}
-          <div className="rounded-lg bg-red-500 text-white shadow-md p-6 flex flex-col items-start">
-            <div className="text-sm font-medium mb-2">ML Prediction Accuracy</div>
-            <div className="text-3xl font-bold">81%</div>
-          </div>
+          <MLModelHealthWidget />
         </div>
 
         {}

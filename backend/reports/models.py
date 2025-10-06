@@ -29,6 +29,18 @@ class Report(models.Model):
         ('photo', 'Photo'),
         ('video', 'Video'),
     ]
+    
+    PRIORITY_CHOICES = [
+        ('High', 'High'),
+        ('Medium', 'Medium'),
+        ('Low', 'Low'),
+    ]
+    
+    RISK_LEVEL_CHOICES = [
+        ('High', 'High'),
+        ('Medium', 'Medium'),
+        ('Low', 'Low'),
+    ]
 
     title = models.CharField(max_length=200, default="")
     incident_type = models.CharField(max_length=200)
@@ -46,6 +58,8 @@ class Report(models.Model):
     has_media = models.BooleanField(default=False)
     verified_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='verified_reports')
     verified_at = models.DateTimeField(null=True, blank=True)
+    priority = models.CharField(max_length=10, choices=PRIORITY_CHOICES, default='Low')
+    risk_level = models.CharField(max_length=10, choices=RISK_LEVEL_CHOICES, default='Low')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

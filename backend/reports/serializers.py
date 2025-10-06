@@ -24,7 +24,7 @@ class ReportSerializer(serializers.ModelSerializer):
             'id', 'title', 'incident_type', 'description', 'barangay', 'latitude', 'longitude',
             'media', 'media_type', 'media_url', 'status', 'submitted_by', 'submitted_by_email', 
             'submitted_by_username', 'is_sensitive', 'has_media', 'verified_by', 'verified_by_username',
-            'verified_at', 'created_at', 'updated_at', 'actions'
+            'verified_at', 'priority', 'risk_level', 'created_at', 'updated_at', 'actions'
         ]
         read_only_fields = ['submitted_by', 'verified_by', 'verified_at', 'has_media']
 
@@ -44,5 +44,5 @@ class ReportListSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'title', 'incident_type', 'barangay', 'latitude', 'longitude',
             'status', 'submitted_by_email', 'submitted_by_username', 'is_sensitive', 
-            'has_media', 'created_at'
+            'has_media', 'priority', 'risk_level', 'created_at'
         ]

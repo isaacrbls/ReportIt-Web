@@ -1,13 +1,17 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogTitle } from "../ui/dialog";
+import { Badge } from "../ui/badge";
+import { Button } from "../ui/button";
+import { AlertTriangle, CheckCircle } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useHybridReports } from "@/contexts/HybridReportsContext";
 import { db, storage } from "@/firebase";
 import { collection, addDoc, serverTimestamp, GeoPoint } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+
 
 const MapWithNoSSR = dynamic(() => import("./map-component"), {
   ssr: false,
@@ -27,6 +31,8 @@ export default function AddReportDialog({ open, onClose, barangay, categories = 
   const [isSensitive, setIsSensitive] = useState(false);
   const [useCustomTime, setUseCustomTime] = useState(false);
   const [customDateTime, setCustomDateTime] = useState("");
+  
+
 
   const defaultCategories = [
     "Theft",
@@ -56,6 +62,31 @@ export default function AddReportDialog({ open, onClose, barangay, categories = 
 
   console.log("🎯 AddReportDialog - Received barangay prop:", barangay);
   console.log("👤 AddReportDialog - Current user:", user?.email);
+
+  // Priority and Risk Level mapping based on incident types
+  const getPriorityAndRisk = (incidentType) => {
+    const mappings = {
+      'Theft': { priority: 'High', riskLevel: 'High' },
+      'Assault/Harassment': { priority: 'High', riskLevel: 'High' },
+      'Drugs Addiction': { priority: 'High', riskLevel: 'High' },
+      'Missing Person': { priority: 'High', riskLevel: 'High' },
+      'Scam/Fraud': { priority: 'High', riskLevel: 'Medium' },
+      'Accident': { priority: 'Medium', riskLevel: 'High' },
+      'Property Damage/Incident': { priority: 'Medium', riskLevel: 'Medium' },
+      'Verbal Abuse and Threats': { priority: 'Medium', riskLevel: 'Medium' },
+      'Alarm and Scandal': { priority: 'Medium', riskLevel: 'Low' },
+      'Defamation Complaint': { priority: 'Medium', riskLevel: 'Low' },
+      'Reports/Agreement': { priority: 'Low', riskLevel: 'Low' },
+      'Debt / Unpaid Wages Report': { priority: 'Low', riskLevel: 'Low' },
+      'Animal Incident': { priority: 'Low', riskLevel: 'Medium' },
+      'Lost Items': { priority: 'Low', riskLevel: 'Low' },
+      'Others': { priority: 'Low', riskLevel: 'Low' }
+    };
+
+    return mappings[incidentType] || { priority: 'Low', riskLevel: 'Low' };
+  };
+
+
 
   const handleFileChange = (e) => {
     if (e.target.files && e.target.files[0]) {
@@ -105,6 +136,14 @@ export default function AddReportDialog({ open, onClose, barangay, categories = 
       console.log("� Starting hybrid report submission...");
 
       const [lat, lng] = incidentLocation;
+      
+      // Get priority and risk level based on incident type
+      const { priority, riskLevel } = getPriorityAndRisk(incidentType.trim());
+      console.log("🎯 Incident Type:", incidentType.trim());
+      console.log("📊 Assigned Priority:", priority);
+      console.log("⚠️ Assigned Risk Level:", riskLevel);
+      
+      // Report data
       const reportData = {
         title: title.trim(),
         incidentType: incidentType.trim(),
@@ -116,7 +155,18 @@ export default function AddReportDialog({ open, onClose, barangay, categories = 
         mediaType: mediaType,
         isSensitive: isSensitive,
         useCustomTime: useCustomTime,
-        customDateTime: customDateTime
+        customDateTime: customDateTime,
+        
+        // Priority and Risk Level based on incident type
+        priority: priority,
+        riskLevel: riskLevel,
+        
+        // Auto-verification for admin-created reports
+        status: 'Verified',
+        verified_by_email: user?.email,
+        verified_at: new Date().toISOString(),
+        auto_verified: true,
+        verification_reason: 'Auto-verified: Created by admin'
       };
 
       // Use hybrid context to create report (saves to both Firebase and Django)
@@ -186,6 +236,17 @@ export default function AddReportDialog({ open, onClose, barangay, categories = 
               placeholder="Describe the incident"
             />
           </div>
+
+          {/* Auto-verification notice */}
+          <div className="mb-4 p-3 bg-green-50 border-l-4 border-green-400 rounded">
+            <div className="flex items-center gap-2">
+              <CheckCircle className="h-4 w-4 text-green-600" />
+              <span className="text-sm font-medium text-green-800">
+                Auto-verification: Report will be marked as verified upon creation
+              </span>
+            </div>
+          </div>
+
           <div className="mb-4">
             <label className="flex items-center gap-2 text-sm font-medium cursor-pointer">
               <input
