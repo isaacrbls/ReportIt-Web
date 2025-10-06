@@ -29,6 +29,9 @@ export const getRiskLevel = (category, confidence = 0.5) => {
  * Get risk badge component with appropriate styling
  */
 export const getRiskBadge = (riskLevel) => {
+  // Normalize the risk level to lowercase for consistent matching
+  const normalizedRiskLevel = (riskLevel || 'low').toString().toLowerCase();
+  
   const styles = {
     high: {
       bg: 'bg-red-100',
@@ -47,7 +50,7 @@ export const getRiskBadge = (riskLevel) => {
     }
   };
 
-  return styles[riskLevel] || styles.low;
+  return styles[normalizedRiskLevel] || styles.low;
 };
 
 /**
@@ -95,6 +98,9 @@ export const getPriorityLevel = (riskLevel, confidence) => {
  * Get priority badge styling
  */
 export const getPriorityBadge = (priority) => {
+  // Normalize the priority to lowercase for consistent matching
+  const normalizedPriority = (priority || 'medium').toString().toLowerCase();
+  
   const styles = {
     high: {
       bg: 'bg-red-50',
@@ -119,7 +125,7 @@ export const getPriorityBadge = (priority) => {
     }
   };
 
-  return styles[priority] || styles.medium;
+  return styles[normalizedPriority] || styles.medium;
 };
 
 /**

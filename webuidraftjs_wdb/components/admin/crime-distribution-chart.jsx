@@ -1,15 +1,18 @@
 "use client";
 
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { collection, onSnapshot } from "firebase/firestore";
 import { db } from "@/firebase";
 import { useCurrentUser } from "@/hooks/use-current-user";
+import { ChevronDown, ChevronUp } from "lucide-react";
 
 export function CrimeDistributionChart({ timePeriod = "all", sortBy = "count", sortOrder = "desc" }) {
   const [chartData, setChartData] = useState([]);
   const [reports, setReports] = useState([]);
+  const [isLegendOpen, setIsLegendOpen] = useState(false);
   const { user } = useCurrentUser();
+  const dropdownRef = useRef(null);
 
   const userBarangayMap = {
     "testpinagbakahan@example.com": "Pinagbakahan",
@@ -221,6 +224,21 @@ export function CrimeDistributionChart({ timePeriod = "all", sortBy = "count", s
 
     return () => unsubscribe();
   }, [user, timePeriod, sortBy, sortOrder]);
+
+  // Handle clicking outside the dropdown to close it
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsLegendOpen(false);
+      }
+    }
+
+    if (isLegendOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [isLegendOpen]);
+
   const CustomTooltip = ({ active, payload }) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
@@ -241,7 +259,7 @@ export function CrimeDistributionChart({ timePeriod = "all", sortBy = "count", s
                       timePeriod === "yearly" ? "this year" : "all time";
     
     return (
-      <div className="h-[400px] flex items-center justify-center">
+      <div className="h-[500px] flex items-center justify-center">
         <div className="text-center text-gray-500">
           <p className="text-lg font-medium">No incident data available for {periodText}</p>
           <p className="text-sm">Chart will update when reports are available</p>
@@ -256,26 +274,79 @@ export function CrimeDistributionChart({ timePeriod = "all", sortBy = "count", s
   }
 
   return (
-    <div className="h-[400px]">
-      <ResponsiveContainer width="100%" height="100%">
-        <PieChart>
-          <Pie
-            data={chartData}
-            cx="50%"
-            cy="50%"
-            labelLine={false}
-            outerRadius={120}
-            fill="#8884d8"
-            dataKey="value"
-            label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-          >
-            {chartData.map((entry, index) => (
-              <Cell key={`cell-${index}`} fill={entry.color} />
-            ))}
-          </Pie>
-          <Tooltip content={<CustomTooltip />} />
-        </PieChart>
-      </ResponsiveContainer>
+    <div className="h-[500px] flex flex-col">
+      {/* Pie Chart */}
+      <div className="h-[350px] mb-4">
+        <ResponsiveContainer width="100%" height="100%">
+          <PieChart>
+            <Pie
+              data={chartData}
+              cx="50%"
+              cy="50%"
+              labelLine={false}
+              outerRadius={120}
+              fill="#8884d8"
+              dataKey="value"
+              label={false} // Remove labels from chart
+            >
+              {chartData.map((entry, index) => (
+                <Cell key={`cell-${index}`} fill={entry.color} />
+              ))}
+            </Pie>
+            <Tooltip content={<CustomTooltip />} />
+          </PieChart>
+        </ResponsiveContainer>
+      </div>
+      
+      {/* Collapsible Legend below the chart */}
+      <div className="px-4 relative" ref={dropdownRef}>
+        <button
+          onClick={() => setIsLegendOpen(!isLegendOpen)}
+          className="w-full flex items-center justify-center gap-2 p-3 rounded-lg border border-gray-200 hover:bg-gray-50 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+        >
+          <h4 className="text-sm font-medium text-gray-700">
+            Incident Distribution ({chartData.length} categories)
+          </h4>
+          {isLegendOpen ? (
+            <ChevronUp className="w-4 h-4 text-gray-500 transition-transform duration-200" />
+          ) : (
+            <ChevronDown className="w-4 h-4 text-gray-500 transition-transform duration-200" />
+          )}
+        </button>
+        
+        {/* Dropdown overlay that appears above other content */}
+        {isLegendOpen && (
+          <div className="absolute top-full left-0 right-0 z-50 mt-2 bg-white border border-gray-200 rounded-lg shadow-lg animate-in slide-in-from-top-2 duration-300">
+            <div className="p-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 text-xs max-h-80 overflow-y-auto">
+                {chartData.map((item, index) => (
+                  <div 
+                    key={index}
+                    className="flex items-center gap-2 p-3 rounded-md hover:bg-gray-50 transition-colors cursor-pointer border border-gray-100 group"
+                    title={`${item.name}: ${item.count} incidents (${item.value}%)`}
+                  >
+                    <div 
+                      className="w-4 h-4 rounded-sm flex-shrink-0 border border-gray-200 group-hover:border-gray-300 transition-colors"
+                      style={{ backgroundColor: item.color }}
+                    />
+                    <span className="text-gray-700 truncate font-medium flex-1">
+                      {item.name}
+                    </span>
+                    <div className="flex flex-col items-end">
+                      <span className="text-gray-900 font-semibold">
+                        {item.value}%
+                      </span>
+                      <span className="text-gray-500 text-xs">
+                        {item.count} incidents
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

@@ -395,7 +395,19 @@ export default function HeatmapComponent({
         };
 
         const strategyLabel = getStrategyLabel(data.visualStrategy, data.incidentCount);
-        const riskLevelText = data.riskLevel.charAt(0).toUpperCase() + data.riskLevel.slice(1);
+        
+        // Use proper risk level formatting
+        const getRiskLevelText = (riskLevel) => {
+          const levelMap = {
+            'critical': 'Critical Risk',
+            'high': 'High Risk',
+            'medium': 'Medium Risk',
+            'low': 'Low Risk'
+          };
+          return levelMap[riskLevel] || 'Unknown Risk';
+        };
+        
+        const riskLevelText = getRiskLevelText(data.riskLevel);
         const riskIcon = data.riskLevel === 'critical' ? '🚨' :
                         data.riskLevel === 'high' ? '⚠️' :
                         data.riskLevel === 'medium' ? '⚡' : '📍';

@@ -168,7 +168,7 @@ export default function AnalyticsPage() {
           </div>
           
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <div>
+            <div className="relative">
               <h3 className="text-lg font-semibold text-gray-800 mb-4">Incident Type Distribution</h3>
               <CrimeDistributionChart 
                 timePeriod={timePeriod} 
@@ -176,7 +176,7 @@ export default function AnalyticsPage() {
                 sortOrder={sortOrder}
               />
             </div>
-            <div>
+            <div className="relative">
               <h3 className="text-lg font-semibold text-gray-800 mb-4">Incident Trends Over Time</h3>
               <IncidentTrendChart 
                 timePeriod={timePeriod}
@@ -229,7 +229,7 @@ export default function AnalyticsPage() {
                               ? 'bg-orange-100 text-orange-600 border-orange-200'
                               : 'bg-yellow-100 text-yellow-600 border-yellow-200'
                           }`}>
-                            {hotspot.riskLevel} Risk
+                            {hotspot.riskLevel.charAt(0).toUpperCase() + hotspot.riskLevel.slice(1)} Risk
                           </span>
                         </div>
                         <div className="text-gray-700 text-base">

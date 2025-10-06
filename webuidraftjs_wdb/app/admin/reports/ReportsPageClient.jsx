@@ -166,18 +166,43 @@ const isAdmin = isUserAdmin(userEmail);
       // ML-based risk level filter - use same logic as display badges
       // Helper function to get ML data (same as in RecentReports component)
       const getReportMLData = (report) => {
-        // If report has ML data from backend, use it
-        if (report.ml_processed && report.ml_predicted_category) {
+        // If report has ML data from backend with confidence > 0.5, use it
+        if (report.ml_processed && report.ml_predicted_category && report.ml_confidence && report.ml_confidence > 0.5) {
           return {
             risk_level: report.risk_level || 'medium'
           };
         }
 
-        // Check for Firebase field names - reports use Priority field for risk level
-        const riskLevel = report.RiskLevel || report.Priority || report.risk_level || 'medium';
+        // Fallback to manual assignment based on incident type (same as RecentReports)
+        const incidentType = report.IncidentType || report.incident_type || '';
+        const manualResult = getManualPriorityAndRisk(incidentType);
+        
         return {
-          risk_level: riskLevel.toLowerCase()
+          risk_level: manualResult.riskLevel.toLowerCase()
         };
+      };
+
+      // Manual priority and risk assignment function (same as RecentReports)
+      const getManualPriorityAndRisk = (incidentType) => {
+        const mappings = {
+          'Theft': { priority: 'High', riskLevel: 'High', confidence: 0.85 },
+          'Assault/Harassment': { priority: 'High', riskLevel: 'High', confidence: 0.90 },
+          'Drugs Addiction': { priority: 'High', riskLevel: 'High', confidence: 0.88 },
+          'Missing Person': { priority: 'High', riskLevel: 'High', confidence: 0.92 },
+          'Scam/Fraud': { priority: 'High', riskLevel: 'Medium', confidence: 0.75 },
+          'Accident': { priority: 'Medium', riskLevel: 'High', confidence: 0.80 },
+          'Property Damage/Incident': { priority: 'Medium', riskLevel: 'Medium', confidence: 0.70 },
+          'Verbal Abuse and Threats': { priority: 'Medium', riskLevel: 'Medium', confidence: 0.72 },
+          'Alarm and Scandal': { priority: 'Medium', riskLevel: 'Low', confidence: 0.65 },
+          'Defamation Complaint': { priority: 'Medium', riskLevel: 'Low', confidence: 0.68 },
+          'Reports/Agreement': { priority: 'Low', riskLevel: 'Low', confidence: 0.60 },
+          'Debt / Unpaid Wages Report': { priority: 'Low', riskLevel: 'Low', confidence: 0.62 },
+          'Animal Incident': { priority: 'Low', riskLevel: 'Medium', confidence: 0.55 },
+          'Lost Items': { priority: 'Low', riskLevel: 'Low', confidence: 0.50 },
+          'Others': { priority: 'Low', riskLevel: 'Low', confidence: 0.45 }
+        };
+
+        return mappings[incidentType] || { priority: 'Low', riskLevel: 'Low', confidence: 0.45 };
       };
 
       const mlData = getReportMLData(report);

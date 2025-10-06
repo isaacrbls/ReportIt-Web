@@ -147,7 +147,7 @@ export default function MapComponent({
 								Risk Level: <span class="font-medium ${
 									hotspot.riskLevel === 'high' ? 'text-red-600' :
 									hotspot.riskLevel === 'medium' ? 'text-orange-600' : 'text-yellow-600'
-								}">${hotspot.riskLevel.toUpperCase()}</span>
+								}">${hotspot.riskLevel.charAt(0).toUpperCase() + hotspot.riskLevel.slice(1)}</span>
 							</p>
 							<p class="text-xs text-gray-600">
 								${hotspot.incidentCount} incidents in ${hotspot.radius}m radius
