@@ -10,6 +10,7 @@ import { useReports } from "@/contexts/ReportsContext";
 import { doc, updateDoc } from "firebase/firestore";
 import { db } from "@/firebase";
 import { reverseGeocode } from "@/lib/mapUtils";
+import apiClient from "@/lib/apiClient";
 import { 
   generateMockMLData, 
   getRiskBadge, 
@@ -31,46 +32,102 @@ export function RecentReports({
 	const [actionStatus, setActionStatus] = useState({}); 
 	const [currentPage, setCurrentPage] = useState(1);
 	const [resolvedAddresses, setResolvedAddresses] = useState({});
+	const [mlDataCache, setMlDataCache] = useState({});
 	const { user } = useCurrentUser();
 	const { reports, getReportsByBarangay } = useReports();
 	const isAdmin = isUserAdmin(user?.email);
 
 	const allReports = singleReport ? [singleReport] : getReportsByBarangay(barangay);
 
-	// Helper function to get ML data for a report (either from backend or generate mock)
-	const getReportMLData = (report) => {
-		// If report has ML data from backend, use it
-		if (report.ml_processed && report.ml_predicted_category) {
+	// Helper function to get ML data for a report (either from backend or process with ML API)
+	const getReportMLData = async (report) => {
+		// If report has ML data from backend with confidence > 0.5, use it
+		if (report.ml_processed && report.ml_predicted_category && report.ml_confidence && report.ml_confidence > 0.5) {
+			console.log("📊 Using existing ML data:", report.ml_confidence);
 			return {
 				ml_predicted_category: report.ml_predicted_category,
-				ml_confidence: report.ml_confidence || 0.5,
+				ml_confidence: report.ml_confidence,
 				risk_level: report.risk_level || 'medium',
 				priority: report.priority || 'medium',
 				ml_processed: true
 			};
 		}
 
-		// Check for Firebase field names (PascalCase) and map to expected format
-		// Reports use Priority field for risk level
-		const riskLevel = report.RiskLevel || report.Priority || report.risk_level || 'medium';
-		const priority = report.Priority || report.priority || 'medium';
-		
-		console.log("🔍 Report fields:", { 
-			RiskLevel: report.RiskLevel, 
-			Priority: report.Priority,
-			risk_level: report.risk_level, 
-			priority: report.priority,
-			mapped_risk: riskLevel,
-			mapped_priority: priority
-		});
+		// If no reliable ML data, process with ML API to get real confidence
+		try {
+			console.log("🤖 Processing report with ML API...");
+			const mlResult = await apiClient.processReportML({
+				title: report.Title || report.title || '',
+				description: report.Description || report.description || '',
+				incident_type: report.IncidentType || report.incident_type || ''
+			});
 
-		// Return the mapped values
+			console.log("✅ ML processing result:", mlResult);
+			return {
+				ml_predicted_category: mlResult.ml_predicted_category,
+				ml_confidence: mlResult.ml_confidence,
+				risk_level: mlResult.risk_level,
+				priority: mlResult.priority,
+				ml_processed: true
+			};
+		} catch (error) {
+			console.error('❌ ML processing failed:', error);
+			
+			// Fallback to manual assignment based on incident type
+			const incidentType = report.IncidentType || report.incident_type || '';
+			const manualResult = getManualPriorityAndRisk(incidentType);
+			
+			console.log("� Using manual classification:", manualResult);
+			return {
+				ml_predicted_category: incidentType || 'Others',
+				ml_confidence: manualResult.confidence,
+				risk_level: manualResult.riskLevel.toLowerCase(),
+				priority: manualResult.priority.toLowerCase(),
+				ml_processed: false
+			};
+		}
+	};
+
+	// Manual priority and risk assignment function
+	const getManualPriorityAndRisk = (incidentType) => {
+		const mappings = {
+			'Theft': { priority: 'High', riskLevel: 'High', confidence: 0.85 },
+			'Assault/Harassment': { priority: 'High', riskLevel: 'High', confidence: 0.90 },
+			'Drugs Addiction': { priority: 'High', riskLevel: 'High', confidence: 0.88 },
+			'Missing Person': { priority: 'High', riskLevel: 'High', confidence: 0.92 },
+			'Scam/Fraud': { priority: 'High', riskLevel: 'Medium', confidence: 0.75 },
+			'Accident': { priority: 'Medium', riskLevel: 'High', confidence: 0.80 },
+			'Property Damage/Incident': { priority: 'Medium', riskLevel: 'Medium', confidence: 0.70 },
+			'Verbal Abuse and Threats': { priority: 'Medium', riskLevel: 'Medium', confidence: 0.72 },
+			'Alarm and Scandal': { priority: 'Medium', riskLevel: 'Low', confidence: 0.65 },
+			'Defamation Complaint': { priority: 'Medium', riskLevel: 'Low', confidence: 0.68 },
+			'Reports/Agreement': { priority: 'Low', riskLevel: 'Low', confidence: 0.60 },
+			'Debt / Unpaid Wages Report': { priority: 'Low', riskLevel: 'Low', confidence: 0.62 },
+			'Animal Incident': { priority: 'Low', riskLevel: 'Medium', confidence: 0.55 },
+			'Lost Items': { priority: 'Low', riskLevel: 'Low', confidence: 0.50 },
+			'Others': { priority: 'Low', riskLevel: 'Low', confidence: 0.45 }
+		};
+
+		return mappings[incidentType] || { priority: 'Low', riskLevel: 'Low', confidence: 0.45 };
+	};
+
+	// Synchronous function to get ML data from cache or provide fallback
+	const getMLDataSync = (report) => {
+		// Try to get from cache first
+		if (mlDataCache[report.id]) {
+			return mlDataCache[report.id];
+		}
+
+		// Fallback to manual classification while ML processing is in progress
+		const incidentType = report.IncidentType || report.incident_type || '';
+		const manualResult = getManualPriorityAndRisk(incidentType);
+		
 		return {
-			ml_predicted_category: report.ml_predicted_category || 'Others',
-			ml_confidence: report.ml_confidence || 0.5,
-			risk_level: riskLevel.toLowerCase(),
-			priority: priority.toLowerCase(),
-			ml_processed: true
+			ml_predicted_category: incidentType || 'Others',
+			ml_confidence: manualResult.confidence,
+			risk_level: manualResult.riskLevel.toLowerCase(),
+			priority: manualResult.priority.toLowerCase(),
+			ml_processed: false
 		};
 	};
 
@@ -105,6 +162,42 @@ export function RecentReports({
 			resolveAddresses();
 		}
 	}, [allReports, resolvedAddresses]);
+
+	// Effect to process ML data for all reports
+	useEffect(() => {
+		const processMLData = async () => {
+			const newMLData = {};
+			
+			for (const report of allReports) {
+				if (!mlDataCache[report.id]) {
+					try {
+						const mlData = await getReportMLData(report);
+						newMLData[report.id] = mlData;
+					} catch (error) {
+						console.error(`Failed to process ML data for report ${report.id}:`, error);
+						// Use fallback data
+						const incidentType = report.IncidentType || report.incident_type || '';
+						const manualResult = getManualPriorityAndRisk(incidentType);
+						newMLData[report.id] = {
+							ml_predicted_category: incidentType || 'Others',
+							ml_confidence: manualResult.confidence,
+							risk_level: manualResult.riskLevel.toLowerCase(),
+							priority: manualResult.priority.toLowerCase(),
+							ml_processed: false
+						};
+					}
+				}
+			}
+			
+			if (Object.keys(newMLData).length > 0) {
+				setMlDataCache(prev => ({ ...prev, ...newMLData }));
+			}
+		};
+
+		if (allReports.length > 0) {
+			processMLData();
+		}
+	}, [allReports]);
 
 	const filteredReports = useMemo(() => {
 		if (!statusFilter || statusFilter === "all") return allReports;
@@ -320,7 +413,7 @@ export function RecentReports({
 
 						{/* ML Features: Risk, Priority, and Confidence Badges */}
 						{(() => {
-							const mlData = getReportMLData(report);
+							const mlData = getMLDataSync(report);
 							const riskBadge = getRiskBadge(mlData.risk_level);
 							const confidenceBadge = getConfidenceBadge(mlData.ml_confidence);
 							const priorityBadge = getPriorityBadge(mlData.priority);
