@@ -53,39 +53,16 @@ export function RecentReports({
 			};
 		}
 
-		// If no reliable ML data, process with ML API to get real confidence
-		try {
-			console.log("🤖 Processing report with ML API...");
-			const mlResult = await apiClient.processReportML({
-				title: report.Title || report.title || '',
-				description: report.Description || report.description || '',
-				incident_type: report.IncidentType || report.incident_type || ''
-			});
-
-			console.log("✅ ML processing result:", mlResult);
-			return {
-				ml_predicted_category: mlResult.ml_predicted_category,
-				ml_confidence: mlResult.ml_confidence,
-				risk_level: mlResult.risk_level,
-				priority: mlResult.priority,
-				ml_processed: true
-			};
-		} catch (error) {
-			console.error('❌ ML processing failed:', error);
-			
-			// Fallback to manual assignment based on incident type
-			const incidentType = report.IncidentType || report.incident_type || '';
-			const manualResult = getManualPriorityAndRisk(incidentType);
-			
-			console.log("� Using manual classification:", manualResult);
-			return {
-				ml_predicted_category: incidentType || 'Others',
-				ml_confidence: manualResult.confidence,
-				risk_level: manualResult.riskLevel.toLowerCase(),
-				priority: manualResult.priority.toLowerCase(),
-				ml_processed: false
-			};
-		}
+		const incidentType = report.IncidentType || report.incident_type || '';
+		const manualResult = getManualPriorityAndRisk(incidentType);
+		
+		return {
+			ml_predicted_category: incidentType || 'Others',
+			ml_confidence: manualResult.confidence,
+			risk_level: manualResult.riskLevel.toLowerCase(),
+			priority: manualResult.priority.toLowerCase(),
+			ml_processed: false
+		};
 	};
 
 	// Manual priority and risk assignment function
