@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react"
 import L from "leaflet"
 import { collection, getDocs } from "firebase/firestore"
 import { db } from "@/firebase"
-import { getMapConfig, getMapOptions, reverseGeocode } from "@/lib/mapUtils"
+import { getMapConfig, getMapOptions, reverseGeocode, filterExpiredMarkers } from "@/lib/mapUtils"
 import { getMapCoordinatesForBarangay } from "@/lib/userMapping"
 import { useCurrentUser } from "@/hooks/use-current-user"
 import { clusterIncidents } from "@/lib/clusterUtils"
@@ -103,6 +103,23 @@ export default function MapComponent({
 	const [mapError, setMapError] = useState(null)
 	const [clusters, setClusters] = useState([])
 	const cleanupTimeoutRef = useRef(null)
+
+	// Safe marker cleanup function
+	const safeCleanupMarkers = () => {
+		markersRef.current.forEach(markerData => {
+			if (markerData && markerData.marker) {
+				try {
+					// Check if marker is still on the map before removing
+					if (mapInstanceRef.current && mapInstanceRef.current.hasLayer(markerData.marker)) {
+						mapInstanceRef.current.removeLayer(markerData.marker);
+					}
+				} catch (error) {
+					console.warn('Warning during marker cleanup:', error);
+				}
+			}
+		});
+		markersRef.current = [];
+	};
 
 	const renderHotspots = (hotspotsToRender) => {
 		if (!mapInstanceRef.current || !hotspotsToRender || hotspotsToRender.length === 0) {
@@ -273,6 +290,9 @@ export default function MapComponent({
 			const querySnapshot = await getDocs(collection(db, "reports"));
 			const reportsData = [];
 			
+			// Determine if this is a dashboard view or report detail view
+			const isDashboardView = !preloadedIncidents || preloadedIncidents.length === 0;
+			
 			querySnapshot.forEach((doc) => {
 				const data = doc.data();
 				console.log("Processing report:", data);
@@ -289,7 +309,8 @@ export default function MapComponent({
 						time: formatTime(data.DateTime),
 						barangay: data.Barangay || "Unknown",
 						status: data.Status || "Pending",
-						isSensitive: data.isSensitive || false
+						isSensitive: data.isSensitive || false,
+						DateTime: data.DateTime // Include original DateTime for expiration check
 					};
 
 					if ((!barangay || data.Barangay === barangay) && 
@@ -299,8 +320,15 @@ export default function MapComponent({
 				}
 			});
 			
+			// Apply marker expiration filtering for dashboard views only
+			const filteredReports = filterExpiredMarkers(reportsData, isDashboardView);
+			
 			console.log("Found reports with geolocation:", reportsData.length);
-			setIncidents(reportsData);
+			if (isDashboardView) {
+				console.log("Filtered expired markers for dashboard:", filteredReports.length, "remaining");
+			}
+			
+			setIncidents(filteredReports);
 		} catch (error) {
 			console.error("Error fetching reports:", error);
 		}
@@ -434,12 +462,8 @@ export default function MapComponent({
 
 		if (!mapInstanceRef.current || incidents.length === 0) return;
 
-		markersRef.current.forEach(markerData => {
-			if (markerData.marker) {
-				markerData.marker.remove();
-			}
-		});
-		markersRef.current = [];
+		// Clean up existing markers safely
+		safeCleanupMarkers();
 
 	console.log("Updating markers for", incidents.length, "incidents");
 		const newMarkers = [];
@@ -482,31 +506,47 @@ export default function MapComponent({
 			// Asynchronously fetch street address and update popup
 			reverseGeocode(incident.location[0], incident.location[1])
 				.then(streetAddress => {
-					if (streetAddress && streetAddress !== 'Unknown location') {
-						const updatedContent = popupContent.replace(
-							`<strong>Location:</strong> Loading address...`,
-							`<strong>Location:</strong> ${streetAddress}`
-						);
-						marker.setPopupContent(updatedContent);
+					try {
+						if (streetAddress && streetAddress !== 'Unknown location' && marker) {
+							const updatedContent = popupContent.replace(
+								`<strong>Location:</strong> Loading address...`,
+								`<strong>Location:</strong> ${streetAddress}`
+							);
+							marker.setPopupContent(updatedContent);
+						}
+					} catch (error) {
+						console.warn('Warning updating marker popup:', error);
 					}
 				})
 				.catch(error => {
 					console.error('Failed to get street address:', error);
-					const fallbackContent = popupContent.replace(
-						`<strong>Location:</strong> Loading address...`,
-						`<strong>Location:</strong> ${incident.location[0].toFixed(4)}, ${incident.location[1].toFixed(4)}`
-					);
-					marker.setPopupContent(fallbackContent);
+					try {
+						if (marker) {
+							const fallbackContent = popupContent.replace(
+								`<strong>Location:</strong> Loading address...`,
+								`<strong>Location:</strong> ${incident.location[0].toFixed(4)}, ${incident.location[1].toFixed(4)}`
+							);
+							marker.setPopupContent(fallbackContent);
+						}
+					} catch (error) {
+						console.warn('Warning setting fallback popup content:', error);
+					}
 				});
 			
-			marker.on("click", () => {
-				if (onMarkerClick) {
-					onMarkerClick(incident)
-				}
-			})
+			try {
+				marker.on("click", () => {
+					if (onMarkerClick) {
+						onMarkerClick(incident)
+					}
+				})
+			} catch (error) {
+				console.warn('Warning setting marker click handler:', error);
+			}
 
-			markersRef.current.push({ marker, incident })
-			newMarkers.push(marker);
+			if (marker) {
+				markersRef.current.push({ marker, incident })
+				newMarkers.push(marker);
+			}
 		});
 
 		// Auto-fit bounds for regular incidents (not preloaded) - skip when adding new incident
@@ -546,6 +586,8 @@ export default function MapComponent({
 		if (mapInstanceRef.current) {
 			console.log("🧹 Cleaning up existing map instance");
 			try {
+				// Clean up markers first before removing map
+				safeCleanupMarkers();
 				mapInstanceRef.current.remove();
 			} catch (error) {
 				console.warn("Warning during map cleanup:", error);
@@ -767,6 +809,9 @@ export default function MapComponent({
 
 					cleanupTimeoutRef.current = setTimeout(() => {
 						try {
+							// Clean up markers first before removing map
+							safeCleanupMarkers();
+							
 							if (mapInstanceRef.current) {
 								mapInstanceRef.current.remove()
 								mapInstanceRef.current = null

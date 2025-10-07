@@ -285,3 +285,57 @@ export async function generateHotspotName(lat, lng, barangay) {
   // Fallback to barangay-based naming
   return `${barangay} Area (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
 }
+
+/**
+ * Checks if a report marker should be expired (older than 30 days)
+ * Used to hide markers from dashboard maps while keeping reports in lists
+ * @param {Object} dateTime - The DateTime field from the report
+ * @param {number} daysToExpire - Number of days after which markers expire (default: 30)
+ * @returns {boolean} - True if the marker should be expired/hidden
+ */
+export function isMarkerExpired(dateTime, daysToExpire = 30) {
+  if (!dateTime) return false; // If no date, don't expire
+  
+  try {
+    let reportDate;
+    
+    // Handle Firebase Timestamp objects
+    if (dateTime.seconds) {
+      reportDate = new Date(dateTime.seconds * 1000);
+    } else if (dateTime.toDate && typeof dateTime.toDate === 'function') {
+      reportDate = dateTime.toDate();
+    } else {
+      reportDate = new Date(dateTime);
+    }
+    
+    // Validate date
+    if (isNaN(reportDate.getTime())) {
+      return false; // If invalid date, don't expire
+    }
+    
+    const now = new Date();
+    const daysDifference = (now.getTime() - reportDate.getTime()) / (1000 * 60 * 60 * 24);
+    
+    return daysDifference > daysToExpire;
+  } catch (error) {
+    console.warn('Error checking marker expiration:', error);
+    return false; // If error, don't expire
+  }
+}
+
+/**
+ * Filters reports to exclude expired markers for dashboard views
+ * @param {Array} reports - Array of reports
+ * @param {boolean} isDashboard - Whether this is for dashboard view (true) or report details (false)
+ * @param {number} daysToExpire - Number of days after which markers expire (default: 30)
+ * @returns {Array} - Filtered array of reports
+ */
+export function filterExpiredMarkers(reports, isDashboard = true, daysToExpire = 30) {
+  if (!isDashboard) {
+    // For report details view, show all markers regardless of age
+    return reports;
+  }
+  
+  // For dashboard view, filter out expired markers
+  return reports.filter(report => !isMarkerExpired(report.DateTime, daysToExpire));
+}
