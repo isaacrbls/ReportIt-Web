@@ -424,7 +424,7 @@ export default function HeatmapComponent({
               <p><strong>${riskIcon} Risk Level:</strong> <span class="font-medium" style="color: ${data.color}">${riskLevelText} Risk</span></p>
               <p><strong>� Recent Activity:</strong> ${data.recentIncidents} incidents (last 7 days)</p>
               <p><strong>�📍 Coverage Area:</strong> ~${data.radius}m radius</p>
-              <p><strong>⚖️ Avg. Severity:</strong> ${Math.round(data.avgWeight * 100)}%</p>
+              <p><strong>⚖️ Avg. Severity:</strong> ${(data.avgWeight * 100).toFixed(1)}%</p>
               ${data.isHotArea ? '<p><strong>🔥 Status:</strong> <span class="text-red-600 font-medium">Active Hotspot</span></p>' : ''}
             </div>
             ${data.incidentCount > 1 ? 
@@ -441,7 +441,7 @@ export default function HeatmapComponent({
                 <strong>Incident Details:</strong><br/>
                 • Type: ${data.incidents[0].IncidentType || 'Unknown'}<br/>
                 • Date: ${data.incidents[0].DateTime ? new Date(data.incidents[0].DateTime.seconds ? data.incidents[0].DateTime.seconds * 1000 : data.incidents[0].DateTime).toLocaleDateString() : 'Unknown'}<br/>
-                • Severity: ${Math.round(calculateIncidentWeight(data.incidents[0]) * 100)}%
+                • Severity: ${(calculateIncidentWeight(data.incidents[0]) * 100).toFixed(1)}%
               </div>`
             }
             <p class="text-xs text-gray-500 mt-2 italic">

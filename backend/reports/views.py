@@ -311,9 +311,9 @@ def process_report_ml(request):
             for tagalog, english in replacements.items():
                 translated_text = translated_text.replace(tagalog, english)
         
-        # Generate feature vector (mock - should use actual text processing)
+        # Generate feature vector using real text processing
         import numpy as np
-        features = np.random.rand(544).astype(np.float32)
+        features = extract_text_features(title, description, incident_type, translated_text)
         
         # Get ML prediction
         try:

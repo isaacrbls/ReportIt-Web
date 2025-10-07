@@ -61,21 +61,21 @@ export const getConfidenceBadge = (confidence) => {
     return {
       bg: 'bg-blue-100',
       text: 'text-blue-800',
-      label: `${Math.round(confidence * 100)}% Confidence`,
+      label: `${(confidence * 100).toFixed(1)}% Confidence`,
       level: 'high'
     };
   } else if (confidence >= 0.6) {
     return {
       bg: 'bg-indigo-100',
       text: 'text-indigo-800',
-      label: `${Math.round(confidence * 100)}% Confidence`,
+      label: `${(confidence * 100).toFixed(1)}% Confidence`,
       level: 'medium'
     };
   } else {
     return {
       bg: 'bg-gray-100',
       text: 'text-gray-800',
-      label: `${Math.round(confidence * 100)}% Confidence`,
+      label: `${(confidence * 100).toFixed(1)}% Confidence`,
       level: 'low'
     };
   }
@@ -154,9 +154,9 @@ export const generateMockMLData = (incidentType, description = '') => {
     }
   }
 
-  // Add some randomness to confidence (±0.1)
+  // Add some randomness to confidence (±0.15) for more realistic decimal values
   mlData.confidence = Math.max(0.1, Math.min(0.95, 
-    mlData.confidence + (Math.random() - 0.5) * 0.2
+    mlData.confidence + (Math.random() - 0.5) * 0.3
   ));
 
   return {

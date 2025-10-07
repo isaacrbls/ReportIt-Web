@@ -210,7 +210,7 @@ export function CrimeDistributionChart({ timePeriod = "all", sortBy = "count", s
         const total = filteredReports.length;
         const chartData = sortedIncidents.map(([type, count], index) => ({
           name: type,
-          value: Math.round((count / total) * 100),
+          value: parseFloat(((count / total) * 100).toFixed(1)),
           count: count,
           color: redShades[index % redShades.length]
         }));
