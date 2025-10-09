@@ -2,9 +2,35 @@ import React from "react";
 
 export default function LogoutConfirmationModal({ open, onConfirm, onCancel }) {
   if (!open) return null;
+
+  const handleBackdropClick = (e) => {
+    if (e.target === e.currentTarget) {
+      onCancel();
+    }
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Escape') {
+      onCancel();
+    }
+  };
+
+  React.useEffect(() => {
+    if (open) {
+      document.addEventListener('keydown', handleKeyDown);
+      return () => document.removeEventListener('keydown', handleKeyDown);
+    }
+  }, [open]);
+
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black bg-opacity-20">
-      <div className="bg-white rounded-2xl shadow-lg p-10 flex flex-col items-center w-[420px]">
+    <div 
+      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black bg-opacity-20"
+      onClick={handleBackdropClick}
+    >
+      <div 
+        className="bg-white rounded-2xl shadow-lg p-10 flex flex-col items-center w-[420px]"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="text-2xl font-bold text-center mb-8 text-black">
           Are you sure you<br />want to log out?
         </div>

@@ -18,6 +18,20 @@ export const HighRiskAreasDialog = ({ open, onOpenChange, userBarangay }) => {
   const [mapIncidents, setMapIncidents] = useState([]);
   const [clusterCenter, setClusterCenter] = useState(null);
 
+  // Handle keyboard events for closing the modal
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        onOpenChange(false);
+      }
+    };
+
+    if (open) {
+      document.addEventListener('keydown', handleKeyDown);
+      return () => document.removeEventListener('keydown', handleKeyDown);
+    }
+  }, [open, onOpenChange]);
+
   useEffect(() => {
     if (!open) {
       // Reset state when dialog closes
@@ -204,23 +218,43 @@ export const HighRiskAreasDialog = ({ open, onOpenChange, userBarangay }) => {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4">
-        <div className="bg-white rounded-2xl shadow-xl w-full max-w-6xl overflow-hidden">
-          {}
-          <div className="flex items-center px-8 pt-8 pb-2">
-            <div className="flex items-center gap-3">
-              <MapPin className="text-red-600 w-8 h-8" />
-              <div>
-                <div className="text-3xl font-bold leading-tight">High Risk Areas</div>
-                <div className="text-gray-400 text-base mt-1">
-                  Areas identified as high risk based on incident analysis
+      <DialogContent 
+        className="max-w-none w-full h-full p-0 bg-transparent border-none shadow-none flex items-center justify-center overflow-y-auto"
+        onEscapeKeyDown={() => onOpenChange(false)}
+      >
+        <div className="fixed inset-0 bg-black bg-opacity-50" onClick={() => onOpenChange(false)} />
+        <div 
+          className="w-full h-full flex items-center justify-center p-4 relative z-10"
+          onClick={() => onOpenChange(false)}
+        >
+          <div 
+            className="bg-white rounded-2xl shadow-lg w-full max-w-6xl overflow-hidden relative"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Close Button */}
+            <button
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 text-xl font-bold w-6 h-6 flex items-center justify-center z-10 bg-transparent border-0 outline-0 focus:outline-0 shadow-none"
+              style={{ border: 'none', outline: 'none', boxShadow: 'none' }}
+              onClick={() => onOpenChange(false)}
+            >
+              ×
+            </button>
+            
+            {/* Header */}
+            <div className="flex items-center px-8 pt-8 pb-2">
+              <div className="flex items-center gap-3">
+                <MapPin className="text-red-600 w-8 h-8" />
+                <div>
+                  <div className="text-3xl font-bold leading-tight">High Risk Areas</div>
+                  <div className="text-gray-400 text-base mt-1">
+                    Areas identified as high risk based on incident analysis
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
 
-          {}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 px-8 py-8">
+            {/* Content */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 px-8 py-8">
             {/* Map Section */}
             <div className="bg-white rounded-xl border border-gray-200 relative overflow-hidden min-h-[420px]">
               <div className="w-full h-[420px]">
@@ -274,6 +308,7 @@ export const HighRiskAreasDialog = ({ open, onOpenChange, userBarangay }) => {
                 </div>
               </div>
             </div>
+          </div>
           </div>
         </div>
       </DialogContent>

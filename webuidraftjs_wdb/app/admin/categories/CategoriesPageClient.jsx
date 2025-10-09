@@ -606,7 +606,7 @@ export default function CategoriesPageClient() {
 
       {}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Delete Category</DialogTitle>
             <DialogDescription>

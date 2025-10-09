@@ -80,7 +80,7 @@ export function EditCategoryDialog({ open, onOpenChange, onSave, onDelete, categ
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg rounded-2xl">
+      <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto rounded-2xl">
         <DialogHeader>
           <DialogTitle className="text-3xl font-bold text-red-600">Edit Categories</DialogTitle>
           <DialogDescription className="text-gray-400">

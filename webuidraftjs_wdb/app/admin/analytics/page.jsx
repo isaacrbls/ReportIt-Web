@@ -160,6 +160,8 @@ export default function AnalyticsPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Time</SelectItem>
+                  <SelectItem value="daily">This Day</SelectItem>
+                  <SelectItem value="weekly">This Week</SelectItem>
                   <SelectItem value="monthly">This Month</SelectItem>
                   <SelectItem value="yearly">This Year</SelectItem>
                 </SelectContent>

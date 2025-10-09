@@ -736,20 +736,28 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent 
-        className="max-w-none w-full h-full p-0 bg-black bg-opacity-50 border-none shadow-none flex items-center justify-center overflow-y-auto"
+        className="max-w-none w-full h-full p-0 bg-transparent border-none shadow-none flex items-center justify-center overflow-y-auto"
         onEscapeKeyDown={() => onOpenChange(false)}
       >
+        <div className="fixed inset-0 bg-black bg-opacity-50" onClick={() => onOpenChange(false)} />
         <div 
-          className="w-full h-full flex items-center justify-center p-4"
+          className="w-full h-full flex items-center justify-center p-4 relative z-10"
           onClick={() => onOpenChange(false)}
         >
           <div 
-            className="bg-white rounded-2xl p-6 shadow-lg w-[900px] max-w-[90vw] max-h-[90vh] overflow-y-auto flex flex-col gap-6"
+            className="bg-white rounded-2xl p-6 shadow-lg w-[900px] max-w-[90vw] max-h-[90vh] overflow-y-auto flex flex-col gap-6 relative"
             onClick={(e) => e.stopPropagation()}
           >
+            <button
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 text-xl font-bold w-6 h-6 flex items-center justify-center z-10 bg-transparent border-0 outline-0 focus:outline-0 shadow-none"
+              style={{ border: 'none', outline: 'none', boxShadow: 'none' }}
+              onClick={() => onOpenChange(false)}
+            >
+              ×
+            </button>
           <div className="grid grid-cols-1 md:grid-cols-[1fr,400px] gap-6">
             <div className="min-w-[320px]">
-              <div className="flex items-center gap-3 mb-4">
+              <div className="flex items-center gap-3 mb-4 pr-8">
                 <h2 className="text-[#F14B51] text-2xl font-bold">Report Details</h2>
                 {(currentReportData || report)?.isSensitive && (
                   <span className="px-3 py-1 rounded-lg bg-orange-100 text-orange-600 border border-orange-400 text-sm font-medium">

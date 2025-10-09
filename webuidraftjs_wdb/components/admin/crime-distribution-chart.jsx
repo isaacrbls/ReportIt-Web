@@ -59,7 +59,12 @@ export function CrimeDistributionChart({ timePeriod = "all", sortBy = "count", s
       
       if (isNaN(reportDate.getTime())) return false;
       
-      if (period === "monthly") {
+      if (period === "daily") {
+        return reportDate.toDateString() === now.toDateString();
+      } else if (period === "weekly") {
+        const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        return reportDate >= oneWeekAgo && reportDate <= now;
+      } else if (period === "monthly") {
         return reportDate.getFullYear() === currentYear && 
                reportDate.getMonth() === currentMonth;
       } else if (period === "yearly") {
@@ -255,7 +260,9 @@ export function CrimeDistributionChart({ timePeriod = "all", sortBy = "count", s
   };
 
   if (chartData.length === 0) {
-    const periodText = timePeriod === "monthly" ? "this month" : 
+    const periodText = timePeriod === "daily" ? "today" :
+                      timePeriod === "weekly" ? "this week" :
+                      timePeriod === "monthly" ? "this month" : 
                       timePeriod === "yearly" ? "this year" : "all time";
     
     return (

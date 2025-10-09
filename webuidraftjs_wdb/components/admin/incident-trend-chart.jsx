@@ -43,7 +43,12 @@ export function IncidentTrendChart({ timePeriod = "all", sortBy = "count", sortO
       
       if (isNaN(reportDate.getTime())) return false;
       
-      if (period === "monthly") {
+      if (period === "daily") {
+        return reportDate.toDateString() === now.toDateString();
+      } else if (period === "weekly") {
+        const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        return reportDate >= oneWeekAgo && reportDate <= now;
+      } else if (period === "monthly") {
         return reportDate.getFullYear() === currentYear && 
                reportDate.getMonth() === currentMonth;
       } else if (period === "yearly") {
@@ -61,7 +66,21 @@ export function IncidentTrendChart({ timePeriod = "all", sortBy = "count", sortO
     const timeGroups = {};
     
     // Initialize time periods based on selected period
-    if (period === "monthly") {
+    if (period === "daily") {
+      // Generate data for each hour of today
+      for (let i = 0; i < 24; i++) {
+        const hour = String(i).padStart(2, '0');
+        const key = `${hour}:00`;
+        timeGroups[key] = { date: key, count: 0, incidents: {} };
+      }
+    } else if (period === "weekly") {
+      // Generate data for each day of the past 7 days
+      for (let i = 6; i >= 0; i--) {
+        const date = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
+        const key = date.toISOString().split('T')[0];
+        timeGroups[key] = { date: key, count: 0, incidents: {} };
+      }
+    } else if (period === "monthly") {
       // Generate data for each day of the current month
       const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
       for (let i = 1; i <= daysInMonth; i++) {
@@ -107,7 +126,12 @@ export function IncidentTrendChart({ timePeriod = "all", sortBy = "count", sortO
       }
 
       let key;
-      if (period === "monthly") {
+      if (period === "daily") {
+        const hour = String(reportDate.getHours()).padStart(2, '0');
+        key = `${hour}:00`;
+      } else if (period === "weekly") {
+        key = reportDate.toISOString().split('T')[0];
+      } else if (period === "monthly") {
         key = reportDate.toISOString().split('T')[0];
       } else {
         key = `${reportDate.getFullYear()}-${String(reportDate.getMonth() + 1).padStart(2, '0')}`;
@@ -229,7 +253,9 @@ export function IncidentTrendChart({ timePeriod = "all", sortBy = "count", sortO
   };
 
   if (chartData.length === 0) {
-    const periodText = timePeriod === "monthly" ? "this month" : 
+    const periodText = timePeriod === "daily" ? "today" :
+                      timePeriod === "weekly" ? "this week" :
+                      timePeriod === "monthly" ? "this month" : 
                       timePeriod === "yearly" ? "this year" : "all time";
     
     return (

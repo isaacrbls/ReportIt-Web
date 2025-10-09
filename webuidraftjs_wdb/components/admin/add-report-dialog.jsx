@@ -201,8 +201,15 @@ export default function AddReportDialog({ open, onClose, barangay, categories = 
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl w-full p-0 bg-transparent border-none shadow-none flex items-center justify-center min-h-screen overflow-y-auto">
-        <div className="bg-white rounded-2xl border p-10 shadow-sm w-[500px] flex flex-col items-stretch max-w-full max-h-[90vh] overflow-y-auto">
-          <DialogTitle className="text-red-500 text-2xl font-bold mb-4">Detail of report</DialogTitle>
+        <div className="bg-white rounded-2xl border p-10 shadow-sm w-[500px] flex flex-col items-stretch max-w-full max-h-[90vh] overflow-y-auto relative">
+          <button
+            className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 text-xl font-bold w-6 h-6 flex items-center justify-center bg-transparent border-0 outline-0 focus:outline-0 shadow-none"
+            style={{ border: 'none', outline: 'none', boxShadow: 'none' }}
+            onClick={() => onClose(false)}
+          >
+            ×
+          </button>
+          <DialogTitle className="text-red-500 text-2xl font-bold mb-4 pr-8">Detail of report</DialogTitle>
           <div className="mb-4">
             <label className="block text-sm font-medium mb-1">Title of report</label>
             <input
