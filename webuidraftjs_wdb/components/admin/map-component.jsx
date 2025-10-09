@@ -50,7 +50,7 @@ const createCustomIcon = (riskLevel) => {
 			case "Low":
 			case "low":
 			default:
-				return "#eab308"; // Yellow
+				return "#22c55e"; // Green
 		}
 	};
 
@@ -143,7 +143,7 @@ export default function MapComponent({
 			hotspotsToRender.forEach((hotspot, index) => {
 				const color = hotspot.riskLevel === 'high' ? '#ef4444' :     
 							  hotspot.riskLevel === 'medium' ? '#f97316' :   
-							  '#eab308';                                     
+							  '#22c55e';                                     
 				
 				console.log(`🎯 Hotspot ${index + 1}: ${hotspot.incidentCount} incidents, ${hotspot.radius}m radius, ${hotspot.riskLevel} risk at [${hotspot.lat.toFixed(4)}, ${hotspot.lng.toFixed(4)}]`);
 			
@@ -163,7 +163,7 @@ export default function MapComponent({
 							<p class="text-xs text-gray-600">
 								Risk Level: <span class="font-medium ${
 									hotspot.riskLevel === 'high' ? 'text-red-600' :
-									hotspot.riskLevel === 'medium' ? 'text-orange-600' : 'text-yellow-600'
+									hotspot.riskLevel === 'medium' ? 'text-orange-600' : 'text-green-600'
 								}">${hotspot.riskLevel.charAt(0).toUpperCase() + hotspot.riskLevel.slice(1)}</span>
 							</p>
 							<p class="text-xs text-gray-600">
@@ -773,8 +773,8 @@ export default function MapComponent({
 								</p>
 								<div class="flex items-center gap-2 mt-1 flex-wrap">
 									<div class="rounded-full px-2 py-0.5 text-center text-xs font-medium bg-${
-										newIncident.risk === "High" ? "red" : newIncident.risk === "Medium" ? "yellow" : "green"
-									}-100 text-${newIncident.risk === "High" ? "red" : newIncident.risk === "Medium" ? "yellow" : "green"}-800">
+										newIncident.risk === "High" ? "red" : newIncident.risk === "Medium" ? "orange" : "green"
+									}-100 text-${newIncident.risk === "High" ? "red" : newIncident.risk === "Medium" ? "orange" : "green"}-800">
 										${newIncident.risk} Risk
 									</div>
 									${newIncident.status ? `<span class="px-2 py-1 rounded-md border text-xs font-medium ${

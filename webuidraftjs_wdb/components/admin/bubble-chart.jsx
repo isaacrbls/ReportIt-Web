@@ -34,7 +34,7 @@ export function BubbleChart() {
       case "High":
         return "#ef4444"; 
       case "Medium":
-        return "#eab308"; 
+        return "#f97316"; 
       case "Low":
         return "#22c55e"; 
       default:

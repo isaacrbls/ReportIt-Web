@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Input } from "@/components/ui/input"
 import { updateReportStatus, formatReportForDisplay, deleteReport, updateReportDetails } from "@/lib/reportUtils"
 import { reverseGeocode } from "@/lib/mapUtils"
+import { getUserBarangay, USER_BARANGAY_MAP } from "@/lib/userMapping"
 import { useToast } from "@/hooks/use-toast"
 import { GeoPoint } from "firebase/firestore"
 
@@ -103,6 +104,29 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
     report?.Status,
     report?.SubmittedBy
   ])
+
+  // Helper function to format the submitted by display
+  const formatSubmittedBy = (email) => {
+    if (!email) return 'Unknown User'
+    
+    // Check if it's a test barangay admin email (test[barangay]@example.com)
+    const barangayMatch = email.match(/^test([a-zA-Z0-9\s]+)@example\.com$/)
+    if (barangayMatch) {
+      const barangayKey = barangayMatch[1].toLowerCase()
+      // Find the barangay name from the mapping
+      for (const [testEmail, barangayName] of Object.entries(USER_BARANGAY_MAP)) {
+        if (testEmail === email) {
+          return `Barangay ${barangayName} Admin`
+        }
+      }
+      // Fallback if not found in mapping
+      return `Barangay ${barangayMatch[1]} Admin`
+    }
+    
+    // For regular users, extract username from email (part before @)
+    const username = email.split('@')[0]
+    return username || email
+  }
 
   const mapBarangay = report?.Barangay;
   
@@ -559,7 +583,7 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
                 </div>
                 <div>
                   <div class="report-field"><strong>Status:</strong> ${(currentReportData || report)?.Status || 'Pending'}</div>
-                  <div class="report-field"><strong>Submitted by:</strong> ${formattedReport?.submittedBy}</div>
+                  <div class="report-field"><strong>Submitted by:</strong> ${formatSubmittedBy(formattedReport?.submittedBy)}</div>
                   <div class="report-field"><strong>Report ID:</strong> ${(currentReportData || report)?.id}</div>
                 </div>
               </div>
@@ -647,9 +671,19 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl w-full p-0 bg-transparent border-none shadow-none flex items-center justify-center min-h-screen overflow-y-auto">
-        <div className="bg-white rounded-2xl p-10 shadow-sm w-[900px] max-w-full max-h-[95vh] overflow-y-auto flex flex-col gap-8">
-          <div className="grid grid-cols-1 md:grid-cols-[1fr,400px] gap-8">
+      <DialogContent 
+        className="max-w-none w-full h-full p-0 bg-black bg-opacity-50 border-none shadow-none flex items-center justify-center overflow-y-auto"
+        onEscapeKeyDown={() => onOpenChange(false)}
+      >
+        <div 
+          className="w-full h-full flex items-center justify-center p-4"
+          onClick={() => onOpenChange(false)}
+        >
+          <div 
+            className="bg-white rounded-2xl p-6 shadow-lg w-[900px] max-w-[90vw] max-h-[90vh] overflow-y-auto flex flex-col gap-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+          <div className="grid grid-cols-1 md:grid-cols-[1fr,400px] gap-6">
             <div className="min-w-[320px]">
               <div className="flex items-center gap-3 mb-4">
                 <h2 className="text-[#F14B51] text-2xl font-bold">Report Details</h2>
@@ -721,9 +755,9 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
                     )}
                   </select>
                 ) : (
-                  <div className="text-lg text-gray-600 mb-6">
+                  <span className="text-gray-600">
                     {formattedReport?.category}
-                  </div>
+                  </span>
                 )}
               </div>
               
@@ -738,10 +772,10 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
                     className="flex-1"
                   />
                 ) : (
-                  <div className="flex flex-col gap-1">
-                    <span>{formattedReport?.location}</span>
+                  <div className="text-gray-600">
+                    <div>{formattedReport?.location}</div>
                     {resolvedAddress && resolvedAddress !== formattedReport?.location && (
-                      <span className="text-sm text-gray-600">{resolvedAddress}</span>
+                      <div className="text-sm text-gray-500 mt-1">{resolvedAddress}</div>
                     )}
                   </div>
                 )}
@@ -766,19 +800,19 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
                 <>
                   <div className="flex items-center gap-2 mb-4">
                     <Calendar className="w-5 h-5 text-[#F14B51]" />
-                    <span>{formattedReport?.date}</span>
+                    <span className="text-gray-600">{formattedReport?.date}</span>
                   </div>
                   
                   <div className="flex items-center gap-2 mb-4">
                     <Clock className="w-5 h-5 text-[#F14B51]" />
-                    <span>{formattedReport?.time}</span>
+                    <span className="text-gray-600">{formattedReport?.time}</span>
                   </div>
                 </>
               )}
               
               <div className="flex items-center gap-2 mb-2">
                 <FileText className="w-5 h-5 text-[#F14B51]" />
-                <span className="font-medium">Description:</span>
+                <span className="font-medium text-gray-700">Description:</span>
               </div>
               {isEditMode ? (
                 <Textarea
@@ -948,31 +982,18 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
                   </span>
                 </div>
               )}
-              <div className="w-full h-[280px] bg-[#F8E3DE] rounded-lg flex items-center justify-center overflow-hidden mb-2">
+              <div className="w-full h-[250px] bg-[#F8E3DE] rounded-lg flex items-center justify-center overflow-hidden mb-2">
                 {renderMapComponent()}
               </div>
               
-              {}
-              <div className="w-full bg-white border border-gray-200 rounded-lg p-4 mb-3">
-                <div className="flex items-center gap-2 mb-2">
-                  <h3 className="font-medium text-sm text-[#F14B51]">{stableDisplayData?.title}</h3>
-                </div>
-                <p className="text-xs text-gray-600 mb-1">
-                  {stableDisplayData?.date} at {stableDisplayData?.time}
-                </p>
-                <p className="text-xs text-gray-600 mb-1">
-                  {resolvedAddress || stableDisplayData?.location} • Status: {stableDisplayData?.status}
-                </p>
-              </div>
-              
               <div className="w-full text-center text-gray-500 text-sm">
-                Submitted by: <span className="font-semibold text-black">{stableDisplayData?.submittedBy}</span>
+                Submitted by: <span className="font-semibold text-black">{formatSubmittedBy(stableDisplayData?.submittedBy)}</span>
               </div>
             </div>
           </div>
           
           {}
-          <div className="flex justify-end mt-8 pt-6 border-t border-gray-200">
+          <div className="flex justify-end mt-6 pt-4 border-t border-gray-200">
             <button 
               className="border border-gray-400 text-gray-600 px-6 py-2 rounded-md hover:bg-gray-50 transition-colors" 
               onClick={() => onOpenChange(false)}
@@ -980,6 +1001,7 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
               Close
             </button>
           </div>
+        </div>
         </div>
       </DialogContent>
 
