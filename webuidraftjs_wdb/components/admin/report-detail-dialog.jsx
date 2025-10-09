@@ -19,6 +19,7 @@ import { trackReportRejection } from "@/lib/suspensionUtils"
 import { archiveReport } from "@/lib/archiveUtils"
 import { useToast } from "@/hooks/use-toast"
 import { GeoPoint } from "firebase/firestore"
+import { formatSubmittedBy as fetchUserDisplayName } from "@/lib/userDataUtils"
 
 const MapWithNoSSR = dynamic(() => import("./map-component"), {
   ssr: false,
@@ -47,6 +48,7 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [deletionReason, setDeletionReason] = useState("Admin deletion")
   const [resolvedAddress, setResolvedAddress] = useState("")
+  const [submittedByDisplayName, setSubmittedByDisplayName] = useState("")
   const { toast } = useToast()
 
   useEffect(() => {
@@ -83,6 +85,39 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
     }
   }, [open, report])
 
+  // Effect to fetch user display name from Realtime Database
+  useEffect(() => {
+    const loadUserDisplayName = async () => {
+      if (report?.SubmittedByEmail || report?.SubmittedBy) {
+        const email = report.SubmittedByEmail || report.SubmittedBy;
+        console.log(`🔍 Report Detail: Fetching user data for email: ${email}`);
+        
+        // Set loading state
+        setSubmittedByDisplayName('Loading...');
+        
+        try {
+          const displayName = await fetchUserDisplayName(email);
+          console.log(`✅ Report Detail: Got display name: ${displayName}`);
+          setSubmittedByDisplayName(displayName || email.split('@')[0]);
+        } catch (error) {
+          console.error('❌ Report Detail: Error fetching user display name:', error);
+          // Fallback to username from email
+          const fallbackName = email.split('@')[0] || 'Unknown User';
+          setSubmittedByDisplayName(fallbackName);
+        }
+      } else {
+        console.log('❌ Report Detail: No email found in report data');
+        setSubmittedByDisplayName('Unknown User');
+      }
+    };
+
+    if (open && report) {
+      loadUserDisplayName();
+    } else {
+      setSubmittedByDisplayName('');
+    }
+  }, [open, report])
+
   const formattedReport = useMemo(() => {
     return formatReportForDisplay(currentReportData || report)
   }, [currentReportData, report])
@@ -111,28 +146,7 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
     report?.SubmittedBy
   ])
 
-  // Helper function to format the submitted by display
-  const formatSubmittedBy = (email) => {
-    if (!email) return 'Unknown User'
-    
-    // Check if it's a test barangay admin email (test[barangay]@example.com)
-    const barangayMatch = email.match(/^test([a-zA-Z0-9\s]+)@example\.com$/)
-    if (barangayMatch) {
-      const barangayKey = barangayMatch[1].toLowerCase()
-      // Find the barangay name from the mapping
-      for (const [testEmail, barangayName] of Object.entries(USER_BARANGAY_MAP)) {
-        if (testEmail === email) {
-          return `Barangay ${barangayName} Admin`
-        }
-      }
-      // Fallback if not found in mapping
-      return `Barangay ${barangayMatch[1]} Admin`
-    }
-    
-    // For regular users, extract username from email (part before @)
-    const username = email.split('@')[0]
-    return username || email
-  }
+
 
   const mapBarangay = report?.Barangay;
   
@@ -633,7 +647,7 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
                 </div>
                 <div>
                   <div class="report-field"><strong>Status:</strong> ${(currentReportData || report)?.Status || 'Pending'}</div>
-                  <div class="report-field"><strong>Submitted by:</strong> ${formatSubmittedBy(formattedReport?.submittedBy)}</div>
+                  <div class="report-field"><strong>Submitted by:</strong> ${submittedByDisplayName || 'Unknown User'}</div>
                   <div class="report-field"><strong>Report ID:</strong> ${(currentReportData || report)?.id}</div>
                 </div>
               </div>
@@ -1037,7 +1051,7 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
               </div>
               
               <div className="w-full text-center text-gray-500 text-sm">
-                Submitted by: <span className="font-semibold text-black">{formatSubmittedBy(stableDisplayData?.submittedBy)}</span>
+                Submitted by: <span className="font-semibold text-black">{submittedByDisplayName || 'Loading...'}</span>
               </div>
             </div>
           </div>

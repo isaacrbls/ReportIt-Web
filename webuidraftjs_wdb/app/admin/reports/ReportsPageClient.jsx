@@ -24,6 +24,7 @@ import { updateReportStatus, formatReportForDisplay } from "@/lib/reportUtils";
 import { reverseGeocode } from "@/lib/mapUtils";
 import { apiClient } from "@/lib/apiClient";
 import { getArchivedReports, searchArchivedReports } from "@/lib/archiveUtils";
+import { getUserFullName } from "@/lib/userDataUtils";
 
 export default function ReportsPageClient() {
   const [reports, setReports] = useState([]);
@@ -39,12 +40,23 @@ export default function ReportsPageClient() {
   const [showAddReport, setShowAddReport] = useState(false);
   const [categories, setCategories] = useState([]);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [userDisplayNames, setUserDisplayNames] = useState({});
   const [hotspots, setHotspots] = useState([]);
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
   const [riskLevelFilter, setRiskLevelFilter] = useState("all");
   const [predictedCategoryFilter, setPredictedCategoryFilter] = useState("all");
   const router = useRouter();
   const { user } = useCurrentUser();
+  
+  // User-related variables
+  const userEmail = user?.email || "";
+  const userBarangay = getUserBarangay(userEmail);
+  const isAdmin = isUserAdmin(userEmail);
+  
+  console.log("👤 Reports page - Current user:", user);
+  console.log("📧 Reports page - User email:", userEmail);
+  console.log("🏘️ Reports page - Mapped barangay:", userBarangay);
+  console.log("🔐 Reports page - Is admin:", isAdmin);
 
   useEffect(() => {
     const q = query(collection(db, "reports"), orderBy("DateTime", "desc"));
@@ -64,6 +76,26 @@ export default function ReportsPageClient() {
           const archives = await getArchivedReports();
           setArchivedReports(archives);
           console.log("📦 Loaded archived reports:", archives.length);
+
+          // Fetch user display names for archived reports
+          const uniqueEmails = new Set();
+          archives.forEach(report => {
+            if (report.deletedBy) uniqueEmails.add(report.deletedBy);
+            if (report.SubmittedByEmail) uniqueEmails.add(report.SubmittedByEmail);
+          });
+
+          const newDisplayNames = { ...userDisplayNames };
+          for (const email of uniqueEmails) {
+            if (!newDisplayNames[email]) {
+              try {
+                newDisplayNames[email] = await getUserFullName(email);
+              } catch (error) {
+                console.error(`Error fetching display name for ${email}:`, error);
+                newDisplayNames[email] = email.split('@')[0];
+              }
+            }
+          }
+          setUserDisplayNames(newDisplayNames);
         } catch (error) {
           console.error("Error loading archived reports:", error);
         } finally {
@@ -74,6 +106,46 @@ export default function ReportsPageClient() {
     
     loadArchivedReports();
   }, [activeTab]);
+
+  // Handle archived reports search
+  useEffect(() => {
+    const handleArchiveSearch = async () => {
+      if (activeTab === "archive" && archiveSearch.trim()) {
+        setIsLoadingArchives(true);
+        try {
+          const searchResults = await searchArchivedReports(archiveSearch.trim(), userBarangay);
+          setArchivedReports(searchResults);
+
+          // Fetch user display names for search results
+          const uniqueEmails = new Set();
+          searchResults.forEach(report => {
+            if (report.deletedBy) uniqueEmails.add(report.deletedBy);
+            if (report.SubmittedByEmail) uniqueEmails.add(report.SubmittedByEmail);
+          });
+
+          const newDisplayNames = { ...userDisplayNames };
+          for (const email of uniqueEmails) {
+            if (!newDisplayNames[email]) {
+              try {
+                newDisplayNames[email] = await getUserFullName(email);
+              } catch (error) {
+                console.error(`Error fetching display name for ${email}:`, error);
+                newDisplayNames[email] = email.split('@')[0];
+              }
+            }
+          }
+          setUserDisplayNames(newDisplayNames);
+        } catch (error) {
+          console.error("Error searching archived reports:", error);
+        } finally {
+          setIsLoadingArchives(false);
+        }
+      }
+    };
+
+    const debounceTimer = setTimeout(handleArchiveSearch, 500);
+    return () => clearTimeout(debounceTimer);
+  }, [archiveSearch, activeTab, userBarangay]);
 
   // Load categories from Firebase
   useEffect(() => {
@@ -96,13 +168,6 @@ export default function ReportsPageClient() {
     loadCategories();
   }, []);
 
-const userEmail = user?.email || "";
-const userBarangay = getUserBarangay(userEmail);
-const isAdmin = isUserAdmin(userEmail);
-  console.log("👤 Reports page - Current user:", user);
-  console.log("📧 Reports page - User email:", userEmail);
-  console.log("🏘️ Reports page - Mapped barangay:", userBarangay);
-  console.log("🔐 Reports page - Is admin:", isAdmin);
   console.log("📊 Reports page - Total reports loaded:", reports.length);
 
   const calculateBarangayHotspots = (reports, barangay) => {
@@ -183,6 +248,7 @@ const isAdmin = isUserAdmin(userEmail);
       const matchesSearch = !searchTerm || (
         report?.id?.toString?.().toLowerCase?.().includes(searchTerm) ||
         report?.IncidentType?.toString?.().toLowerCase?.().includes(searchTerm) ||
+        report?.Title?.toString?.().toLowerCase?.().includes(searchTerm) ||
         report?.Description?.toString?.().toLowerCase?.().includes(searchTerm) ||
         report?.Barangay?.toString?.().toLowerCase?.().includes(searchTerm) ||
         report?.ml_predicted_category?.toString?.().toLowerCase?.().includes(searchTerm)
@@ -288,27 +354,9 @@ const isAdmin = isUserAdmin(userEmail);
     router.push("/"); 
   };
 
-  // Helper function to format the submitted by display (same as in report-detail-dialog)
-  const formatSubmittedBy = (email) => {
-    if (!email) return 'Unknown User'
-    
-    // Check if it's a test barangay admin email (test[barangay]@example.com)
-    const barangayMatch = email.match(/^test([a-zA-Z0-9\s]+)@example\.com$/)
-    if (barangayMatch) {
-      const barangayKey = barangayMatch[1].toLowerCase()
-      // Find the barangay name from the mapping
-      for (const [testEmail, barangayName] of Object.entries(USER_BARANGAY_MAP)) {
-        if (testEmail === email) {
-          return `Barangay ${barangayName} Admin`
-        }
-      }
-      // Fallback if not found in mapping
-      return `Barangay ${barangayMatch[1]} Admin`
-    }
-    
-    // For regular users, extract username from email (part before @)
-    const username = email.split('@')[0]
-    return username || email
+  // Helper function to get user display name
+  const getUserDisplayName = (email) => {
+    return userDisplayNames[email] || email?.split('@')[0] || 'Unknown User';
   };
 
   const handleGenerateMonthlyReport = async () => {
@@ -906,7 +954,7 @@ const isAdmin = isUserAdmin(userEmail);
                             </div>
                             <div className="md:text-right">
                               <span className="text-gray-500 font-medium block mb-1">Deleted by</span>
-                              <span className="text-gray-700">{formatSubmittedBy(report.deletedBy)}</span>
+                              <span className="text-gray-700">{getUserDisplayName(report.deletedBy)}</span>
                             </div>
                           </div>
                           
