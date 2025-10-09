@@ -56,14 +56,34 @@ const createCustomIcon = (riskLevel) => {
 
 	const color = getMarkerColor(riskLevel);
 	
+	// FontAwesome map marker icon (fa-map-marker-alt / fa-location-dot) with HD outline
 	const markerSvg = `
-		<svg width="25" height="41" viewBox="0 0 25 41" xmlns="http://www.w3.org/2000/svg">
-			<path d="M12.5 0C5.596 0 0 5.596 0 12.5c0 12.5 12.5 28.5 12.5 28.5s12.5-16 12.5-28.5C25 5.596 19.404 0 12.5 0z" 
-				  fill="${color}" 
-				  stroke="#ffffff" 
-				  stroke-width="2"/>
-			<circle cx="12.5" cy="12.5" r="6" fill="#ffffff"/>
-			<circle cx="12.5" cy="12.5" r="3" fill="${color}"/>
+		<svg width="34" height="50" viewBox="-10 -5 404 522" xmlns="http://www.w3.org/2000/svg">
+			<defs>
+				<filter id="shadow-${riskLevel}" x="-50%" y="-50%" width="200%" height="200%">
+					<feGaussianBlur in="SourceAlpha" stdDeviation="1.5"/>
+					<feOffset dx="0" dy="1" result="offsetblur"/>
+					<feComponentTransfer>
+						<feFuncA type="linear" slope="0.25"/>
+					</feComponentTransfer>
+					<feMerge>
+						<feMergeNode/>
+						<feMergeNode in="SourceGraphic"/>
+					</feMerge>
+				</filter>
+			</defs>
+			<!-- Outline stroke -->
+			<path d="M384 192c0 87.4-117 243-168.3 307.2c-12.3 15.3-35.1 15.3-47.4 0C117 435 0 279.4 0 192C0 86 86 0 192 0S384 86 384 192z" 
+				  fill="none"
+				  stroke="#ffffff"
+				  stroke-width="12"
+				  stroke-linejoin="round"
+				  stroke-linecap="round"
+				  paint-order="stroke"/>
+			<!-- Main color fill -->
+			<path d="M384 192c0 87.4-117 243-168.3 307.2c-12.3 15.3-35.1 15.3-47.4 0C117 435 0 279.4 0 192C0 86 86 0 192 0S384 86 384 192z" 
+				  fill="${color}"
+				  filter="url(#shadow-${riskLevel})"/>
 		</svg>
 	`;
 
@@ -72,10 +92,10 @@ const createCustomIcon = (riskLevel) => {
 	return new L.Icon({
 		iconUrl: iconUrl,
 		shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
-		iconSize: [25, 41],
-		iconAnchor: [12, 41],
-		popupAnchor: [1, -34],
-		shadowSize: [41, 41],
+		iconSize: [34, 50],
+		iconAnchor: [17, 50],
+		popupAnchor: [0, -50],
+		shadowSize: [50, 50],
 	})
 }
 
