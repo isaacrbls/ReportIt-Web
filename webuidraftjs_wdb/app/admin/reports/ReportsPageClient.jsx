@@ -19,13 +19,18 @@ import Sidebar from "@/components/admin/Sidebar";
 import ReportList from "@/components/admin/ReportList";
 import { db } from "@/firebase";
 import { useCurrentUser } from "@/hooks/use-current-user";
-import { getUserBarangay, isUserAdmin } from "@/lib/userMapping";
+import { getUserBarangay, isUserAdmin, USER_BARANGAY_MAP } from "@/lib/userMapping";
 import { updateReportStatus, formatReportForDisplay } from "@/lib/reportUtils";
 import { reverseGeocode } from "@/lib/mapUtils";
 import { apiClient } from "@/lib/apiClient";
+import { getArchivedReports, searchArchivedReports } from "@/lib/archiveUtils";
 
 export default function ReportsPageClient() {
   const [reports, setReports] = useState([]);
+  const [archivedReports, setArchivedReports] = useState([]);
+  const [activeTab, setActiveTab] = useState("reports");
+  const [archiveSearch, setArchiveSearch] = useState("");
+  const [isLoadingArchives, setIsLoadingArchives] = useState(false);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [selectedReport, setSelectedReport] = useState(null);
@@ -49,6 +54,26 @@ export default function ReportsPageClient() {
     });
     return () => unsubscribe();
   }, []);
+
+  // Load archived reports when Archive tab is selected
+  useEffect(() => {
+    const loadArchivedReports = async () => {
+      if (activeTab === "archive") {
+        setIsLoadingArchives(true);
+        try {
+          const archives = await getArchivedReports();
+          setArchivedReports(archives);
+          console.log("📦 Loaded archived reports:", archives.length);
+        } catch (error) {
+          console.error("Error loading archived reports:", error);
+        } finally {
+          setIsLoadingArchives(false);
+        }
+      }
+    };
+    
+    loadArchivedReports();
+  }, [activeTab]);
 
   // Load categories from Firebase
   useEffect(() => {
@@ -150,14 +175,18 @@ const isAdmin = isUserAdmin(userEmail);
   console.log("📊 Reports page - Total reports loaded:", reports.length);
 
   const filteredReports = useMemo(() => {
-    return reports.filter((report) => {
+    console.log("🔍 Filtering reports - Search term:", search, "Status filter:", statusFilter);
+    console.log("🔍 Total reports before filtering:", reports.length);
+    
+    const filtered = reports.filter((report) => {
       const searchTerm = search.trim().toLowerCase();
-      const matchesSearch =
+      const matchesSearch = !searchTerm || (
         report?.id?.toString?.().toLowerCase?.().includes(searchTerm) ||
         report?.IncidentType?.toString?.().toLowerCase?.().includes(searchTerm) ||
         report?.Description?.toString?.().toLowerCase?.().includes(searchTerm) ||
         report?.Barangay?.toString?.().toLowerCase?.().includes(searchTerm) ||
-        report?.ml_predicted_category?.toString?.().toLowerCase?.().includes(searchTerm);
+        report?.ml_predicted_category?.toString?.().toLowerCase?.().includes(searchTerm)
+      );
 
       const normalizedStatus = (report?.Status ?? "").toString().toLowerCase().trim();
       const effectiveStatus = normalizedStatus || "pending";
@@ -218,8 +247,8 @@ const isAdmin = isUserAdmin(userEmail);
 
       const canViewSensitive = isAdmin || !report?.isSensitive;
 
-      if (report?.id) {
-        console.log(`🔍 Report ${report.id}: Barangay="${report?.Barangay}" vs UserBarangay="${userBarangay}" = ${matchesBarangay}, Sensitive=${report?.isSensitive}, CanView=${canViewSensitive}, Risk=${reportRiskLevel}, Category=${reportCategory}`);
+      if (report?.id && searchTerm) {
+        console.log(`🔍 Report ${report.id}: Search="${searchTerm}" MatchesSearch=${matchesSearch}, Status="${effectiveStatus}" MatchesStatus=${matchesStatus}, Barangay="${report?.Barangay}" vs UserBarangay="${userBarangay}" = ${matchesBarangay}`);
       }
 
       return matchesSearch && matchesStatus && matchesRiskLevel && matchesPredictedCategory && matchesBarangay && canViewSensitive;
@@ -229,6 +258,9 @@ const isAdmin = isUserAdmin(userEmail);
       const dateB = b.DateTime ? new Date(b.DateTime.seconds ? b.DateTime.seconds * 1000 : b.DateTime) : new Date(0);
       return dateB - dateA;
     });
+    
+    console.log("🔍 Filtered reports count:", filtered.length);
+    return filtered;
   }, [reports, search, statusFilter, riskLevelFilter, predictedCategoryFilter, userBarangay, isAdmin]);
 
   console.log("🔍 Reports page - Filtered reports count:", filteredReports.length);
@@ -254,6 +286,29 @@ const isAdmin = isUserAdmin(userEmail);
   const handleLogout = () => {
     setShowLogoutModal(false);
     router.push("/"); 
+  };
+
+  // Helper function to format the submitted by display (same as in report-detail-dialog)
+  const formatSubmittedBy = (email) => {
+    if (!email) return 'Unknown User'
+    
+    // Check if it's a test barangay admin email (test[barangay]@example.com)
+    const barangayMatch = email.match(/^test([a-zA-Z0-9\s]+)@example\.com$/)
+    if (barangayMatch) {
+      const barangayKey = barangayMatch[1].toLowerCase()
+      // Find the barangay name from the mapping
+      for (const [testEmail, barangayName] of Object.entries(USER_BARANGAY_MAP)) {
+        if (testEmail === email) {
+          return `Barangay ${barangayName} Admin`
+        }
+      }
+      // Fallback if not found in mapping
+      return `Barangay ${barangayMatch[1]} Admin`
+    }
+    
+    // For regular users, extract username from email (part before @)
+    const username = email.split('@')[0]
+    return username || email
   };
 
   const handleGenerateMonthlyReport = async () => {
@@ -657,105 +712,263 @@ const isAdmin = isUserAdmin(userEmail);
               </button>
             </div>
           </div>
-          <div className="flex flex-col md:flex-row gap-4 mb-6">
-            <div className="flex-1 flex items-center bg-white border rounded-lg px-4 py-2">
-              <Search className="w-5 h-5 text-gray-400 mr-2" />
-              <input
-                type="text"
-                placeholder="Search Reports"
-                className="flex-1 outline-none bg-transparent text-base"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
-            </div>
-            <select
-              className="border rounded-lg px-4 py-2 text-base text-gray-700 bg-white"
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-            >
-              <option value="all">All Reports</option>
-              <option value="pending">Pending</option>
-              <option value="verified">Verified</option>
-              <option value="rejected">Rejected</option>
-            </select>
-            <select
-              className="border rounded-lg px-4 py-2 text-base text-gray-700 bg-white"
-              value={riskLevelFilter}
-              onChange={(e) => setRiskLevelFilter(e.target.value)}
-            >
-              <option value="all">All Risk Levels</option>
-              <option value="high">High Risk</option>
-              <option value="medium">Medium Risk</option>
-              <option value="low">Low Risk</option>
-            </select>
-            <select
-              className="border rounded-lg px-4 py-2 text-base text-gray-700 bg-white"
-              value={predictedCategoryFilter}
-              onChange={(e) => setPredictedCategoryFilter(e.target.value)}
-            >
-              <option value="all">All Categories</option>
-              <option value="Theft">Theft</option>
-              <option value="Reports/Agreement">Reports/Agreement</option>
-              <option value="Accident">Accident</option>
-              <option value="Debt / Unpaid Wages Report">Debt / Unpaid Wages Report</option>
-              <option value="Defamation Complaint">Defamation Complaint</option>
-              <option value="Assault/Harassment">Assault/Harassment</option>
-              <option value="Property Damage/Incident">Property Damage/Incident</option>
-              <option value="Animal Incident">Animal Incident</option>
-              <option value="Verbal Abuse and Threats">Verbal Abuse and Threats</option>
-              <option value="Alarm and Scandal">Alarm and Scandal</option>
-              <option value="Lost Items">Lost Items</option>
-              <option value="Scam/Fraud">Scam/Fraud</option>
-              <option value="Drugs Addiction">Drugs Addiction</option>
-              <option value="Missing Person">Missing Person</option>
-              <option value="Others">Others</option>
-            </select>
-          </div>
-          <div className="bg-white rounded-2xl border p-6 shadow-sm">
-            <h2 className="text-2xl font-bold text-red-600 mb-1">
-              {userBarangay ? `${userBarangay} Reports` : "No Reports"}
-            </h2>
-            <p className="text-gray-400 mb-6">
-              {userBarangay
-                ? `Showing incident reports for barangay: ${userBarangay}`
-                : "No reports available for your account. Please contact admin if you think this is an error."}
-            </p>
-            {userBarangay ? (
-              <>
+          
+          {/* Tabs for Reports and Archive */}
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList className="grid w-full grid-cols-2 mb-6">
+              <TabsTrigger value="reports" className="flex items-center gap-2">
+                <FileText className="w-4 h-4" />
+                Active Reports
+              </TabsTrigger>
+              <TabsTrigger value="archive" className="flex items-center gap-2">
+                <ShieldAlert className="w-4 h-4" />
+                Archive
+              </TabsTrigger>
+            </TabsList>
 
-                <ReportList
-                  key={`${search}-${statusFilter}-${userBarangay}`}
-                  reports={filteredReports}
-                  onVerify={handleVerify}
-                  onReject={handleReject}
-                  onViewDetails={(report) => {
-                    setSelectedReport(report);
-                    setIsDialogOpen(true);
-                  }}
-                  statusFilter={statusFilter}
-                  reportsPerPage={6} 
-                />
-              </>
-            ) : (
-              <div className="text-center text-gray-500 py-10">No reports to show.</div>
-            )}
-            <ReportDetailDialog
-              report={selectedReport}
-              open={isDialogOpen}
-              onOpenChange={setIsDialogOpen}
-              categories={categories}
-              onVerify={handleVerify}
-              onReject={handleReject}
-              onDelete={(reportId) => {
+            {/* Active Reports Tab */}
+            <TabsContent value="reports" className="mt-0">
+              {/* Search and Filter Controls for Active Reports */}
+              <div className="flex flex-col md:flex-row gap-4 mb-6">
+                <div className="flex-1 flex items-center bg-white border rounded-lg px-4 py-2">
+                  <Search className="w-5 h-5 text-gray-400 mr-2" />
+                  <input
+                    type="text"
+                    placeholder="Search Reports"
+                    className="flex-1 outline-none bg-transparent text-base"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                  />
+                </div>
+                <select
+                  className="border rounded-lg px-4 py-2 text-base text-gray-700 bg-white"
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                >
+                  <option value="all">All Reports</option>
+                  <option value="pending">Pending</option>
+                  <option value="verified">Verified</option>
+                  <option value="rejected">Rejected</option>
+                </select>
+                <select
+                  className="border rounded-lg px-4 py-2 text-base text-gray-700 bg-white"
+                  value={riskLevelFilter}
+                  onChange={(e) => setRiskLevelFilter(e.target.value)}
+                >
+                  <option value="all">All Risk Levels</option>
+                  <option value="high">High Risk</option>
+                  <option value="medium">Medium Risk</option>
+                  <option value="low">Low Risk</option>
+                </select>
+                <select
+                  className="border rounded-lg px-4 py-2 text-base text-gray-700 bg-white"
+                  value={predictedCategoryFilter}
+                  onChange={(e) => setPredictedCategoryFilter(e.target.value)}
+                >
+                  <option value="all">All Categories</option>
+                  <option value="Theft">Theft</option>
+                  <option value="Reports/Agreement">Reports/Agreement</option>
+                  <option value="Accident">Accident</option>
+                  <option value="Debt / Unpaid Wages Report">Debt / Unpaid Wages Report</option>
+                  <option value="Defamation Complaint">Defamation Complaint</option>
+                  <option value="Assault/Harassment">Assault/Harassment</option>
+                  <option value="Property Damage/Incident">Property Damage/Incident</option>
+                  <option value="Animal Incident">Animal Incident</option>
+                  <option value="Verbal Abuse and Threats">Verbal Abuse and Threats</option>
+                  <option value="Alarm and Scandal">Alarm and Scandal</option>
+                  <option value="Lost Items">Lost Items</option>
+                  <option value="Scam/Fraud">Scam/Fraud</option>
+                  <option value="Drugs Addiction">Drugs Addiction</option>
+                  <option value="Missing Person">Missing Person</option>
+                  <option value="Others">Others</option>
+                </select>
+              </div>
+
+              <div className="bg-white rounded-2xl border p-6 shadow-sm">
+                <h2 className="text-2xl font-bold text-red-600 mb-1">
+                  {userBarangay ? `${userBarangay} Reports` : "No Reports"}
+                </h2>
+                <p className="text-gray-400 mb-6">
+                  {userBarangay
+                    ? `Showing incident reports for barangay: ${userBarangay}`
+                    : "No reports available for your account. Please contact admin if you think this is an error."}
+                </p>
+                {userBarangay ? (
+                  <>
+                    <ReportList
+                      key={`${search}-${statusFilter}-${userBarangay}`}
+                      reports={filteredReports}
+                      onVerify={handleVerify}
+                      onReject={handleReject}
+                      onViewDetails={(report) => {
+                        setSelectedReport(report);
+                        setIsDialogOpen(true);
+                      }}
+                      statusFilter={statusFilter}
+                      reportsPerPage={6} 
+                    />
+                  </>
+                ) : (
+                  <div className="text-center text-gray-500 py-10">No reports to show.</div>
+                )}
+              </div>
+            </TabsContent>
+
+            {/* Archive Tab */}
+            <TabsContent value="archive" className="mt-0">
+                <div className="bg-white rounded-2xl border p-6 shadow-sm">
+                <div className="flex items-center gap-3 mb-1">
+                  <h2 className="text-2xl font-bold text-red-600">
+                    Archived Reports
+                  </h2>
+                </div>
+                <p className="text-gray-500 mb-6">
+                  View and search reports that have been deleted and archived by administrators.
+                </p>
                 
-                console.log("Report deleted successfully");
-              }}
-              onEdit={(reportId, updates) => {
-                
-                console.log("Report edited successfully");
-              }}
-            />
-            <EditCategoryDialog
+                {/* Archive Search */}
+                <div className="flex items-center bg-gray-50 border rounded-lg px-4 py-3 mb-6">
+                  <Search className="w-5 h-5 text-gray-400 mr-3" />
+                  <input
+                    type="text"
+                    placeholder="Search by incident type, title, description, location, or admin name..."
+                    className="flex-1 outline-none bg-transparent text-base placeholder-gray-400"
+                    value={archiveSearch}
+                    onChange={(e) => setArchiveSearch(e.target.value)}
+                  />
+                  {archiveSearch && (
+                    <button
+                      onClick={() => setArchiveSearch("")}
+                      className="ml-2 text-gray-400 hover:text-gray-600"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>                {isLoadingArchives ? (
+                  <div className="text-center py-12">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600 mx-auto mb-3"></div>
+                    <p className="text-gray-500">Loading archived reports...</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {archivedReports
+                      .filter(report => {
+                        const searchTerm = archiveSearch.trim().toLowerCase();
+                        if (!searchTerm) return true;
+                        return (
+                          report?.IncidentType?.toLowerCase?.().includes(searchTerm) ||
+                          report?.Title?.toLowerCase?.().includes(searchTerm) ||
+                          report?.Description?.toLowerCase?.().includes(searchTerm) ||
+                          report?.Barangay?.toLowerCase?.().includes(searchTerm) ||
+                          report?.deletedBy?.toLowerCase?.().includes(searchTerm)
+                        );
+                      })
+                      .map((report) => (
+                        <div key={report.id} className="border rounded-lg p-5 bg-white shadow-sm hover:shadow-md transition-shadow">
+                          <div className="flex justify-between items-start mb-3">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="inline-block w-2 h-2 bg-red-500 rounded-full"></span>
+                                <h3 className="font-bold text-lg text-gray-900">
+                                  {report.Title || report.IncidentType || 'Unknown Report'}
+                                </h3>
+                              </div>
+                              {report.Title && report.IncidentType && (
+                                <p className="text-base font-medium text-gray-600 mb-2 pl-4">
+                                  Type: {report.IncidentType}
+                                </p>
+                              )}
+                              {!report.Title && report.IncidentType && (
+                                <p className="text-base font-medium text-gray-600 mb-2 pl-4">
+                                  Type: {report.IncidentType}
+                                </p>
+                              )}
+                            </div>
+                            <div className="text-right">
+                              <span className="text-xs text-gray-400 block">Archived</span>
+                              <span className="text-sm font-medium text-gray-600">
+                                {report.archivedAt?.toDate?.()?.toLocaleDateString() || 'Unknown'}
+                              </span>
+                            </div>
+                          </div>
+                          
+                          <div className="bg-gray-50 rounded-md p-3 mb-3">
+                            <p className="text-gray-700 leading-relaxed">
+                              {report.Description || 'No description provided'}
+                            </p>
+                          </div>
+                          
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                            <div className="flex items-center gap-2">
+                              <span className="text-gray-500 font-medium">Location:</span>
+                              <span className="text-gray-700">{report.Barangay || 'Unknown'}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-gray-500 font-medium">Deleted by:</span>
+                              <span className="text-gray-700">{formatSubmittedBy(report.deletedBy)}</span>
+                            </div>
+                          </div>
+                          
+                          {report.deletionReason && (
+                            <div className="mt-3 p-3 bg-red-50 border-l-4 border-red-200 rounded-r-md">
+                              <div className="flex items-center gap-2">
+                                <span className="text-red-600 font-medium text-sm">Deletion Reason:</span>
+                                <span className="text-red-700 text-sm font-medium">{report.deletionReason}</span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    
+                    {archivedReports.length === 0 && !isLoadingArchives && (
+                      <div className="text-center py-12">
+                        <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
+                          <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          </svg>
+                        </div>
+                        <h3 className="text-lg font-semibold text-gray-600 mb-2">No Archived Reports</h3>
+                        <p className="text-gray-500">
+                          {archiveSearch 
+                            ? "No archived reports match your search criteria." 
+                            : "No reports have been deleted and archived yet."
+                          }
+                        </p>
+                        {archiveSearch && (
+                          <button
+                            onClick={() => setArchiveSearch("")}
+                            className="mt-3 px-4 py-2 text-red-600 border border-red-600 rounded-lg hover:bg-red-50 transition-colors"
+                          >
+                            Clear Search
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </TabsContent>
+          </Tabs>
+
+          {/* Report Detail Dialog - moved outside of hidden div */}
+          <ReportDetailDialog
+            report={selectedReport}
+            open={isDialogOpen}
+            onOpenChange={setIsDialogOpen}
+            categories={categories}
+            onVerify={handleVerify}
+            onReject={handleReject}
+            onDelete={(reportId) => {
+              
+              console.log("Report deleted successfully");
+            }}
+            onEdit={(reportId, updates) => {
+              
+              console.log("Report edited successfully");
+            }}
+          />
+          
+          <EditCategoryDialog
               open={isAddDialogOpen}
               onOpenChange={setIsAddDialogOpen}
               categories={categories}
@@ -804,9 +1017,60 @@ const isAdmin = isUserAdmin(userEmail);
                 }
               }}
             />
-          </div>
         </main>
       </div>
+      
+      {/* Dialogs outside main layout */}
+      <EditCategoryDialog
+        open={isAddDialogOpen}
+        onOpenChange={setIsAddDialogOpen}
+        categories={categories}
+        onSave={async ({ name, keywords }) => {
+          try {
+            // Save to Firebase
+            const categoriesRef = collection(db, "customCategories");
+            const newCategory = {
+              name,
+              keywords,
+              createdAt: new Date(),
+              createdBy: user?.email || "unknown"
+            };
+            const docRef = await addDoc(categoriesRef, newCategory);
+            
+            // Update local state
+            setCategories((prev) => [...prev, { id: docRef.id, ...newCategory }]);
+            
+            console.log("✅ Category saved to Firebase:", name);
+          } catch (error) {
+            console.error("Error saving category:", error);
+            alert("Failed to save category. Please try again.");
+          }
+        }}
+        onDelete={async (categoryName) => {
+          try {
+            // Find the category to delete
+            const categoryToDelete = categories.find(cat => (cat.name || cat) === categoryName);
+            if (!categoryToDelete) {
+              console.error("Category not found:", categoryName);
+              return;
+            }
+            
+            // Delete from Firebase
+            if (categoryToDelete.id) {
+              await deleteDoc(doc(db, "customCategories", categoryToDelete.id));
+            }
+            
+            // Update local state
+            setCategories((prev) => prev.filter(cat => (cat.name || cat) !== categoryName));
+            
+            console.log("🗑️ Category deleted from Firebase:", categoryName);
+          } catch (error) {
+            console.error("Error deleting category:", error);
+            alert("Failed to delete category. Please try again.");
+          }
+        }}
+      />
+      
       <AddReportDialog 
         open={showAddReport} 
         onClose={() => setShowAddReport(false)} 

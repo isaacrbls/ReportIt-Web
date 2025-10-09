@@ -10,9 +10,13 @@ import {
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { updateReportStatus, formatReportForDisplay, deleteReport, updateReportDetails } from "@/lib/reportUtils"
 import { reverseGeocode } from "@/lib/mapUtils"
 import { getUserBarangay, USER_BARANGAY_MAP } from "@/lib/userMapping"
+import { useCurrentUser } from "@/hooks/use-current-user"
+import { trackReportRejection } from "@/lib/suspensionUtils"
+import { archiveReport } from "@/lib/archiveUtils"
 import { useToast } from "@/hooks/use-toast"
 import { GeoPoint } from "firebase/firestore"
 
@@ -24,6 +28,7 @@ const MapWithNoSSR = dynamic(() => import("./map-component"), {
 ;
 
 export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onReject, onDelete, onEdit, categories = [] }) {
+  const { user: currentUser } = useCurrentUser()
   const [rejectionReason, setRejectionReason] = useState("")
   const [isRejecting, setIsRejecting] = useState(false)
   const [isVerifying, setIsVerifying] = useState(false)
@@ -40,6 +45,7 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
   const [deleteTimeout, setDeleteTimeout] = useState(null)
   const [currentReportData, setCurrentReportData] = useState(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [deletionReason, setDeletionReason] = useState("Admin deletion")
   const [resolvedAddress, setResolvedAddress] = useState("")
   const { toast } = useToast()
 
@@ -286,10 +292,33 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
   }
 
   const handleReject = async () => {
+    if (!rejectionReason.trim()) {
+      setError("Please provide a reason for rejection");
+      return;
+    }
+
     setIsRejecting(true)
     try {
       const success = await updateReportStatus(report.id, "Rejected")
       if (success) {
+        // Track the rejection for suspension system
+        const userEmail = report.SubmittedBy;
+        
+        if (userEmail) {
+          try {
+            await trackReportRejection(
+              userEmail, 
+              report.id, 
+              rejectionReason.trim(),
+              currentUser?.email || 'Unknown Admin'
+            );
+            console.log(`✅ Rejection tracked for user: ${userEmail}`);
+          } catch (suspensionError) {
+            console.error("Error tracking rejection for suspension:", suspensionError);
+            // Continue with rejection even if suspension tracking fails
+          }
+        }
+
         setCurrentReportData(prevData => ({
           ...(prevData || report),
           Status: "Rejected"
@@ -297,7 +326,7 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
         
         toast({
           title: "Report Rejected",
-          description: "The report has been rejected.",
+          description: "The report has been rejected and the user has been notified.",
         })
         onReject?.(report.id)
         onOpenChange(false)
@@ -320,6 +349,7 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
   }
 
   const handleDelete = () => {
+    setDeletionReason("Admin deletion") // Reset to default
     setShowDeleteConfirm(true)
   }
 
@@ -327,24 +357,43 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
     setIsDeleting(true)
     setError("")
     try {
-      const success = await deleteReport(report.id)
-      if (success) {
-        toast({
-          title: "Report Deleted",
-          description: "The report has been successfully deleted.",
-        })
-        onDelete?.(report.id)
-        onOpenChange(false)
+      // First archive the report before deleting
+      const archiveSuccess = await archiveReport(
+        currentReportData || report, // Pass the full report object
+        currentUser?.email || 'Unknown Admin', // deletedBy
+        deletionReason // Use selected deletion reason
+      );
+      
+      if (archiveSuccess) {
+        // Now delete the report from active collection
+        const deleteSuccess = await deleteReport(report.id);
+        
+        if (deleteSuccess) {
+          toast({
+            title: "Report Deleted",
+            description: "The report has been archived and removed from active reports.",
+          })
+          onDelete?.(report.id)
+          onOpenChange(false)
+        } else {
+          // If deletion fails but archive succeeded, we should handle this gracefully
+          setError("Report was archived but failed to remove from active reports. Please try again.")
+          toast({
+            title: "Deletion Failed",
+            description: "Report was archived but failed to remove from active reports.",
+            variant: "destructive",
+          })
+        }
       } else {
-        setError("Failed to delete report. Please try again.")
+        setError("Failed to archive report. Deletion cancelled.")
         toast({
-          title: "Deletion Failed",
-          description: "Failed to delete the report. Please try again.",
+          title: "Archive Failed",
+          description: "Failed to archive the report before deletion. Please try again.",
           variant: "destructive",
         })
       }
     } catch (error) {
-      const errorMessage = `Error deleting report: ${error.message}`
+      const errorMessage = `Error processing report deletion: ${error.message}`
       setError(errorMessage)
       toast({
         title: "Error",
@@ -359,6 +408,7 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
 
   const cancelDelete = () => {
     setShowDeleteConfirm(false)
+    setDeletionReason("Admin deletion") // Reset to default
   }
 
   const handleEdit = () => {
@@ -1014,7 +1064,7 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
               Do you want to delete this report? This action cannot be undone.
             </p>
             
-            <div className="bg-gray-50 rounded-lg p-3 mb-6">
+            <div className="bg-gray-50 rounded-lg p-3 mb-4">
               <p className="text-sm text-gray-700">
                 <strong>Title:</strong> {(currentReportData || report)?.Title || formattedReport?.title}
               </p>
@@ -1023,20 +1073,43 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
               </p>
             </div>
 
+            {/* Deletion Reason Dropdown */}
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Reason for Deletion
+              </label>
+              <Select value={deletionReason} onValueChange={setDeletionReason}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select deletion reason" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Admin deletion">Admin deletion</SelectItem>
+                  <SelectItem value="Spam report">Spam report</SelectItem>
+                  <SelectItem value="False information">False information</SelectItem>
+                  <SelectItem value="Duplicate report">Duplicate report</SelectItem>
+                  <SelectItem value="Inappropriate content">Inappropriate content</SelectItem>
+                  <SelectItem value="Privacy violation">Privacy violation</SelectItem>
+                  <SelectItem value="Test report">Test report</SelectItem>
+                  <SelectItem value="User request">User request</SelectItem>
+                  <SelectItem value="Other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
             <div className="flex gap-3 justify-end">
-              <button
-                onClick={cancelDelete}
-                disabled={isDeleting}
-                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
-              >
-                Cancel
-              </button>
               <button
                 onClick={confirmDelete}
                 disabled={isDeleting}
                 className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors disabled:opacity-50"
               >
                 {isDeleting ? "Deleting..." : "Yes, Delete"}
+              </button>
+              <button
+                onClick={cancelDelete}
+                disabled={isDeleting}
+                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
+              >
+                Cancel
               </button>
             </div>
           </div>
