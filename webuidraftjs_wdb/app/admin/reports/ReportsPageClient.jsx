@@ -874,47 +874,46 @@ const isAdmin = isUserAdmin(userEmail);
                                 </h3>
                               </div>
                               {report.Title && report.IncidentType && (
-                                <p className="text-base font-medium text-gray-600 mb-2 pl-4">
-                                  Type: {report.IncidentType}
-                                </p>
+                                <div className="text-sm text-gray-600 mb-2 pl-4">
+                                  <span className="font-medium">Type:</span> {report.IncidentType}
+                                </div>
                               )}
                               {!report.Title && report.IncidentType && (
-                                <p className="text-base font-medium text-gray-600 mb-2 pl-4">
-                                  Type: {report.IncidentType}
-                                </p>
+                                <div className="text-sm text-gray-600 mb-2 pl-4">
+                                  <span className="font-medium">Type:</span> {report.IncidentType}
+                                </div>
                               )}
                             </div>
-                            <div className="text-right">
-                              <span className="text-xs text-gray-400 block">Archived</span>
-                              <span className="text-sm font-medium text-gray-600">
+                            <div className="text-right ml-4">
+                              <div className="text-xs text-gray-400 mb-1">Archived</div>
+                              <div className="text-sm font-medium text-gray-600">
                                 {report.archivedAt?.toDate?.()?.toLocaleDateString() || 'Unknown'}
-                              </span>
+                              </div>
                             </div>
                           </div>
                           
                           <div className="bg-gray-50 rounded-md p-3 mb-3">
+                            <div className="text-sm text-gray-500 font-medium mb-1">Description</div>
                             <p className="text-gray-700 leading-relaxed">
                               {report.Description || 'No description provided'}
                             </p>
                           </div>
                           
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-                            <div className="flex items-center gap-2">
-                              <span className="text-gray-500 font-medium">Location:</span>
+                            <div>
+                              <span className="text-gray-500 font-medium block mb-1">Location</span>
                               <span className="text-gray-700">{report.Barangay || 'Unknown'}</span>
                             </div>
-                            <div className="flex items-center gap-2">
-                              <span className="text-gray-500 font-medium">Deleted by:</span>
+                            <div className="md:text-right">
+                              <span className="text-gray-500 font-medium block mb-1">Deleted by</span>
                               <span className="text-gray-700">{formatSubmittedBy(report.deletedBy)}</span>
                             </div>
                           </div>
                           
                           {report.deletionReason && (
                             <div className="mt-3 p-3 bg-red-50 border-l-4 border-red-200 rounded-r-md">
-                              <div className="flex items-center gap-2">
-                                <span className="text-red-600 font-medium text-sm">Deletion Reason:</span>
-                                <span className="text-red-700 text-sm font-medium">{report.deletionReason}</span>
-                              </div>
+                              <div className="text-red-600 font-medium text-sm mb-1">Deletion Reason</div>
+                              <div className="text-red-700 text-sm font-medium">{report.deletionReason}</div>
                             </div>
                           )}
                         </div>
