@@ -80,17 +80,17 @@ function DialogContent({ children, className, onEscapeKeyDown, ...props }) {
   )
 }
 
-function DialogHeader({ children }) {
-  return <div className="mb-4">{children}</div>
+function DialogHeader({ children, className }) {
+  return <div className={cn("mb-4", className)}>{children}</div>
 }
-function DialogTitle({ children }) {
-  return <h3 className="text-lg font-bold">{children}</h3>
+function DialogTitle({ children, className }) {
+  return <h3 className={cn("text-lg font-bold", className)}>{children}</h3>
 }
-function DialogDescription({ children }) {
-  return <p className="text-gray-500">{children}</p>
+function DialogDescription({ children, className }) {
+  return <p className={cn("text-gray-500", className)}>{children}</p>
 }
-function DialogFooter({ children }) {
-  return <div className="mt-4">{children}</div>
+function DialogFooter({ children, className }) {
+  return <div className={cn("mt-4 flex justify-end items-center", className)}>{children}</div>
 }
 
 export {

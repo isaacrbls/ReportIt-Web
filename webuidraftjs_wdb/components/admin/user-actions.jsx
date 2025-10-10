@@ -151,7 +151,7 @@ export function UserActions({ user, onUpdate }) {
         }}
       >
         <DialogContent className="sm:max-w-[500px]" style={{ textAlign: 'left' }}>
-          <DialogHeader>
+          <DialogHeader className="space-y-3">
             <DialogTitle className="text-xl font-bold text-left">
               Suspend User
             </DialogTitle>
@@ -159,7 +159,7 @@ export function UserActions({ user, onUpdate }) {
               This will suspend {user.email} for 14 days. They will not be able to submit reports or access their account.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-2 py-4">
+          <div className="space-y-3 py-4">
             <Label htmlFor="reason" className="text-left block">Reason for suspension</Label>
             <Textarea
               id="reason"
@@ -169,7 +169,7 @@ export function UserActions({ user, onUpdate }) {
               rows={4}
             />
           </div>
-          <DialogFooter>
+          <DialogFooter className="gap-3 mt-2">
             <Button
               variant="outline"
               onClick={() => {
@@ -194,7 +194,7 @@ export function UserActions({ user, onUpdate }) {
       {/* Unsuspend Dialog */}
       <Dialog open={showUnsuspendDialog} onOpenChange={setShowUnsuspendDialog}>
         <DialogContent className="sm:max-w-[500px]" style={{ textAlign: 'left' }}>
-          <DialogHeader>
+          <DialogHeader className="space-y-3">
             <DialogTitle className="text-xl font-bold text-left">
               Unsuspend User
             </DialogTitle>
@@ -202,7 +202,7 @@ export function UserActions({ user, onUpdate }) {
               This will reactivate {user.email}'s account. They will be able to submit reports and access their account again.
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter>
+          <DialogFooter className="gap-3 mt-4">
             <Button
               variant="outline"
               onClick={() => setShowUnsuspendDialog(false)}
