@@ -3,7 +3,8 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { ref, onValue, get } from "firebase/database";
-import { realtimeDb } from "@/firebase";
+import { realtimeDb, auth } from "@/firebase";
+import { signOut } from "firebase/auth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -173,9 +174,18 @@ export default function UsersPage() {
     setShowDetails(true);
   };
 
-  const handleLogout = () => {
-    setShowLogoutModal(false);
-    router.push("/");
+  const handleLogout = async () => {
+    try {
+      console.log("🔓 Logging out...");
+      await signOut(auth);
+      console.log("✅ Signed out successfully");
+      setShowLogoutModal(false);
+      router.push("/");
+    } catch (error) {
+      console.error("❌ Error signing out:", error);
+      setShowLogoutModal(false);
+      router.push("/");
+    }
   };
 
   const formatDate = (timestamp) => {
@@ -373,8 +383,8 @@ export default function UsersPage() {
 
       {/* Logout Confirmation Modal */}
       <LogoutConfirmationModal
-        isOpen={showLogoutModal}
-        onClose={() => setShowLogoutModal(false)}
+        open={showLogoutModal}
+        onCancel={() => setShowLogoutModal(false)}
         onConfirm={handleLogout}
       />
     </>

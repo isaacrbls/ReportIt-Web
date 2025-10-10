@@ -165,7 +165,9 @@ export function UserDetailsDialog({ user, open, onOpenChange, onUpdate }) {
             User Details
           </DialogTitle>
           <DialogDescription>
-            Detailed information about {user.displayName || user.name || user.email}
+            Detailed information about {user.firstName && user.lastName 
+              ? `${user.firstName} ${user.lastName}` 
+              : user.displayName || user.name || user.email}
           </DialogDescription>
         </DialogHeader>
 
@@ -185,12 +187,16 @@ export function UserDetailsDialog({ user, open, onOpenChange, onUpdate }) {
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <div className="text-sm font-medium text-muted-foreground">User ID</div>
-                      <div className="text-sm mt-1 font-mono">{user.id}</div>
+                      <div className="text-sm font-medium text-muted-foreground">Username</div>
+                      <div className="text-sm mt-1 font-mono">{user.username || user.email?.split('@')[0] || "N/A"}</div>
                     </div>
                     <div>
-                      <div className="text-sm font-medium text-muted-foreground">Display Name</div>
-                      <div className="text-sm mt-1">{user.displayName || user.name || "N/A"}</div>
+                      <div className="text-sm font-medium text-muted-foreground">Full Name</div>
+                      <div className="text-sm mt-1">
+                        {user.firstName && user.lastName 
+                          ? `${user.firstName} ${user.lastName}` 
+                          : user.firstName || user.lastName || user.displayName || user.name || "N/A"}
+                      </div>
                     </div>
                     <div>
                       <div className="text-sm font-medium text-muted-foreground">Email</div>
@@ -279,7 +285,7 @@ export function UserDetailsDialog({ user, open, onOpenChange, onUpdate }) {
                     </div>
                     <div className="text-center p-4 bg-orange-50 rounded-lg border border-orange-200">
                       <div className="text-2xl font-bold text-orange-600">
-                        {suspensionHistory.length}
+                        {user.suspensionCount || 0}
                       </div>
                       <div className="text-sm text-muted-foreground">Suspensions</div>
                     </div>

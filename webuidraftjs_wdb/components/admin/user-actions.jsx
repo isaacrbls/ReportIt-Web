@@ -12,32 +12,25 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { 
   MoreHorizontal, 
   UserX, 
-  UserCheck, 
-  Shield, 
-  ShieldOff,
-  Trash2 
+  UserCheck
 } from "lucide-react";
 
 export function UserActions({ user, onUpdate }) {
   const [showSuspendDialog, setShowSuspendDialog] = useState(false);
   const [showUnsuspendDialog, setShowUnsuspendDialog] = useState(false);
-  const [showPromoteDialog, setShowPromoteDialog] = useState(false);
-  const [showDemoteDialog, setShowDemoteDialog] = useState(false);
   const [suspensionReason, setSuspensionReason] = useState("");
   const [processing, setProcessing] = useState(false);
 
@@ -66,6 +59,9 @@ export function UserActions({ user, onUpdate }) {
       const suspensionEndDate = new Date();
       suspensionEndDate.setDate(suspensionEndDate.getDate() + 14); // 14 days suspension
 
+      // Increment suspension counter
+      const currentCount = user.suspensionCount || 0;
+
       await update(userRef, {
         suspended: true,
         isSuspended: true,
@@ -73,6 +69,7 @@ export function UserActions({ user, onUpdate }) {
         suspensionDate: new Date().toISOString(),
         suspensionEndDate: suspensionEndDate.toISOString(),
         suspendedBy: "admin", // You can replace with actual admin ID
+        suspensionCount: currentCount + 1,
         updatedAt: new Date().toISOString(),
       });
 
@@ -116,54 +113,6 @@ export function UserActions({ user, onUpdate }) {
     }
   };
 
-  const handlePromoteToAdmin = async () => {
-    setProcessing(true);
-    try {
-      const userRef = ref(realtimeDb, `users/${user.id}`);
-      await update(userRef, {
-        role: "admin",
-        isAdmin: true,
-        promotedAt: new Date().toISOString(),
-        promotedBy: "admin", // You can replace with actual admin ID
-        updatedAt: new Date().toISOString(),
-      });
-
-      showToast("User promoted", `${user.email} is now an administrator`);
-
-      setShowPromoteDialog(false);
-      if (onUpdate) onUpdate();
-    } catch (error) {
-      console.error("Error promoting user:", error);
-      showToast("Error", "Failed to promote user. Please try again.", "destructive");
-    } finally {
-      setProcessing(false);
-    }
-  };
-
-  const handleDemoteFromAdmin = async () => {
-    setProcessing(true);
-    try {
-      const userRef = ref(realtimeDb, `users/${user.id}`);
-      await update(userRef, {
-        role: "user",
-        isAdmin: false,
-        demotedAt: new Date().toISOString(),
-        demotedBy: "admin", // You can replace with actual admin ID
-        updatedAt: new Date().toISOString(),
-      });
-
-      showToast("User demoted", `${user.email} is now a regular user`);
-
-      setShowDemoteDialog(false);
-      if (onUpdate) onUpdate();
-    } catch (error) {
-      console.error("Error demoting user:", error);
-      showToast("Error", "Failed to demote user. Please try again.", "destructive");
-    } finally {
-      setProcessing(false);
-    }
-  };
-
   return (
     <>
       <DropdownMenu>
@@ -187,34 +136,31 @@ export function UserActions({ user, onUpdate }) {
               Suspend User
             </DropdownMenuItem>
           )}
-
-          <DropdownMenuSeparator />
-
-          {isAdmin ? (
-            <DropdownMenuItem onClick={() => setShowDemoteDialog(true)}>
-              <ShieldOff className="mr-2 h-4 w-4" />
-              Remove Admin
-            </DropdownMenuItem>
-          ) : (
-            <DropdownMenuItem onClick={() => setShowPromoteDialog(true)}>
-              <Shield className="mr-2 h-4 w-4" />
-              Make Admin
-            </DropdownMenuItem>
-          )}
         </DropdownMenuContent>
       </DropdownMenu>
 
       {/* Suspend Dialog */}
-      <AlertDialog open={showSuspendDialog} onOpenChange={setShowSuspendDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Suspend User</AlertDialogTitle>
-            <AlertDialogDescription>
+      <Dialog 
+        open={showSuspendDialog} 
+        onOpenChange={(open) => {
+          setShowSuspendDialog(open);
+          if (!open) {
+            // Clear the reason field when dialog is closed
+            setSuspensionReason("");
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-[500px]" style={{ textAlign: 'left' }}>
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold text-left">
+              Suspend User
+            </DialogTitle>
+            <DialogDescription className="text-gray-500 text-left">
               This will suspend {user.email} for 14 days. They will not be able to submit reports or access their account.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
+            </DialogDescription>
+          </DialogHeader>
           <div className="space-y-2 py-4">
-            <Label htmlFor="reason">Reason for suspension</Label>
+            <Label htmlFor="reason" className="text-left block">Reason for suspension</Label>
             <Textarea
               id="reason"
               placeholder="Enter the reason for suspending this user..."
@@ -223,83 +169,57 @@ export function UserActions({ user, onUpdate }) {
               rows={4}
             />
           </div>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={processing}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowSuspendDialog(false);
+                setSuspensionReason("");
+              }}
+              disabled={processing}
+            >
+              Cancel
+            </Button>
+            <Button
               onClick={handleSuspend}
               disabled={processing || !suspensionReason.trim()}
-              className="bg-red-600 hover:bg-red-700"
+              className="bg-red-600 hover:bg-red-700 text-white"
             >
               {processing ? "Suspending..." : "Suspend User"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Unsuspend Dialog */}
-      <AlertDialog open={showUnsuspendDialog} onOpenChange={setShowUnsuspendDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Unsuspend User</AlertDialogTitle>
-            <AlertDialogDescription>
+      <Dialog open={showUnsuspendDialog} onOpenChange={setShowUnsuspendDialog}>
+        <DialogContent className="sm:max-w-[500px]" style={{ textAlign: 'left' }}>
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold text-left">
+              Unsuspend User
+            </DialogTitle>
+            <DialogDescription className="text-gray-500 text-left">
               This will reactivate {user.email}'s account. They will be able to submit reports and access their account again.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={processing}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowUnsuspendDialog(false)}
+              disabled={processing}
+            >
+              Cancel
+            </Button>
+            <Button
               onClick={handleUnsuspend}
               disabled={processing}
               className="bg-red-600 hover:bg-red-700 text-white"
             >
               {processing ? "Unsuspending..." : "Unsuspend User"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Promote Dialog */}
-      <AlertDialog open={showPromoteDialog} onOpenChange={setShowPromoteDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Promote to Administrator</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will grant {user.email} administrator privileges. They will have full access to the admin panel and all management features.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={processing}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handlePromoteToAdmin}
-              disabled={processing}
-            >
-              {processing ? "Promoting..." : "Promote to Admin"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Demote Dialog */}
-      <AlertDialog open={showDemoteDialog} onOpenChange={setShowDemoteDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Remove Administrator Role</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will remove administrator privileges from {user.email}. They will become a regular user with limited access.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={processing}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDemoteFromAdmin}
-              disabled={processing}
-              className="bg-orange-600 hover:bg-orange-700"
-            >
-              {processing ? "Removing..." : "Remove Admin Role"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
