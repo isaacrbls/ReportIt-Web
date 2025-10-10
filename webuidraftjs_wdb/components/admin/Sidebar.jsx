@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
-import { LogOut, LayoutDashboard, BarChart2, FileText, ShieldAlert } from "lucide-react";
+import { LogOut, LayoutDashboard, BarChart2, FileText, ShieldAlert, Users } from "lucide-react";
 
 export default function Sidebar({ onLogout }) {
   return (
@@ -20,6 +20,9 @@ export default function Sidebar({ onLogout }) {
           </Link>
           <Link href="/admin/reports" className="py-2 px-3 rounded-md text-lg font-medium hover:bg-white/10 transition-colors flex items-center gap-2">
             <FileText className="w-5 h-5" /> Manage Reports
+          </Link>
+          <Link href="/admin/users" className="py-2 px-3 rounded-md text-lg font-medium hover:bg-white/10 transition-colors flex items-center gap-2">
+            <Users className="w-5 h-5" /> Manage Users
           </Link>
         </nav>
       </div>
