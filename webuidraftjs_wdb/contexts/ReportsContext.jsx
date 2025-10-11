@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
 import { db } from '@/firebase';
 
@@ -18,7 +18,8 @@ export const ReportsProvider = ({ children }) => {
   const [reports, setReports] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [hotspotsCache, setHotspotsCache] = useState(new Map()); 
+  const [hotspotsCache, setHotspotsCache] = useState(new Map());
+  const [refreshTrigger, setRefreshTrigger] = useState(0); 
 
   useEffect(() => {
     console.log('🔄 ReportsProvider: Setting up Firebase listener');
@@ -158,6 +159,13 @@ export const ReportsProvider = ({ children }) => {
     return filtered.filter(r => (r.Status ?? "").toLowerCase() === "pending");
   };
 
+  const refreshData = useCallback(() => {
+    console.log('🔄 Manual refresh triggered');
+    setRefreshTrigger(prev => prev + 1);
+    // Clear cache to force recalculation
+    setHotspotsCache(new Map());
+  }, []);
+
   const value = {
     
     reports,
@@ -168,6 +176,7 @@ export const ReportsProvider = ({ children }) => {
     getReportsByBarangay,
     getVerifiedReports,
     getPendingReports,
+    refreshData,
 
     totalReports: reports.length,
     verifiedReportsCount: reports.filter(r => r.Status === "Verified").length,

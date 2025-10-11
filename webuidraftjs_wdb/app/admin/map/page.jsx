@@ -10,9 +10,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { CrimeMap } from "@/components/admin/crime-map"
 import React from "react"
 import { getMapCoordinatesForUser } from "@/lib/userMapping"
+import { useReports } from "@/contexts/ReportsContext"
 
 export default function Page() {
   const { user, isLoading: isUserLoading } = useCurrentUser()
+  const { refreshData } = useReports()
   
   const userEmail = user?.email || ""
 
@@ -26,6 +28,28 @@ export default function Page() {
   console.log("📧 Map page - User email:", userEmail);
   console.log("🎯 Map page - Map center:", mapCenter);
   console.log("🔄 Map page - Is user loading:", isUserLoading);
+
+  // Auto-refresh when page becomes visible (e.g., navigating back to map)
+  React.useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden && refreshData) {
+        console.log('👁️ Map page visible - refreshing data for map pins');
+        refreshData();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    // Also refresh on component mount (when navigating to the page)
+    if (refreshData) {
+      console.log('🔄 Map page mounted - refreshing data');
+      refreshData();
+    }
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [refreshData]);
 
   return (
     <div className="flex min-h-screen flex-col bg-white">

@@ -31,7 +31,7 @@ export default function AdminDashboard() {
   const [userCoordinates, setUserCoordinates] = React.useState({ center: [14.8527, 120.816], zoom: 16 });
   const router = useRouter();
   const { user, isLoading: isUserLoading } = useCurrentUser();
-  const { reports, getPendingReports, getReportsByBarangay } = useReports();
+  const { reports, getPendingReports, getReportsByBarangay, refreshData } = useReports();
 
   const userEmail = user?.email || "";
 
@@ -80,6 +80,28 @@ export default function AdminDashboard() {
       calculateHighRiskAreas();
     }
   }, [reports, userBarangay]); 
+
+  // Auto-refresh when page becomes visible (e.g., navigating back to dashboard)
+  React.useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden && refreshData) {
+        console.log('👁️ Page visible - refreshing data for map pins');
+        refreshData();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    // Also refresh on component mount (when navigating to the page)
+    if (refreshData) {
+      console.log('🔄 Dashboard mounted - refreshing data');
+      refreshData();
+    }
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [refreshData]);
 
   const calculateHighRiskAreas = () => {
     if (!userBarangay) {

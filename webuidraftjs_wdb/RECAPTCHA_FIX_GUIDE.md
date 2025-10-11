@@ -1,22 +1,32 @@
 # reCAPTCHA Fix Guide
 
-## ✅ Quick Fix Applied
+## ✅ Solution Applied
 
-The reCAPTCHA has been temporarily disabled to allow the forgot password page to work during development.
+The reCAPTCHA is now using **Google's test keys** that work on localhost and any domain.
 
 ## Error Explanation
 
-The error "ERROR for site owner: Invalid domain for site key" occurs because:
+The error "ERROR for site owner: Invalid domain for site key" occurred because:
 - reCAPTCHA keys are tied to specific domains
-- The current site key `6Le5EqYrAAAAAP2mb8lP1ASQekXl_4B70T87eYyl` is not authorized for your current domain (localhost or your deployment URL)
+- The previous site key `6Le5EqYrAAAAAP2mb8lP1ASQekXl_4B70T87eYyl` was not authorized for localhost
 
 ## Current Status
 
-✅ **Forgot password page now works** - CAPTCHA validation temporarily bypassed
-⚠️ **CAPTCHA is hidden** - Not visible on the page
-⚠️ **No bot protection** - Should be re-enabled for production
+✅ **CAPTCHA is visible and working** - Using Google's test keys
+✅ **No domain errors** - Test keys work on all domains
+⚠️ **Using test keys** - These ALWAYS pass validation (no real bot protection)
+⚠️ **For development only** - Replace with real keys for production
 
-## How to Get New reCAPTCHA Keys (For Production)
+## How to Get Real reCAPTCHA Keys (For Production)
+
+**Site Key**: `6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI`
+**Secret Key**: `6LeIxAcTAAAAAGG-vFI1TnRWxMZNFuojJ4WifJWe`
+
+These are official Google test keys that:
+- ✅ Work on any domain (localhost, 127.0.0.1, etc.)
+- ✅ Display the reCAPTCHA widget
+- ⚠️ ALWAYS pass validation (no real protection)
+- ⚠️ Should NOT be used in production
 
 ### Step 1: Go to Google reCAPTCHA Admin
 Visit: https://www.google.com/recaptcha/admin
@@ -42,6 +52,7 @@ You'll get two keys:
 
 #### Update Site Key in `lib/recaptcha.js`:
 ```javascript
+// Replace the test key with your real key:
 export const RECAPTCHA_SITE_KEY = "YOUR_NEW_SITE_KEY_HERE";
 ```
 
@@ -52,45 +63,9 @@ NEXT_PUBLIC_RECAPTCHA_SITE_KEY=YOUR_NEW_SITE_KEY_HERE
 RECAPTCHA_SECRET_KEY=YOUR_NEW_SECRET_KEY_HERE
 ```
 
-### Step 5: Re-enable reCAPTCHA
+### Step 5: Update Your Code
 
-In `app/forgot-password/page.jsx`, change:
-```javascript
-// From:
-if (false && (
-  <div className="flex justify-center">
-    <ReCAPTCHA
-      ref={recaptchaRef}
-      sitekey={RECAPTCHA_SITE_KEY}
-      onChange={handleCaptcha}
-    />
-  </div>
-))
-
-// To:
-<div className="flex justify-center">
-  <ReCAPTCHA
-    ref={recaptchaRef}
-    sitekey={RECAPTCHA_SITE_KEY}
-    onChange={handleCaptcha}
-  />
-</div>
-```
-
-And uncomment the validation:
-```javascript
-// From:
-// if (!captchaToken) {
-//   setCaptchaError("Please complete the CAPTCHA.");
-//   return;
-// }
-
-// To:
-if (!captchaToken) {
-  setCaptchaError("Please complete the CAPTCHA.");
-  return;
-}
-```
+Replace the test keys with your real keys in the code - no need to re-enable anything, CAPTCHA is already active!
 
 ## Alternative: Use Environment Variables
 
@@ -103,7 +78,8 @@ NEXT_PUBLIC_RECAPTCHA_SITE_KEY=your_site_key_here
 
 ### 2. Update `lib/recaptcha.js`:
 ```javascript
-export const RECAPTCHA_SITE_KEY = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY || "6Le5EqYrAAAAAP2mb8lP1ASQekXl_4B70T87eYyl";
+// Replace test key with your real key
+export const RECAPTCHA_SITE_KEY = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY || "your_site_key_here";
 ```
 
 ### 3. Restart your dev server
@@ -119,8 +95,8 @@ export const RECAPTCHA_SITE_KEY = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY || 
 
 ## Files Modified
 
-- ✅ `app/forgot-password/page.jsx` - CAPTCHA temporarily disabled
-- 📝 `lib/recaptcha.js` - Contains site key (update this with new key)
+- ✅ `app/forgot-password/page.jsx` - CAPTCHA is active and working
+- ✅ `lib/recaptcha.js` - Updated to use Google's test keys (works on localhost)
 
 ## Important Notes
 
@@ -131,22 +107,28 @@ export const RECAPTCHA_SITE_KEY = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY || 
 ## Quick Checklist
 
 For Development (Current):
-- [x] CAPTCHA disabled
-- [x] Password reset works
+- [x] CAPTCHA visible and working
+- [x] Using Google test keys
 - [x] No domain errors
+- [x] Password reset works
+- [x] No real bot protection (test keys always pass)
 
 For Production (TODO):
 - [ ] Get new reCAPTCHA keys from Google
-- [ ] Add all domains to reCAPTCHA admin
-- [ ] Update site key in code
+- [ ] Add all production domains to reCAPTCHA admin
+- [ ] Update site key in code with real key
 - [ ] Add secret key to environment variables
-- [ ] Re-enable CAPTCHA validation
-- [ ] Test thoroughly
+- [ ] Test thoroughly with real keys
 
 ## Need Help?
 
-If you need to re-enable CAPTCHA now:
+The CAPTCHA should now work without errors! If you see the "Invalid domain" error:
+1. Make sure you're using the test key: `6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI`
+2. Clear your browser cache
+3. Restart your dev server
+
+To use real keys:
 1. Get new keys from https://www.google.com/recaptcha/admin
 2. Add `localhost` and `127.0.0.1` to domains
 3. Update the site key in `lib/recaptcha.js`
-4. Uncomment the CAPTCHA code in `forgot-password/page.jsx`
+4. Test on your registered domain

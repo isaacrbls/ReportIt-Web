@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ref, update } from "firebase/database";
 import { realtimeDb } from "@/firebase";
+import { useToast } from "@/hooks/use-toast";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -33,6 +34,7 @@ export function UserActions({ user, onUpdate }) {
   const [showUnsuspendDialog, setShowUnsuspendDialog] = useState(false);
   const [suspensionReason, setSuspensionReason] = useState("");
   const [processing, setProcessing] = useState(false);
+  const { toast } = useToast();
 
   // Safety check
   if (!user) {
@@ -42,14 +44,13 @@ export function UserActions({ user, onUpdate }) {
   const isSuspended = user.suspended;
   const isAdmin = user.role === "admin" || user.isAdmin;
 
-  const showToast = (title, description, variant = "default") => {
-    // Simple alert for now - can be replaced with proper toast later
-    alert(`${title}\n${description}`);
-  };
-
   const handleSuspend = async () => {
     if (!suspensionReason.trim()) {
-      showToast("Error", "Please provide a reason for suspension", "destructive");
+      toast({
+        title: "Error",
+        description: "Please provide a reason for suspension",
+        variant: "destructive",
+      });
       return;
     }
 
@@ -72,14 +73,16 @@ export function UserActions({ user, onUpdate }) {
         updatedAt: new Date().toISOString(),
       });
 
-      showToast("User suspended", `${user.email} has been suspended for 14 days`);
-
       setShowSuspendDialog(false);
       setSuspensionReason("");
       if (onUpdate) onUpdate();
     } catch (error) {
       console.error("Error suspending user:", error);
-      showToast("Error", "Failed to suspend user. Please try again.", "destructive");
+      toast({
+        title: "Error",
+        description: "Failed to suspend user. Please try again.",
+        variant: "destructive",
+      });
     } finally {
       setProcessing(false);
     }
@@ -99,13 +102,15 @@ export function UserActions({ user, onUpdate }) {
         updatedAt: new Date().toISOString(),
       });
 
-      showToast("User unsuspended", `${user.email} has been reactivated`);
-
       setShowUnsuspendDialog(false);
       if (onUpdate) onUpdate();
     } catch (error) {
       console.error("Error unsuspending user:", error);
-      showToast("Error", "Failed to unsuspend user. Please try again.", "destructive");
+      toast({
+        title: "Error",
+        description: "Failed to unsuspend user. Please try again.",
+        variant: "destructive",
+      });
     } finally {
       setProcessing(false);
     }

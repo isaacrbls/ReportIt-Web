@@ -14,6 +14,8 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { 
   User, 
   Mail, 
@@ -23,17 +25,41 @@ import {
   AlertTriangle,
   CheckCircle,
   XCircle,
-  Clock
+  Clock,
+  Edit,
+  Save,
+  X
 } from "lucide-react";
+import { updateUserProfile } from "@/lib/userManagementAPI";
+import { useToast } from "@/hooks/use-toast";
 
 export function UserDetailsDialog({ user, open, onOpenChange, onUpdate }) {
+  const [currentUser, setCurrentUser] = useState(null);
   const [userReports, setUserReports] = useState([]);
   const [suspensionHistory, setSuspensionHistory] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [editedUser, setEditedUser] = useState({
+    username: "",
+    firstName: "",
+    lastName: "",
+    email: ""
+  });
+  const { toast } = useToast();
 
   useEffect(() => {
     if (open && user) {
+      setCurrentUser(user);
       fetchUserData();
+      // Initialize edit form with user data
+      setEditedUser({
+        username: user.username || user.email?.split('@')[0] || "",
+        firstName: user.firstName || "",
+        lastName: user.lastName || "",
+        email: user.email || ""
+      });
+      setIsEditing(false);
     }
   }, [open, user]);
 
@@ -123,6 +149,56 @@ export function UserDetailsDialog({ user, open, onOpenChange, onUpdate }) {
     }
   };
 
+  const handleSaveEdit = async () => {
+    setIsSaving(true);
+    try {
+      await updateUserProfile(user.id, {
+        username: editedUser.username,
+        firstName: editedUser.firstName,
+        lastName: editedUser.lastName,
+        email: editedUser.email
+      });
+      
+      // Update local user state
+      const updatedUser = {
+        ...currentUser,
+        username: editedUser.username,
+        firstName: editedUser.firstName,
+        lastName: editedUser.lastName,
+        email: editedUser.email
+      };
+      setCurrentUser(updatedUser);
+      
+      toast({
+        title: "Profile Updated",
+        description: "User profile has been successfully updated.",
+      });
+      
+      setIsEditing(false);
+      if (onUpdate) {
+        onUpdate();
+      }
+    } catch (error) {
+      toast({
+        title: "Update Failed",
+        description: error.message || "Failed to update user profile. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditedUser({
+      username: currentUser?.username || currentUser?.email?.split('@')[0] || "",
+      firstName: currentUser?.firstName || "",
+      lastName: currentUser?.lastName || "",
+      email: currentUser?.email || ""
+    });
+    setIsEditing(false);
+  };
+
   const formatDate = (timestamp) => {
     if (!timestamp) return "N/A";
     const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
@@ -158,57 +234,122 @@ export function UserDetailsDialog({ user, open, onOpenChange, onUpdate }) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh]">
+      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <User className="h-5 w-5" />
             User Details
           </DialogTitle>
           <DialogDescription>
-            Detailed information about {user.firstName && user.lastName 
-              ? `${user.firstName} ${user.lastName}` 
-              : user.displayName || user.name || user.email}
+            Detailed information about {currentUser?.firstName && currentUser?.lastName 
+              ? `${currentUser.firstName} ${currentUser.lastName}` 
+              : currentUser?.displayName || currentUser?.name || currentUser?.email}
           </DialogDescription>
         </DialogHeader>
 
-        <div className="max-h-[600px] overflow-y-auto pr-4">
+        <div className="overflow-y-auto pr-2 -mr-2">
           <Tabs defaultValue="overview" className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="overview">Overview</TabsTrigger>
               <TabsTrigger value="reports">Reports ({userReports.length})</TabsTrigger>
-              <TabsTrigger value="history">History</TabsTrigger>
             </TabsList>
 
-            <TabsContent value="overview" className="space-y-4">
+            <TabsContent value="overview" className="space-y-3 mt-3">
               <Card>
-                <CardHeader>
+                <CardHeader className="flex flex-row items-center justify-between pb-3">
                   <CardTitle className="text-base text-red-600">Account Information</CardTitle>
+                  {!isEditing ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setIsEditing(true)}
+                      className="gap-2"
+                    >
+                      <Edit className="h-4 w-4" />
+                      Edit
+                    </Button>
+                  ) : (
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleCancelEdit}
+                        disabled={isSaving}
+                        className="gap-2"
+                      >
+                        <X className="h-4 w-4" />
+                        Cancel
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={handleSaveEdit}
+                        disabled={isSaving}
+                        className="gap-2 bg-red-600 hover:bg-red-700"
+                      >
+                        <Save className="h-4 w-4" />
+                        {isSaving ? "Saving..." : "Save"}
+                      </Button>
+                    </div>
+                  )}
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <div className="text-sm font-medium text-muted-foreground">Username</div>
-                      <div className="text-sm mt-1 font-mono">{user.username || user.email?.split('@')[0] || "N/A"}</div>
+                      <div className="text-sm font-medium text-muted-foreground mb-2">Username</div>
+                      {isEditing ? (
+                        <Input
+                          value={editedUser.username}
+                          onChange={(e) => setEditedUser({ ...editedUser, username: e.target.value })}
+                          placeholder="Enter username"
+                          className="font-mono"
+                        />
+                      ) : (
+                        <div className="text-sm mt-1 font-mono">{currentUser?.username || currentUser?.email?.split('@')[0] || "N/A"}</div>
+                      )}
                     </div>
                     <div>
-                      <div className="text-sm font-medium text-muted-foreground">Full Name</div>
-                      <div className="text-sm mt-1">
-                        {user.firstName && user.lastName 
-                          ? `${user.firstName} ${user.lastName}` 
-                          : user.firstName || user.lastName || user.displayName || user.name || "N/A"}
-                      </div>
+                      <div className="text-sm font-medium text-muted-foreground mb-2">Full Name</div>
+                      {isEditing ? (
+                        <div className="flex gap-2">
+                          <Input
+                            value={editedUser.firstName}
+                            onChange={(e) => setEditedUser({ ...editedUser, firstName: e.target.value })}
+                            placeholder="First name"
+                          />
+                          <Input
+                            value={editedUser.lastName}
+                            onChange={(e) => setEditedUser({ ...editedUser, lastName: e.target.value })}
+                            placeholder="Last name"
+                          />
+                        </div>
+                      ) : (
+                        <div className="text-sm mt-1">
+                          {currentUser?.firstName && currentUser?.lastName 
+                            ? `${currentUser.firstName} ${currentUser.lastName}` 
+                            : currentUser?.firstName || currentUser?.lastName || currentUser?.displayName || currentUser?.name || "N/A"}
+                        </div>
+                      )}
                     </div>
                     <div>
-                      <div className="text-sm font-medium text-muted-foreground">Email</div>
-                      <div className="text-sm mt-1 flex items-center gap-2">
-                        <Mail className="h-4 w-4" />
-                        {user.email || "N/A"}
-                      </div>
+                      <div className="text-sm font-medium text-muted-foreground mb-2">Email</div>
+                      {isEditing ? (
+                        <Input
+                          type="email"
+                          value={editedUser.email}
+                          onChange={(e) => setEditedUser({ ...editedUser, email: e.target.value })}
+                          placeholder="Enter email"
+                        />
+                      ) : (
+                        <div className="text-sm mt-1 flex items-center gap-2">
+                          <Mail className="h-4 w-4" />
+                          {currentUser?.email || "N/A"}
+                        </div>
+                      )}
                     </div>
                     <div>
                       <div className="text-sm font-medium text-muted-foreground">Role</div>
                       <div className="text-sm mt-1">
-                        {user.role === "admin" || user.isAdmin ? (
+                        {currentUser?.role === "admin" || currentUser?.isAdmin ? (
                           <Badge className="bg-red-600 text-white gap-1">
                             <Shield className="h-3 w-3" />
                             Administrator
@@ -221,7 +362,7 @@ export function UserDetailsDialog({ user, open, onOpenChange, onUpdate }) {
                     <div>
                       <div className="text-sm font-medium text-muted-foreground">Account Status</div>
                       <div className="text-sm mt-1">
-                        {user.suspended ? (
+                        {currentUser?.suspended ? (
                           <Badge variant="destructive">Suspended</Badge>
                         ) : (
                           <Badge className="bg-green-100 text-green-800 border-green-200">Active</Badge>
@@ -232,12 +373,12 @@ export function UserDetailsDialog({ user, open, onOpenChange, onUpdate }) {
                       <div className="text-sm font-medium text-muted-foreground">Joined Date</div>
                       <div className="text-sm mt-1 flex items-center gap-2">
                         <Calendar className="h-4 w-4" />
-                        {formatDate(user.createdAt)}
+                        {formatDate(currentUser?.createdAt)}
                       </div>
                     </div>
                   </div>
 
-                  {user.suspended && (
+                  {currentUser?.suspended && (
                     <>
                       <Separator />
                       <div className="bg-red-50 border border-red-200 rounded-lg p-4">
@@ -246,11 +387,11 @@ export function UserDetailsDialog({ user, open, onOpenChange, onUpdate }) {
                           <div className="flex-1">
                             <div className="font-medium text-red-900">Account Suspended</div>
                             <div className="text-sm text-red-700 mt-1">
-                              {user.suspensionReason || "No reason provided"}
+                              {currentUser.suspensionReason || "No reason provided"}
                             </div>
-                            {user.suspensionEndDate && (
+                            {currentUser.suspensionEndDate && (
                               <div className="text-sm text-red-600 mt-2">
-                                Suspended until: {formatDate(user.suspensionEndDate)}
+                                Suspended until: {formatDate(currentUser.suspensionEndDate)}
                               </div>
                             )}
                           </div>
@@ -262,44 +403,44 @@ export function UserDetailsDialog({ user, open, onOpenChange, onUpdate }) {
               </Card>
 
               <Card>
-                <CardHeader>
+                <CardHeader className="pb-3">
                   <CardTitle className="text-base text-red-600">Statistics</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="text-center p-4 bg-red-50 rounded-lg border border-red-200">
-                      <div className="text-2xl font-bold text-red-600">{userReports.length}</div>
-                      <div className="text-sm text-muted-foreground">Total Reports</div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="text-center p-3 bg-red-50 rounded-lg border border-red-200">
+                      <div className="text-xl font-bold text-red-600">{userReports.length}</div>
+                      <div className="text-xs text-muted-foreground">Total Reports</div>
                     </div>
-                    <div className="text-center p-4 bg-green-50 rounded-lg border border-green-200">
-                      <div className="text-2xl font-bold text-green-600">
+                    <div className="text-center p-3 bg-green-50 rounded-lg border border-green-200">
+                      <div className="text-xl font-bold text-green-600">
                         {userReports.filter(r => (r.Status || r.status)?.toLowerCase() === "verified").length}
                       </div>
-                      <div className="text-sm text-muted-foreground">Verified Reports</div>
+                      <div className="text-xs text-muted-foreground">Verified Reports</div>
                     </div>
-                    <div className="text-center p-4 bg-yellow-50 rounded-lg border border-yellow-200">
-                      <div className="text-2xl font-bold text-yellow-600">
+                    <div className="text-center p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+                      <div className="text-xl font-bold text-yellow-600">
                         {userReports.filter(r => (r.Status || r.status)?.toLowerCase() === "pending").length}
                       </div>
-                      <div className="text-sm text-muted-foreground">Pending Reports</div>
+                      <div className="text-xs text-muted-foreground">Pending Reports</div>
                     </div>
-                    <div className="text-center p-4 bg-red-50 rounded-lg border border-red-200">
-                      <div className="text-2xl font-bold text-red-600">
+                    <div className="text-center p-3 bg-red-50 rounded-lg border border-red-200">
+                      <div className="text-xl font-bold text-red-600">
                         {userReports.filter(r => (r.Status || r.status)?.toLowerCase() === "rejected").length}
                       </div>
-                      <div className="text-sm text-muted-foreground">Rejected Reports</div>
+                      <div className="text-xs text-muted-foreground">Rejected Reports</div>
                     </div>
-                    <div className="text-center p-4 bg-orange-50 rounded-lg border border-orange-200">
-                      <div className="text-2xl font-bold text-orange-600">
+                    <div className="text-center p-3 bg-orange-50 rounded-lg border border-orange-200">
+                      <div className="text-xl font-bold text-orange-600">
                         {user.suspensionCount || 0}
                       </div>
-                      <div className="text-sm text-muted-foreground">Total Suspensions</div>
+                      <div className="text-xs text-muted-foreground">Total Suspensions</div>
                     </div>
-                    <div className="text-center p-4 bg-purple-50 rounded-lg border border-purple-200">
-                      <div className="text-2xl font-bold text-purple-600">
+                    <div className="text-center p-3 bg-purple-50 rounded-lg border border-purple-200">
+                      <div className="text-xl font-bold text-purple-600">
                         {user.rejectedReportCount || 0}
                       </div>
-                      <div className="text-sm text-muted-foreground">Current Rejection Count</div>
+                      <div className="text-xs text-muted-foreground">Current Rejection Count</div>
                     </div>
                   </div>
                 </CardContent>
@@ -345,70 +486,6 @@ export function UserDetailsDialog({ user, open, onOpenChange, onUpdate }) {
                             </div>
                             {(report.Barangay || report.barangay) && (
                               <div>{report.Barangay || report.barangay}</div>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="history" className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base flex items-center gap-2 text-red-600">
-                    <AlertTriangle className="h-4 w-4" />
-                    Suspension History
-                  </CardTitle>
-                  <CardDescription>
-                    All suspension records for this user
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {loading ? (
-                    <div className="text-center text-muted-foreground py-8">Loading...</div>
-                  ) : suspensionHistory.length === 0 ? (
-                    <div className="text-center text-muted-foreground py-8">
-                      No suspension history
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      {suspensionHistory.map((suspension) => (
-                        <div
-                          key={suspension.id}
-                          className="border rounded-lg p-4 bg-red-50 border-red-200"
-                        >
-                          <div className="flex justify-between items-start mb-2">
-                            <div className="font-medium text-red-900">
-                              Suspension #{suspension.id.slice(0, 8)}
-                            </div>
-                            <Badge variant={suspension.isActive ? "destructive" : "outline"}>
-                              {suspension.isActive ? "Active" : "Expired"}
-                            </Badge>
-                          </div>
-                          <div className="text-sm text-red-700 mb-2">
-                            {suspension.reason || "No reason provided"}
-                          </div>
-                          <div className="grid grid-cols-2 gap-2 text-xs text-red-600">
-                            <div>
-                              <span className="font-medium">Suspended: </span>
-                              {formatDate(suspension.suspendedAt)}
-                            </div>
-                            <div>
-                              <span className="font-medium">Until: </span>
-                              {formatDate(suspension.suspensionEndDate)}
-                            </div>
-                            <div>
-                              <span className="font-medium">Rejection Count: </span>
-                              {suspension.totalRejections || 0}
-                            </div>
-                            {suspension.unsuspendedAt && (
-                              <div>
-                                <span className="font-medium">Unsuspended: </span>
-                                {formatDate(suspension.unsuspendedAt)}
-                              </div>
                             )}
                           </div>
                         </div>

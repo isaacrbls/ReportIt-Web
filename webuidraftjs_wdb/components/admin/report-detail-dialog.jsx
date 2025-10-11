@@ -46,7 +46,7 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
   const [deleteTimeout, setDeleteTimeout] = useState(null)
   const [currentReportData, setCurrentReportData] = useState(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
-  const [deletionReason, setDeletionReason] = useState("Admin deletion")
+  const [deletionReason, setDeletionReason] = useState("")
   const [resolvedAddress, setResolvedAddress] = useState("")
   const [submittedByDisplayName, setSubmittedByDisplayName] = useState("")
   const { toast } = useToast()
@@ -162,11 +162,11 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
     }
   }
   
-  const renderMapComponent = () => {
+  const renderMapComponent = useMemo(() => {
     const addingIncidentProp = isEditMode && isEditingPin;
     const onMapClickProp = isEditMode && isEditingPin ? handleMapClick : undefined;
     
-    if (reportLocation && reportLocation.length === 2) {
+    if (reportLocation && reportLocation.length === 2 && reportLocation[0] && reportLocation[1]) {
       // Prepare the report data for the map component
       const reportForMap = [currentReportData || report];
       
@@ -193,7 +193,7 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
         <p>No location data available</p>
       </div>
     );
-  };
+  }, [reportLocation, isEditMode, isEditingPin, mapKey, currentReportData, report, mapBarangay]);
 
   useEffect(() => {
     if (isEditMode && (currentReportData || report)) {
@@ -363,7 +363,7 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
   }
 
   const handleDelete = () => {
-    setDeletionReason("Admin deletion") // Reset to default
+    setDeletionReason("") // Reset to empty
     setShowDeleteConfirm(true)
   }
 
@@ -383,12 +383,18 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
         const deleteSuccess = await deleteReport(report.id);
         
         if (deleteSuccess) {
+          // Close both modals immediately
+          setShowDeleteConfirm(false)
+          onOpenChange(false)
+          
+          // Show success message
           toast({
             title: "Report Deleted",
             description: "The report has been archived and removed from active reports.",
           })
+          
+          // Notify parent component
           onDelete?.(report.id)
-          onOpenChange(false)
         } else {
           // If deletion fails but archive succeeded, we should handle this gracefully
           setError("Report was archived but failed to remove from active reports. Please try again.")
@@ -416,13 +422,12 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
       })
     } finally {
       setIsDeleting(false)
-      setShowDeleteConfirm(false)
     }
   }
 
   const cancelDelete = () => {
     setShowDeleteConfirm(false)
-    setDeletionReason("Admin deletion") // Reset to default
+    setDeletionReason("") // Reset to empty
   }
 
   const handleEdit = () => {
@@ -525,7 +530,6 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
                 height: 100%;
                 font-family: Arial, sans-serif;
                 background: white;
-                overflow: hidden;
               }
               
               .report-container {
@@ -533,10 +537,8 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
                 margin: 0 auto;
                 padding: 40px;
                 background: white;
-                height: 100vh;
+                min-height: 100vh;
                 box-sizing: border-box;
-                display: flex;
-                flex-direction: column;
               }
               
               .report-title {
@@ -582,53 +584,53 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
               }
               
               .footer {
-                margin-top: auto;
+                margin-top: 30px;
                 text-align: center;
                 color: #666;
                 font-size: 12px;
                 border-top: 1px solid #eee;
                 padding-top: 20px;
-                flex-shrink: 0;
-              }
-              
-              .page-break {
-                page-break-before: always;
-                break-before: page;
               }
               
               @media print {
+                @page {
+                  size: A4;
+                  margin: 20mm;
+                }
+                
                 html, body {
                   width: 210mm;
                   height: 297mm;
                   margin: 0;
                   padding: 0;
-                  overflow: visible;
                 }
                 
                 .report-container {
-                  padding: 20mm;
+                  padding: 0;
                   margin: 0;
                   max-width: none;
                   width: 100%;
-                  height: 257mm;
-                  box-sizing: border-box;
+                  min-height: 0;
+                  height: auto;
                   page-break-after: avoid;
-                  break-after: avoid;
-                  overflow: hidden;
-                  display: flex;
-                  flex-direction: column;
+                  page-break-inside: avoid;
                 }
                 
                 .report-grid {
                   display: grid;
                   grid-template-columns: 1fr 1fr;
-                  gap: 20px;
+                  gap: 15px;
+                  page-break-inside: avoid;
+                }
+                
+                .report-section {
+                  page-break-inside: avoid;
                 }
               }
             </style>
           </head>
           <body>
-            <div class="report-container" style="page-break-after: avoid; break-after: avoid;">
+            <div class="report-container">
               <div style="text-align: right; color: #666; font-size: 12px; margin-bottom: 20px;">
                 Individual Report
               </div>
@@ -685,7 +687,6 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
             
             <script>
               window.onload = function() {
-                
                 setTimeout(function() {
                   window.print();
                 }, 100);
@@ -1055,7 +1056,7 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
                 </div>
               )}
               <div className="w-full h-[250px] bg-[#F8E3DE] rounded-lg flex items-center justify-center overflow-hidden mb-2">
-                {renderMapComponent()}
+                {renderMapComponent}
               </div>
               
               <div className="w-full text-center text-gray-500 text-sm">
@@ -1079,8 +1080,14 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
 
       {}
       {showDeleteConfirm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100]">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100]"
+          onClick={cancelDelete}
+        >
+          <div 
+            className="bg-white rounded-lg p-6 max-w-md w-full mx-4"
+            onClick={(e) => e.stopPropagation()}
+          >
             <h3 className="text-lg font-semibold text-red-600 mb-4">Delete Report</h3>
             <p className="text-gray-600 mb-6">
               Do you want to delete this report? This action cannot be undone.
@@ -1095,27 +1102,18 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
               </p>
             </div>
 
-            {/* Deletion Reason Dropdown */}
+            {/* Deletion Reason Input */}
             <div className="mb-6">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Reason for Deletion
               </label>
-              <Select value={deletionReason} onValueChange={setDeletionReason}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select deletion reason" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Admin deletion">Admin deletion</SelectItem>
-                  <SelectItem value="Spam report">Spam report</SelectItem>
-                  <SelectItem value="False information">False information</SelectItem>
-                  <SelectItem value="Duplicate report">Duplicate report</SelectItem>
-                  <SelectItem value="Inappropriate content">Inappropriate content</SelectItem>
-                  <SelectItem value="Privacy violation">Privacy violation</SelectItem>
-                  <SelectItem value="Test report">Test report</SelectItem>
-                  <SelectItem value="User request">User request</SelectItem>
-                  <SelectItem value="Other">Other</SelectItem>
-                </SelectContent>
-              </Select>
+              <textarea
+                value={deletionReason}
+                onChange={(e) => setDeletionReason(e.target.value)}
+                placeholder="Enter the reason for deleting this report..."
+                rows={4}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 resize-none"
+              />
             </div>
 
             <div className="flex gap-3 justify-end">

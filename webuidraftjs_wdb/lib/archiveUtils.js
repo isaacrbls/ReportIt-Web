@@ -11,7 +11,9 @@ import {
   query, 
   where, 
   orderBy, 
-  Timestamp 
+  Timestamp,
+  deleteDoc,
+  setDoc
 } from "firebase/firestore";
 import { db } from "@/firebase";
 
@@ -276,4 +278,49 @@ export function formatArchivedReportForDisplay(archivedReport) {
     isArchived: true,
     originalReport: archivedReport // Include full original data
   };
+}
+/**
+ * Recover an archived report back to active reports
+ * @param {string} archiveId - ID of the archived report
+ * @param {Object} archivedReportData - The archived report data
+ * @returns {Promise<string>} - ID of the recovered report
+ */
+export async function recoverArchivedReport(archiveId, archivedReportData) {
+  try {
+    console.log(' Recovering archived report:', archiveId);
+    
+    // Prepare report data for recovery
+    const recoveredReportData = { ...archivedReportData };
+    
+    // Remove archive-specific fields
+    delete recoveredReportData.id;
+    delete recoveredReportData.archivedAt;
+    delete recoveredReportData.deletedBy;
+    delete recoveredReportData.deletionReason;
+    delete recoveredReportData.isArchived;
+    delete recoveredReportData.archiveVersion;
+    delete recoveredReportData.originalId;
+    
+    // Set status back to Pending if it was deleted
+    if (!recoveredReportData.Status || recoveredReportData.Status === 'Deleted') {
+      recoveredReportData.Status = 'Pending';
+    }
+    
+    // Add recovery metadata
+    recoveredReportData.recoveredAt = Timestamp.now();
+    recoveredReportData.wasRecovered = true;
+    
+    // Add back to reports collection
+    const docRef = await addDoc(collection(db, 'reports'), recoveredReportData);
+    console.log(' Report recovered with new ID:', docRef.id);
+    
+    // Delete from archive
+    await deleteDoc(doc(db, ARCHIVE_CONSTANTS.COLLECTION_NAMES.ARCHIVED_REPORTS, archiveId));
+    console.log(' Removed from archive:', archiveId);
+    
+    return docRef.id;
+  } catch (error) {
+    console.error(' Error recovering archived report:', error);
+    throw error;
+  }
 }

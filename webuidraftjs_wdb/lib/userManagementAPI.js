@@ -16,7 +16,8 @@ import {
   Timestamp,
   addDoc,
 } from "firebase/firestore";
-import { db } from "@/firebase";
+import { ref, update } from "firebase/database";
+import { db, realtimeDb } from "@/firebase";
 
 /**
  * Fetch all users from Firestore
@@ -262,6 +263,27 @@ export async function searchUsers(searchTerm) {
     );
   } catch (error) {
     console.error("Error searching users:", error);
+    throw error;
+  }
+}
+
+/**
+ * Update user profile information
+ * Updates user data in Firebase Realtime Database
+ */
+export async function updateUserProfile(userId, profileData) {
+  try {
+    const userRef = ref(realtimeDb, `users/${userId}`);
+    const updates = {
+      ...profileData,
+      updatedAt: new Date().toISOString(),
+    };
+
+    await update(userRef, updates);
+    console.log("✅ User profile updated successfully:", userId);
+    return true;
+  } catch (error) {
+    console.error("❌ Error updating user profile:", error);
     throw error;
   }
 }

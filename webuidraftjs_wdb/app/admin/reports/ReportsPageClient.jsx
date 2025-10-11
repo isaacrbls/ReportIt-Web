@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { Search, Plus, LogOut, CheckCircle, XCircle, LayoutDashboard, BarChart2, FileText, ShieldAlert } from "lucide-react";
+import { Search, Plus, LogOut, CheckCircle, XCircle, LayoutDashboard, BarChart2, FileText, ShieldAlert, ChevronLeft, ChevronRight } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { collection, getDocs, onSnapshot, query, orderBy, addDoc, deleteDoc, doc } from "firebase/firestore";
 
@@ -31,7 +31,7 @@ import { getUserBarangay, isUserAdmin, USER_BARANGAY_MAP } from "@/lib/userMappi
 import { updateReportStatus, formatReportForDisplay, getUserRejectionCount, resetUserRejectionCount } from "@/lib/reportUtils";
 import { reverseGeocode } from "@/lib/mapUtils";
 import { apiClient } from "@/lib/apiClient";
-import { getArchivedReports, searchArchivedReports } from "@/lib/archiveUtils";
+import { getArchivedReports, searchArchivedReports, recoverArchivedReport } from "@/lib/archiveUtils";
 import { getUserFullName } from "@/lib/userDataUtils";
 
 export default function ReportsPageClient() {
@@ -40,6 +40,9 @@ export default function ReportsPageClient() {
   const [activeTab, setActiveTab] = useState("reports");
   const [archiveSearch, setArchiveSearch] = useState("");
   const [isLoadingArchives, setIsLoadingArchives] = useState(false);
+  const [archiveCurrentPage, setArchiveCurrentPage] = useState(1);
+  const [archiveItemsPerPage] = useState(6); // Show 6 archived reports per page
+  const [recoveringReportId, setRecoveringReportId] = useState(null);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [selectedReport, setSelectedReport] = useState(null);
@@ -171,6 +174,28 @@ export default function ReportsPageClient() {
     const debounceTimer = setTimeout(handleArchiveSearch, 500);
     return () => clearTimeout(debounceTimer);
   }, [archiveSearch, activeTab, userBarangay]);
+
+  // Handle recovering an archived report
+  const handleRecoverReport = async (archiveId, reportData) => {
+    try {
+      setRecoveringReportId(archiveId);
+      await recoverArchivedReport(archiveId, reportData);
+
+      // Immediately remove the recovered report from the local state
+      setArchivedReports(prevReports => prevReports.filter(report => report.id !== archiveId));
+
+      // Reset to first page if current page is now empty
+      const updatedArchives = archivedReports.filter(report => report.id !== archiveId);
+      const newTotalPages = Math.ceil(updatedArchives.length / archiveItemsPerPage);
+      if (archiveCurrentPage > newTotalPages && newTotalPages > 0) {
+        setArchiveCurrentPage(newTotalPages);
+      }
+    } catch (error) {
+      console.error("Error recovering report:", error);
+    } finally {
+      setRecoveringReportId(null);
+    }
+  };
 
   // Load categories from Firebase
   useEffect(() => {
@@ -445,7 +470,6 @@ export default function ReportsPageClient() {
             updatedAt: new Date().toISOString(),
           });
           
-          alert(`User ${email} has been suspended for 2 weeks due to 3 rejected reports.`);
           console.log(`✅ User ${email} suspended automatically`);
         }
       }
@@ -949,6 +973,12 @@ export default function ReportsPageClient() {
                   <option value="Drugs Addiction">Drugs Addiction</option>
                   <option value="Missing Person">Missing Person</option>
                   <option value="Others">Others</option>
+                  {/* Custom categories */}
+                  {categories.length > 0 && categories.map((category, index) => (
+                    <option key={index} value={category.name || category}>
+                      {category.name || category}
+                    </option>
+                  ))}
                 </select>
               </div>
 
@@ -1002,11 +1032,17 @@ export default function ReportsPageClient() {
                     placeholder="Search by incident type, title, description, location, or admin name..."
                     className="flex-1 outline-none bg-transparent text-base placeholder-gray-400"
                     value={archiveSearch}
-                    onChange={(e) => setArchiveSearch(e.target.value)}
+                    onChange={(e) => {
+                      setArchiveSearch(e.target.value);
+                      setArchiveCurrentPage(1); // Reset to first page when searching
+                    }}
                   />
                   {archiveSearch && (
                     <button
-                      onClick={() => setArchiveSearch("")}
+                      onClick={() => {
+                        setArchiveSearch("");
+                        setArchiveCurrentPage(1);
+                      }}
                       className="ml-2 text-gray-400 hover:text-gray-600"
                     >
                       ✕
@@ -1019,8 +1055,9 @@ export default function ReportsPageClient() {
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {archivedReports
-                      .filter(report => {
+                    {(() => {
+                      // Filter archived reports
+                      const filteredArchives = archivedReports.filter(report => {
                         const searchTerm = archiveSearch.trim().toLowerCase();
                         if (!searchTerm) return true;
                         return (
@@ -1030,8 +1067,17 @@ export default function ReportsPageClient() {
                           report?.Barangay?.toLowerCase?.().includes(searchTerm) ||
                           report?.deletedBy?.toLowerCase?.().includes(searchTerm)
                         );
-                      })
-                      .map((report) => (
+                      });
+
+                      // Calculate pagination
+                      const totalPages = Math.ceil(filteredArchives.length / archiveItemsPerPage);
+                      const startIndex = (archiveCurrentPage - 1) * archiveItemsPerPage;
+                      const endIndex = startIndex + archiveItemsPerPage;
+                      const paginatedArchives = filteredArchives.slice(startIndex, endIndex);
+
+                      return (
+                        <>
+                          {paginatedArchives.map((report) => (
                         <div key={report.id} className="border rounded-lg p-5 bg-white shadow-sm hover:shadow-md transition-shadow">
                           <div className="flex justify-between items-start mb-3">
                             <div className="flex-1">
@@ -1084,33 +1130,101 @@ export default function ReportsPageClient() {
                               <div className="text-red-700 text-sm font-medium">{report.deletionReason}</div>
                             </div>
                           )}
+                          
+                          {/* Recover Button */}
+                          <div className="mt-4 flex justify-end">
+                            <button
+                              onClick={() => handleRecoverReport(report.id, report)}
+                              disabled={recoveringReportId === report.id}
+                              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors text-sm font-medium"
+                            >
+                              {recoveringReportId === report.id ? 'Recovering...' : 'Recover Report'}
+                            </button>
+                          </div>
                         </div>
                       ))}
-                    
-                    {archivedReports.length === 0 && !isLoadingArchives && (
-                      <div className="text-center py-12">
-                        <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
-                          <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                          </svg>
-                        </div>
-                        <h3 className="text-lg font-semibold text-gray-600 mb-2">No Archived Reports</h3>
-                        <p className="text-gray-500">
-                          {archiveSearch 
-                            ? "No archived reports match your search criteria." 
-                            : "No reports have been deleted and archived yet."
-                          }
-                        </p>
-                        {archiveSearch && (
-                          <button
-                            onClick={() => setArchiveSearch("")}
-                            className="mt-3 px-4 py-2 text-red-600 border border-red-600 rounded-lg hover:bg-red-50 transition-colors"
-                          >
-                            Clear Search
-                          </button>
-                        )}
-                      </div>
-                    )}
+
+                          {/* Pagination Controls */}
+                          {filteredArchives.length > archiveItemsPerPage && (
+                            <div className="flex justify-center items-center mt-8 pt-6 border-t border-gray-200">
+                              <div className="flex items-center gap-2">
+                                {/* Previous Button */}
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => setArchiveCurrentPage(prev => Math.max(prev - 1, 1))}
+                                  disabled={archiveCurrentPage === 1}
+                                  className="flex items-center gap-1 px-3"
+                                >
+                                  <ChevronLeft className="h-4 w-4" />
+                                  <span className="hidden sm:inline">Previous</span>
+                                </Button>
+
+                                {/* Page Numbers */}
+                                <div className="flex items-center gap-1">
+                                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(pageNum => (
+                                    <Button
+                                      key={pageNum}
+                                      variant={archiveCurrentPage === pageNum ? "default" : "outline"}
+                                      size="sm"
+                                      onClick={() => setArchiveCurrentPage(pageNum)}
+                                      className={`w-9 h-9 p-0 ${
+                                        archiveCurrentPage === pageNum 
+                                          ? "bg-red-500 text-white hover:bg-red-600 border-red-500" 
+                                          : "hover:bg-gray-50"
+                                      }`}
+                                    >
+                                      {pageNum}
+                                    </Button>
+                                  ))}
+                                </div>
+
+                                {/* Next Button */}
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => setArchiveCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                                  disabled={archiveCurrentPage === totalPages}
+                                  className="flex items-center gap-1 px-3 border-red-400 text-red-500 hover:bg-red-50"
+                                >
+                                  <span className="hidden sm:inline">Next</span>
+                                  <ChevronRight className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Empty State */}
+                          {filteredArchives.length === 0 && (
+                            <div className="text-center py-12">
+                              <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
+                                <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                              </div>
+                              <h3 className="text-lg font-semibold text-gray-600 mb-2">No Archived Reports</h3>
+                              <p className="text-gray-500">
+                                {archiveSearch 
+                                  ? "No archived reports match your search criteria." 
+                                  : "No reports have been deleted and archived yet."
+                                }
+                              </p>
+                              {archiveSearch && (
+                                <button
+                                  onClick={() => {
+                                    setArchiveSearch("");
+                                    setArchiveCurrentPage(1);
+                                  }}
+                                  className="mt-3 px-4 py-2 text-red-600 border border-red-600 rounded-lg hover:bg-red-50 transition-colors"
+                                >
+                                  Clear Search
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </>
+                      );
+                    })()}
                   </div>
                 )}
               </div>
@@ -1126,7 +1240,9 @@ export default function ReportsPageClient() {
             onVerify={handleVerify}
             onReject={handleReject}
             onDelete={(reportId) => {
-              
+              // Clear the selected report and close dialog immediately
+              setSelectedReport(null);
+              setIsDialogOpen(false);
               console.log("Report deleted successfully");
             }}
             onEdit={(reportId, updates) => {
