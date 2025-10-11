@@ -124,8 +124,8 @@ export default function UsersPage() {
     
     const stats = {
       total: filteredUsers.length,
-      active: filteredUsers.filter(u => !u.suspended && !u.isSuspended).length,
-      suspended: filteredUsers.filter(u => u.suspended || u.isSuspended).length,
+      active: filteredUsers.filter(u => !u.suspended).length,
+      suspended: filteredUsers.filter(u => u.suspended).length,
       admins: 0 // Not showing admins anymore
     };
     setStats(stats);
@@ -161,9 +161,9 @@ export default function UsersPage() {
     // Filter by status
     if (filterStatus !== "all") {
       if (filterStatus === "active") {
-        filtered = filtered.filter(u => !u.suspended && !u.isSuspended);
+        filtered = filtered.filter(u => !u.suspended);
       } else if (filterStatus === "suspended") {
-        filtered = filtered.filter(u => u.suspended || u.isSuspended);
+        filtered = filtered.filter(u => u.suspended);
       }
     }
 
@@ -204,7 +204,7 @@ export default function UsersPage() {
   };
 
   const getUserStatus = (user) => {
-    if (user.suspended || user.isSuspended) return "suspended";
+    if (user.suspended) return "suspended";
     return "active";
   };
 

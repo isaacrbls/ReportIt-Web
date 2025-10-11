@@ -39,7 +39,7 @@ export function UserActions({ user, onUpdate }) {
     return null;
   }
 
-  const isSuspended = user.suspended || user.isSuspended;
+  const isSuspended = user.suspended;
   const isAdmin = user.role === "admin" || user.isAdmin;
 
   const showToast = (title, description, variant = "default") => {
@@ -64,7 +64,6 @@ export function UserActions({ user, onUpdate }) {
 
       await update(userRef, {
         suspended: true,
-        isSuspended: true,
         suspensionReason: suspensionReason.trim(),
         suspensionDate: new Date().toISOString(),
         suspensionEndDate: suspensionEndDate.toISOString(),
@@ -92,7 +91,6 @@ export function UserActions({ user, onUpdate }) {
       const userRef = ref(realtimeDb, `users/${user.id}`);
       await update(userRef, {
         suspended: false,
-        isSuspended: false,
         suspensionReason: null,
         suspensionDate: null,
         suspensionEndDate: null,

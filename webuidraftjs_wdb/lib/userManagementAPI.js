@@ -69,7 +69,6 @@ export async function suspendUser(userId, reason, durationDays = 14) {
 
     await updateDoc(userRef, {
       suspended: true,
-      isSuspended: true,
       suspensionReason: reason,
       suspensionDate: Timestamp.now(),
       suspensionEndDate: Timestamp.fromDate(suspensionEndDate),
@@ -101,7 +100,6 @@ export async function unsuspendUser(userId) {
     
     await updateDoc(userRef, {
       suspended: false,
-      isSuspended: false,
       suspensionReason: null,
       suspensionDate: null,
       suspensionEndDate: null,

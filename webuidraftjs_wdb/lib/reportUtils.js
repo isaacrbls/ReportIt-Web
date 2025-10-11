@@ -1,5 +1,7 @@
-import { doc, getDoc, updateDoc, deleteDoc } from "firebase/firestore";
+import { doc, getDoc, updateDoc, deleteDoc, collection, query, where, getDocs } from "firebase/firestore";
 import { db } from "../firebase";
+import { ref, update, get } from "firebase/database";
+import { realtimeDb } from "../firebase";
 
 export async function getReportDetails(reportId) {
   try {
@@ -78,6 +80,17 @@ export async function getReportDetails(reportId) {
 export async function updateReportStatus(reportId, status, rejectionReason = null) {
   try {
     const docRef = doc(db, "reports", reportId);
+    
+    // Get the report to find the user email
+    const reportSnap = await getDoc(docRef);
+    if (!reportSnap.exists()) {
+      console.error("Report not found");
+      return false;
+    }
+    
+    const reportData = reportSnap.data();
+    const userEmail = reportData.SubmittedByEmail;
+    
     const updateData = { Status: status };
     
     if (rejectionReason) {
@@ -85,8 +98,113 @@ export async function updateReportStatus(reportId, status, rejectionReason = nul
     }
     
     await updateDoc(docRef, updateData);
+    
+    // If status is "Rejected", increment the user's rejectedReportCount
+    if (status === "Rejected" && userEmail) {
+      await incrementUserRejectionCount(userEmail);
+    }
+    
     return true;
   } catch (error) {
+    console.error("Error updating report status:", error);
+    return false;
+  }
+}
+
+/**
+ * Increment the rejected report count for a user
+ */
+async function incrementUserRejectionCount(userEmail) {
+  try {
+    // Find user by email in Realtime Database
+    const usersRef = ref(realtimeDb, 'users');
+    const usersSnapshot = await get(usersRef);
+    
+    if (usersSnapshot.exists()) {
+      const users = usersSnapshot.val();
+      const userId = Object.keys(users).find(id => users[id].email === userEmail);
+      
+      if (userId) {
+        const userRef = ref(realtimeDb, `users/${userId}`);
+        const userSnapshot = await get(userRef);
+        const userData = userSnapshot.val();
+        
+        const currentCount = userData.rejectedReportCount || 0;
+        const newCount = currentCount + 1;
+        
+        await update(userRef, {
+          rejectedReportCount: newCount,
+          updatedAt: new Date().toISOString(),
+        });
+        
+        console.log(`✅ User ${userEmail} rejection count updated: ${currentCount} → ${newCount}`);
+        return newCount;
+      }
+    }
+    
+    return 0;
+  } catch (error) {
+    console.error("Error incrementing rejection count:", error);
+    return 0;
+  }
+}
+
+/**
+ * Get the rejected report count for a user by email
+ */
+export async function getUserRejectionCount(userEmail) {
+  try {
+    const usersRef = ref(realtimeDb, 'users');
+    const usersSnapshot = await get(usersRef);
+    
+    if (usersSnapshot.exists()) {
+      const users = usersSnapshot.val();
+      const userId = Object.keys(users).find(id => users[id].email === userEmail);
+      
+      if (userId) {
+        const userRef = ref(realtimeDb, `users/${userId}`);
+        const userSnapshot = await get(userRef);
+        const userData = userSnapshot.val();
+        
+        return userData.rejectedReportCount || 0;
+      }
+    }
+    
+    return 0;
+  } catch (error) {
+    console.error("Error getting rejection count:", error);
+    return 0;
+  }
+}
+
+/**
+ * Reset the rejected report count for a user
+ */
+export async function resetUserRejectionCount(userEmail) {
+  try {
+    const usersRef = ref(realtimeDb, 'users');
+    const usersSnapshot = await get(usersRef);
+    
+    if (usersSnapshot.exists()) {
+      const users = usersSnapshot.val();
+      const userId = Object.keys(users).find(id => users[id].email === userEmail);
+      
+      if (userId) {
+        const userRef = ref(realtimeDb, `users/${userId}`);
+        
+        await update(userRef, {
+          rejectedReportCount: 0,
+          updatedAt: new Date().toISOString(),
+        });
+        
+        console.log(`✅ User ${userEmail} rejection count reset to 0`);
+        return true;
+      }
+    }
+    
+    return false;
+  } catch (error) {
+    console.error("Error resetting rejection count:", error);
     return false;
   }
 }

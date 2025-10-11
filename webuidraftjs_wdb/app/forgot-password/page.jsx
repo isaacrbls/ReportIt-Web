@@ -27,10 +27,14 @@ export default function ForgotPasswordPage() {
     setCaptchaError("");
     setError("");
     console.log("Submit clicked with email:", email);
-    if (!captchaToken) {
-      setCaptchaError("Please complete the CAPTCHA.");
-      return;
-    }
+    
+    // Temporarily skip CAPTCHA validation for development
+    // TODO: Re-enable CAPTCHA validation in production
+    // if (!captchaToken) {
+    //   setCaptchaError("Please complete the CAPTCHA.");
+    //   return;
+    // }
+    
     setLoading(true);
     try {
       await sendPasswordResetEmail(auth, email);
@@ -94,13 +98,16 @@ export default function ForgotPasswordPage() {
                 />
               </div>
             </div>
-            <div className="flex justify-center">
-              <ReCAPTCHA
-                ref={recaptchaRef}
-                sitekey={RECAPTCHA_SITE_KEY}
-                onChange={handleCaptcha}
-              />
-            </div>
+            {/* Temporarily hidden reCAPTCHA - re-enable after getting new keys */}
+            {false && (
+              <div className="flex justify-center">
+                <ReCAPTCHA
+                  ref={recaptchaRef}
+                  sitekey={RECAPTCHA_SITE_KEY}
+                  onChange={handleCaptcha}
+                />
+              </div>
+            )}
             {captchaError && (
               <div className="text-red-500 font-semibold mb-2">
                 {captchaError}

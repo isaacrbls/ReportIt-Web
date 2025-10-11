@@ -72,10 +72,11 @@ A complete user management system has been added to the ReportIt admin panel.
   role: "admin" | "user",
   isAdmin: boolean,
   suspended: boolean,
-  isSuspended: boolean,
   suspensionReason: string,
   suspensionDate: Timestamp,
   suspensionEndDate: Timestamp,
+  suspensionCount: number,
+  rejectedReportCount: number,
   createdAt: Timestamp,
   updatedAt: Timestamp
 }
@@ -119,6 +120,9 @@ A complete user management system has been added to the ReportIt admin panel.
 ✅ Toast notifications
 ✅ Responsive design
 ✅ Loading states
+✅ **Automatic rejection tracking** - Tracks when users have 3 rejected reports
+✅ **Auto-suspension prompt** - Shows modal asking admin to suspend user after 3 rejections
+✅ **Rejection counter reset** - Option to reset counter or proceed with suspension
 
 ## Next Steps (Optional Enhancements)
 - [ ] Export users to CSV

@@ -221,7 +221,7 @@ export function UserDetailsDialog({ user, open, onOpenChange, onUpdate }) {
                     <div>
                       <div className="text-sm font-medium text-muted-foreground">Account Status</div>
                       <div className="text-sm mt-1">
-                        {user.suspended || user.isSuspended ? (
+                        {user.suspended ? (
                           <Badge variant="destructive">Suspended</Badge>
                         ) : (
                           <Badge className="bg-green-100 text-green-800 border-green-200">Active</Badge>
@@ -237,7 +237,7 @@ export function UserDetailsDialog({ user, open, onOpenChange, onUpdate }) {
                     </div>
                   </div>
 
-                  {(user.suspended || user.isSuspended) && (
+                  {user.suspended && (
                     <>
                       <Separator />
                       <div className="bg-red-50 border border-red-200 rounded-lg p-4">
@@ -283,11 +283,23 @@ export function UserDetailsDialog({ user, open, onOpenChange, onUpdate }) {
                       </div>
                       <div className="text-sm text-muted-foreground">Pending Reports</div>
                     </div>
+                    <div className="text-center p-4 bg-red-50 rounded-lg border border-red-200">
+                      <div className="text-2xl font-bold text-red-600">
+                        {userReports.filter(r => (r.Status || r.status)?.toLowerCase() === "rejected").length}
+                      </div>
+                      <div className="text-sm text-muted-foreground">Rejected Reports</div>
+                    </div>
                     <div className="text-center p-4 bg-orange-50 rounded-lg border border-orange-200">
                       <div className="text-2xl font-bold text-orange-600">
                         {user.suspensionCount || 0}
                       </div>
-                      <div className="text-sm text-muted-foreground">Suspensions</div>
+                      <div className="text-sm text-muted-foreground">Total Suspensions</div>
+                    </div>
+                    <div className="text-center p-4 bg-purple-50 rounded-lg border border-purple-200">
+                      <div className="text-2xl font-bold text-purple-600">
+                        {user.rejectedReportCount || 0}
+                      </div>
+                      <div className="text-sm text-muted-foreground">Current Rejection Count</div>
                     </div>
                   </div>
                 </CardContent>
