@@ -5,22 +5,13 @@ import { useState, useEffect } from "react";
 import { collection, onSnapshot } from "firebase/firestore";
 import { db } from "@/firebase";
 import { useCurrentUser } from "@/hooks/use-current-user";
+import { getUserBarangay } from "@/lib/userMapping";
 
 export function IncidentTrendChart({ timePeriod = "all", sortBy = "count", sortOrder = "desc" }) {
   const [chartData, setChartData] = useState([]);
   const [reports, setReports] = useState([]);
+  const [userBarangay, setUserBarangay] = useState("");
   const { user } = useCurrentUser();
-
-  const userBarangayMap = {
-    "testpinagbakahan@example.com": "Pinagbakahan",
-    "testbulihan@example.com": "Bulihan",
-    "testtiaong@example.com": "Tiaong",
-    "testdakila@example.com": "Dakila",
-    "testmojon@example.com": "Mojon",
-    "testlook@example.com": "Look 1st",
-    "testlongos@example.com": "Longos",
-    'test@example.com': 'All'
-  };
 
   const filterReportsByTimePeriod = (reports, period) => {
     if (period === "all") return reports;
@@ -148,7 +139,7 @@ export function IncidentTrendChart({ timePeriod = "all", sortBy = "count", sortO
   };
 
   useEffect(() => {
-    const unsubscribe = onSnapshot(collection(db, "reports"), (snapshot) => {
+    const unsubscribe = onSnapshot(collection(db, "reports"), async (snapshot) => {
       const reportsData = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
@@ -206,10 +197,16 @@ export function IncidentTrendChart({ timePeriod = "all", sortBy = "count", sortO
       setReports(reportsData);
 
       const userEmail = user?.email;
-      const barangay = userBarangayMap[userEmail] || 'Unknown';
-      console.log("TrendChart - User email:", userEmail, "Barangay:", barangay);
+      
+      // Get barangay from database
+      let barangay = 'Unknown';
+      if (userEmail) {
+        barangay = await getUserBarangay(userEmail);
+        setUserBarangay(barangay);
+        console.log("TrendChart - User email:", userEmail, "Barangay:", barangay);
+      }
 
-      let filteredReports = barangay === 'All' ? reportsData : 
+      let filteredReports = barangay === 'All' || !barangay ? reportsData : 
                            reportsData.filter(r => r.Barangay === barangay);
       
       filteredReports = filterReportsByTimePeriod(filteredReports, timePeriod);

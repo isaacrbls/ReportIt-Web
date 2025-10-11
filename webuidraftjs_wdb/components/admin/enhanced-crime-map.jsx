@@ -26,11 +26,23 @@ export function EnhancedCrimeMap() {
   const [showPins, setShowPins] = useState(true);
   const [showHotspots, setShowHotspots] = useState(true);
   const [showHeatmap, setShowHeatmap] = useState(true);
+  const [barangay, setBarangay] = useState('All');
   const { user, isLoading: isUserLoading } = useCurrentUser();
   const { reports, getReportsByBarangay, isLoading } = useReports();
 
   const userEmail = user?.email || "";
-  const barangay = getUserBarangay(userEmail) || 'All';
+  
+  // Load user barangay from database
+  useEffect(() => {
+    const loadBarangay = async () => {
+      if (userEmail) {
+        const userBarangay = await getUserBarangay(userEmail);
+        setBarangay(userBarangay || 'All');
+      }
+    };
+    
+    loadBarangay();
+  }, [userEmail]);
 
   const filteredReports = getReportsByBarangay(barangay === 'All' ? null : barangay);
 

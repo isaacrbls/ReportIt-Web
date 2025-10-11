@@ -52,11 +52,15 @@ export default function UsersPage() {
   }, [users, searchTerm, filterStatus, currentUserBarangay]);
 
   useEffect(() => {
-    if (currentUser?.email) {
-      const barangay = getUserBarangay(currentUser.email);
-      setCurrentUserBarangay(barangay);
-      console.log("👤 Current user barangay:", barangay);
-    }
+    const loadUserBarangay = async () => {
+      if (currentUser?.email) {
+        const barangay = await getUserBarangay(currentUser.email);
+        setCurrentUserBarangay(barangay);
+        console.log("👤 Current user barangay:", barangay);
+      }
+    };
+    
+    loadUserBarangay();
   }, [currentUser]);
 
   const fetchUsers = async () => {
@@ -112,7 +116,8 @@ export default function UsersPage() {
     // Filter by current user's barangay
     if (currentUserBarangay) {
       filteredUsers = filteredUsers.filter(user => {
-        const userBarangay = user.barangay || getUserBarangay(user.email);
+        // Use barangay field from the user's database record
+        const userBarangay = user.barangay || '';
         return userBarangay && userBarangay.toLowerCase() === currentUserBarangay.toLowerCase();
       });
     }
@@ -132,8 +137,8 @@ export default function UsersPage() {
     // Filter by current user's barangay
     if (currentUserBarangay) {
       filtered = filtered.filter(user => {
-        // First check if user has barangay field in their data
-        const userBarangay = user.barangay || getUserBarangay(user.email);
+        // Use barangay field from the user's database record
+        const userBarangay = user.barangay || '';
         return userBarangay && userBarangay.toLowerCase() === currentUserBarangay.toLowerCase();
       });
     }
@@ -330,7 +335,7 @@ export default function UsersPage() {
                             <TableCell className="text-gray-700">{user.email || "N/A"}</TableCell>
                             <TableCell>
                               <Badge variant="outline" className="border-red-300 text-red-700">
-                                {user.barangay || getUserBarangay(user.email) || "N/A"}
+                                {user.barangay || "N/A"}
                               </Badge>
                             </TableCell>
                             <TableCell>

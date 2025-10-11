@@ -615,7 +615,7 @@ export default function MapComponent({
 			mapInstanceRef.current = null;
 		}
 
-		const initTimeout = setTimeout(() => {
+		const initTimeout = setTimeout(async () => {
 			try {
 				setMapError(null);
 				setIsMapReady(false);
@@ -633,7 +633,7 @@ export default function MapComponent({
 				console.log("Preloaded incidents:", preloadedIncidents);
 				console.log("Current user:", user);
 
-				const mapConfig = getMapConfig(user?.email, {
+				const mapConfig = await getMapConfig(user?.email, {
 					propCenter,
 					propZoom, 
 					preloadedIncidents

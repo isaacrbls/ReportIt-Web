@@ -45,18 +45,33 @@ export default function ReportsPageClient() {
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
   const [riskLevelFilter, setRiskLevelFilter] = useState("all");
   const [predictedCategoryFilter, setPredictedCategoryFilter] = useState("all");
+  const [userBarangay, setUserBarangay] = useState("");
+  const [isAdmin, setIsAdmin] = useState(false);
   const router = useRouter();
   const { user } = useCurrentUser();
   
   // User-related variables
   const userEmail = user?.email || "";
-  const userBarangay = getUserBarangay(userEmail);
-  const isAdmin = isUserAdmin(userEmail);
   
-  console.log("👤 Reports page - Current user:", user);
-  console.log("📧 Reports page - User email:", userEmail);
-  console.log("🏘️ Reports page - Mapped barangay:", userBarangay);
-  console.log("🔐 Reports page - Is admin:", isAdmin);
+  // Load user barangay and admin status from database
+  useEffect(() => {
+    const loadUserData = async () => {
+      if (userEmail) {
+        const barangay = await getUserBarangay(userEmail);
+        const adminStatus = await isUserAdmin(userEmail);
+        
+        setUserBarangay(barangay);
+        setIsAdmin(adminStatus);
+        
+        console.log("👤 Reports page - Current user:", user);
+        console.log("📧 Reports page - User email:", userEmail);
+        console.log("🏘️ Reports page - Mapped barangay:", barangay);
+        console.log("🔐 Reports page - Is admin:", adminStatus);
+      }
+    };
+    
+    loadUserData();
+  }, [user, userEmail]);
 
   useEffect(() => {
     const q = query(collection(db, "reports"), orderBy("DateTime", "desc"));

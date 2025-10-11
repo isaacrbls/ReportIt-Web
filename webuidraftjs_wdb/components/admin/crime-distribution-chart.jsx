@@ -5,25 +5,16 @@ import { useState, useEffect, useRef } from "react";
 import { collection, onSnapshot } from "firebase/firestore";
 import { db } from "@/firebase";
 import { useCurrentUser } from "@/hooks/use-current-user";
+import { getUserBarangay } from "@/lib/userMapping";
 import { ChevronDown, ChevronUp } from "lucide-react";
 
 export function CrimeDistributionChart({ timePeriod = "all", sortBy = "count", sortOrder = "desc" }) {
   const [chartData, setChartData] = useState([]);
   const [reports, setReports] = useState([]);
   const [isLegendOpen, setIsLegendOpen] = useState(false);
+  const [userBarangay, setUserBarangay] = useState("");
   const { user } = useCurrentUser();
   const dropdownRef = useRef(null);
-
-  const userBarangayMap = {
-    "testpinagbakahan@example.com": "Pinagbakahan",
-    "testbulihan@example.com": "Bulihan",
-    "testtiaong@example.com": "Tiaong",
-    "testdakila@example.com": "Dakila",
-    "testmojon@example.com": "Mojon",
-    "testlook@example.com": "Look 1st",
-    "testlongos@example.com": "Longos",
-    'test@example.com': 'All'
-  };
 
   const incidentColors = {
     "Theft": "#7f1d1d",
@@ -76,7 +67,7 @@ export function CrimeDistributionChart({ timePeriod = "all", sortBy = "count", s
   };
 
   useEffect(() => {
-    const unsubscribe = onSnapshot(collection(db, "reports"), (snapshot) => {
+    const unsubscribe = onSnapshot(collection(db, "reports"), async (snapshot) => {
       const reportsData = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
@@ -134,10 +125,16 @@ export function CrimeDistributionChart({ timePeriod = "all", sortBy = "count", s
       setReports(reportsData);
 
       const userEmail = user?.email;
-      const barangay = userBarangayMap[userEmail] || 'Unknown';
-      console.log("CrimeChart - User email:", userEmail, "Barangay:", barangay);
+      
+      // Get barangay from database
+      let barangay = 'Unknown';
+      if (userEmail) {
+        barangay = await getUserBarangay(userEmail);
+        setUserBarangay(barangay);
+        console.log("CrimeChart - User email:", userEmail, "Barangay:", barangay);
+      }
 
-      let filteredReports = barangay === 'All' ? reportsData : 
+      let filteredReports = barangay === 'All' || !barangay ? reportsData : 
                            reportsData.filter(r => r.Barangay === barangay);
       
       filteredReports = filterReportsByTimePeriod(filteredReports, timePeriod);

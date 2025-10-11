@@ -180,3 +180,208 @@ export async function formatSubmittedBy(email) {
   // For regular users, get their full name from Realtime Database
   return await getUserFullName(email);
 }
+
+/**
+ * Get user's barangay from Firebase Realtime Database
+ * @param {string} email - User's email address
+ * @returns {Promise<string|null>} User's barangay or null if not found
+ */
+export async function getUserBarangayFromDB(email) {
+  if (!email) {
+    console.log('❌ getUserBarangayFromDB: No email provided');
+    return null;
+  }
+  
+  console.log(`🔍 getUserBarangayFromDB: Looking up barangay for: ${email}`);
+  
+  // Check cache first
+  const cacheKey = `${email}_barangay`;
+  const cachedData = userDataCache.get(cacheKey);
+  if (cachedData && Date.now() - cachedData.timestamp < CACHE_EXPIRY) {
+    console.log(`📋 getUserBarangayFromDB: Using cached barangay for ${email}: ${cachedData.barangay}`);
+    return cachedData.barangay;
+  }
+
+  try {
+    if (!realtimeDb) {
+      console.error('❌ getUserBarangayFromDB: realtimeDb is not initialized');
+      return null;
+    }
+
+    const usersRef = ref(realtimeDb, 'users');
+    const snapshot = await get(usersRef);
+    
+    if (snapshot.exists()) {
+      const allUsers = snapshot.val();
+      
+      // Find the user with the matching email
+      for (const [uid, userData] of Object.entries(allUsers)) {
+        if (userData.email === email) {
+          let barangay = userData.barangay || null;
+          
+          // Normalize barangay to match BARANGAY_COORDINATES keys
+          if (barangay && typeof barangay === 'string') {
+            const barangayLower = barangay.toLowerCase().trim();
+            
+            // Special case mappings for barangays with different naming
+            if (barangayLower === 'look' || barangayLower === 'look 1st') {
+              barangay = 'Look 1st';
+            } else {
+              // Default: Capitalize first letter (e.g., "mojon" → "Mojon")
+              barangay = barangay.charAt(0).toUpperCase() + barangay.slice(1).toLowerCase();
+            }
+          }
+          
+          // Cache the result
+          userDataCache.set(cacheKey, {
+            barangay,
+            timestamp: Date.now()
+          });
+          
+          console.log(`✅ Found barangay for ${email}: "${barangay}" (normalized from "${userData.barangay}")`);
+          return barangay;
+        }
+      }
+      
+      console.log(`❌ No user found with email: ${email}`);
+      return null;
+    } else {
+      console.log(`❌ No users collection found in Realtime Database`);
+      return null;
+    }
+  } catch (error) {
+    console.error('❌ getUserBarangayFromDB: Error fetching user barangay:', error);
+    return null;
+  }
+}
+
+/**
+ * Get user's role from Firebase Realtime Database
+ * @param {string} email - User's email address
+ * @returns {Promise<string|null>} User's role or null if not found
+ */
+export async function getUserRoleFromDB(email) {
+  if (!email) {
+    console.log('❌ getUserRoleFromDB: No email provided');
+    return null;
+  }
+  
+  console.log(`🔍 getUserRoleFromDB: Looking up role for: ${email}`);
+  
+  // Check cache first
+  const cacheKey = `${email}_role`;
+  const cachedData = userDataCache.get(cacheKey);
+  if (cachedData && Date.now() - cachedData.timestamp < CACHE_EXPIRY) {
+    console.log(`📋 getUserRoleFromDB: Using cached role for ${email}: ${cachedData.role}`);
+    return cachedData.role;
+  }
+
+  try {
+    if (!realtimeDb) {
+      console.error('❌ getUserRoleFromDB: realtimeDb is not initialized');
+      return null;
+    }
+
+    const usersRef = ref(realtimeDb, 'users');
+    const snapshot = await get(usersRef);
+    
+    if (snapshot.exists()) {
+      const allUsers = snapshot.val();
+      
+      // Find the user with the matching email
+      for (const [uid, userData] of Object.entries(allUsers)) {
+        if (userData.email === email) {
+          const role = userData.role || null;
+          
+          // Cache the result
+          userDataCache.set(cacheKey, {
+            role,
+            timestamp: Date.now()
+          });
+          
+          console.log(`✅ Found role for ${email}: ${role}`);
+          return role;
+        }
+      }
+      
+      console.log(`❌ No user found with email: ${email}`);
+      return null;
+    } else {
+      console.log(`❌ No users collection found in Realtime Database`);
+      return null;
+    }
+  } catch (error) {
+    console.error('❌ getUserRoleFromDB: Error fetching user role:', error);
+    return null;
+  }
+}
+
+/**
+ * Get complete user profile from Firebase Realtime Database
+ * @param {string} email - User's email address
+ * @returns {Promise<Object|null>} User profile with email, role, barangay, firstName, lastName
+ */
+export async function getUserProfile(email) {
+  if (!email) {
+    console.log('❌ getUserProfile: No email provided');
+    return null;
+  }
+  
+  console.log(`🔍 getUserProfile: Looking up profile for: ${email}`);
+  
+  // Check cache first
+  const cacheKey = `${email}_profile`;
+  const cachedData = userDataCache.get(cacheKey);
+  if (cachedData && Date.now() - cachedData.timestamp < CACHE_EXPIRY) {
+    console.log(`📋 getUserProfile: Using cached profile for ${email}`);
+    return cachedData.profile;
+  }
+
+  try {
+    if (!realtimeDb) {
+      console.error('❌ getUserProfile: realtimeDb is not initialized');
+      return null;
+    }
+
+    const usersRef = ref(realtimeDb, 'users');
+    const snapshot = await get(usersRef);
+    
+    if (snapshot.exists()) {
+      const allUsers = snapshot.val();
+      
+      // Find the user with the matching email
+      for (const [uid, userData] of Object.entries(allUsers)) {
+        if (userData.email === email) {
+          const profile = {
+            uid,
+            email: userData.email,
+            role: userData.role || null,
+            barangay: userData.barangay || null,
+            firstName: userData.firstName || '',
+            lastName: userData.lastName || '',
+            createdAt: userData.createdAt || null,
+            createdBy: userData.createdBy || null
+          };
+          
+          // Cache the result
+          userDataCache.set(cacheKey, {
+            profile,
+            timestamp: Date.now()
+          });
+          
+          console.log(`✅ Found profile for ${email}:`, profile);
+          return profile;
+        }
+      }
+      
+      console.log(`❌ No user found with email: ${email}`);
+      return null;
+    } else {
+      console.log(`❌ No users collection found in Realtime Database`);
+      return null;
+    }
+  } catch (error) {
+    console.error('❌ getUserProfile: Error fetching user profile:', error);
+    return null;
+  }
+}

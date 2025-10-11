@@ -36,6 +36,17 @@ export const ReportsProvider = ({ children }) => {
           }));
           
           console.log('📊 ReportsProvider: Fetched reports:', reportsData.length);
+          
+          // Log barangay distribution for debugging
+          if (reportsData.length > 0) {
+            const barangayCounts = {};
+            reportsData.forEach(r => {
+              const barangay = r.Barangay || 'Unknown';
+              barangayCounts[barangay] = (barangayCounts[barangay] || 0) + 1;
+            });
+            console.log('📍 Reports by Barangay:', barangayCounts);
+          }
+          
           setReports(reportsData);
           setError(null);
         } catch (err) {
@@ -125,7 +136,16 @@ export const ReportsProvider = ({ children }) => {
 
   const getReportsByBarangay = (barangay) => {
     if (!barangay || barangay === 'All') return reports;
-    return reports.filter(r => r.Barangay === barangay);
+    
+    // Case-insensitive comparison since Realtime DB might have "mojon" and Firestore might have "Mojon"
+    const barangayLower = barangay.toLowerCase();
+    const filtered = reports.filter(r => {
+      if (!r.Barangay) return false;
+      return r.Barangay.toLowerCase() === barangayLower;
+    });
+    
+    console.log(`📍 getReportsByBarangay: Filtering for "${barangay}" - Found ${filtered.length} reports out of ${reports.length} total`);
+    return filtered;
   };
 
   const getVerifiedReports = (barangay = null) => {

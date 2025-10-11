@@ -1,3 +1,6 @@
+import { getUserBarangayFromDB, getUserRoleFromDB } from './userDataUtils';
+
+// Legacy hardcoded mappings - kept for backwards compatibility with test accounts
 export const USER_BARANGAY_MAP = {
   "testpinagbakahan@example.com": "Pinagbakahan",
   "testbulihan@example.com": "Bulihan", 
@@ -49,23 +52,73 @@ export const BARANGAY_COORDINATES = {
   }
 };
 
-export function getUserBarangay(userEmail) {
+/**
+ * Get user's barangay - checks database first, falls back to hardcoded map for test accounts
+ * @param {string} userEmail - User's email address
+ * @returns {Promise<string>} User's barangay name
+ */
+export async function getUserBarangay(userEmail) {
   if (!userEmail) return "";
-  return USER_BARANGAY_MAP[userEmail] || "";
+  
+  // First, try to get from database
+  try {
+    const barangay = await getUserBarangayFromDB(userEmail);
+    if (barangay) {
+      console.log(`✅ getUserBarangay: Found barangay from DB for ${userEmail}: ${barangay}`);
+      return barangay;
+    }
+  } catch (error) {
+    console.error(`❌ getUserBarangay: Error getting barangay from DB:`, error);
+  }
+  
+  // Fallback to hardcoded map for test accounts
+  const fallback = USER_BARANGAY_MAP[userEmail] || "";
+  if (fallback) {
+    console.log(`📋 getUserBarangay: Using hardcoded barangay for ${userEmail}: ${fallback}`);
+  }
+  return fallback;
 }
 
-export function isUserAdmin(userEmail) {
+/**
+ * Check if user is an admin - checks database first, falls back to hardcoded list for test accounts
+ * @param {string} userEmail - User's email address
+ * @returns {Promise<boolean>} True if user is an admin
+ */
+export async function isUserAdmin(userEmail) {
   if (!userEmail) return false;
-  return ADMIN_EMAILS.includes(userEmail);
+  
+  // First, try to get role from database
+  try {
+    const role = await getUserRoleFromDB(userEmail);
+    if (role) {
+      const isAdmin = role.toLowerCase() === 'admin';
+      console.log(`✅ isUserAdmin: Found role from DB for ${userEmail}: ${role} (isAdmin: ${isAdmin})`);
+      return isAdmin;
+    }
+  } catch (error) {
+    console.error(`❌ isUserAdmin: Error getting role from DB:`, error);
+  }
+  
+  // Fallback to hardcoded list for test accounts
+  const isTestAdmin = ADMIN_EMAILS.includes(userEmail);
+  if (isTestAdmin) {
+    console.log(`📋 isUserAdmin: Using hardcoded admin list for ${userEmail}: ${isTestAdmin}`);
+  }
+  return isTestAdmin;
 }
 
-export function getMapCoordinatesForUser(userEmail) {
+/**
+ * Get map coordinates for a user based on their barangay
+ * @param {string} userEmail - User's email address
+ * @returns {Promise<Object|null>} Map coordinates {center, zoom} or null
+ */
+export async function getMapCoordinatesForUser(userEmail) {
   if (!userEmail) {
     console.log("🗺️ No user email provided (user may still be loading)");
     return null;
   }
   
-  const barangay = getUserBarangay(userEmail);
+  const barangay = await getUserBarangay(userEmail);
   
   if (!barangay || !BARANGAY_COORDINATES[barangay]) {
     console.log("🗺️ No specific coordinates found for user:", userEmail);

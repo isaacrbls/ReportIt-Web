@@ -24,13 +24,25 @@ export default function AnalyticsPage() {
   const [sortOrder, setSortOrder] = React.useState("desc");
   const [hotspotNames, setHotspotNames] = React.useState(new Map());
   const [loadingHotspotNames, setLoadingHotspotNames] = React.useState(false);
+  const [barangay, setBarangay] = React.useState('All');
   const hotspotsPerPage = 5;
   const router = useRouter();
   const { user } = useCurrentUser();
   const { reports, isLoading, calculateBarangayHotspots } = useReports();
 
   const userEmail = user?.email || "";
-  const barangay = getUserBarangay(userEmail) || 'All';
+  
+  // Load user barangay from database
+  React.useEffect(() => {
+    const loadBarangay = async () => {
+      if (userEmail) {
+        const userBarangay = await getUserBarangay(userEmail);
+        setBarangay(userBarangay || 'All');
+      }
+    };
+    
+    loadBarangay();
+  }, [userEmail]);
 
   const hotspots = React.useMemo(() => {
     if (!barangay || barangay === 'Unknown') return [];

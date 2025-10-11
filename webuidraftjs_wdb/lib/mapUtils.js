@@ -1,6 +1,6 @@
-import { getMapCoordinatesForUser, getMapCoordinatesForBarangay, getMapBounds } from "./userMapping";
+import { getMapCoordinatesForUser, getMapCoordinatesForBarangay, getMapBounds, getUserBarangay } from "./userMapping";
 
-export function getMapConfig(userEmail, options = {}) {
+export async function getMapConfig(userEmail, options = {}) {
   const { propCenter, propZoom, preloadedIncidents } = options;
   
   let config = {
@@ -23,13 +23,15 @@ export function getMapConfig(userEmail, options = {}) {
   }
   
   else {
-    const userCoordinates = getMapCoordinatesForUser(userEmail);
-    config.center = userCoordinates.center;
-    config.zoom = userCoordinates.zoom;
-    console.log("🎯 Using user-specific coordinates for", userEmail, ":", config.center, "zoom:", config.zoom);
+    const userCoordinates = await getMapCoordinatesForUser(userEmail);
+    if (userCoordinates) {
+      config.center = userCoordinates.center;
+      config.zoom = userCoordinates.zoom;
+      console.log("🎯 Using user-specific coordinates for", userEmail, ":", config.center, "zoom:", config.zoom);
+    }
   }
 
-  const userBarangay = getUserBarangayFromEmail(userEmail);
+  const userBarangay = await getUserBarangay(userEmail);
   config.barangay = userBarangay;
 
   config.bounds = getMapBounds(userBarangay);
@@ -93,20 +95,6 @@ export function getMapOptions(bounds, isReportDetail = false, isAddReport = fals
   }
 
   return mapOptions;
-}
-
-function getUserBarangayFromEmail(userEmail) {
-  const USER_BARANGAY_MAP = {
-    "testpinagbakahan@example.com": "Pinagbakahan",
-    "testbulihan@example.com": "Bulihan", 
-    "testtiaong@example.com": "Tiaong",
-    "testdakila@example.com": "Dakila",
-    "testmojon@example.com": "Mojon",
-    "testlook@example.com": "Look 1st",
-    "testlongos@example.com": "Longos",
-  };
-  
-  return USER_BARANGAY_MAP[userEmail] || "";
 }
 
 // Cache for storing geocoded addresses to avoid repeated API calls

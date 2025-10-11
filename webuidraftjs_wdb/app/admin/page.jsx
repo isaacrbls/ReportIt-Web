@@ -27,29 +27,66 @@ export default function AdminDashboard() {
   const [highRiskCount, setHighRiskCount] = React.useState(0);
   const [selectedReport, setSelectedReport] = React.useState(null);
   const [isDialogOpen, setIsDialogOpen] = React.useState(false);
+  const [userBarangay, setUserBarangay] = React.useState("");
+  const [userCoordinates, setUserCoordinates] = React.useState({ center: [14.8527, 120.816], zoom: 16 });
   const router = useRouter();
   const { user, isLoading: isUserLoading } = useCurrentUser();
   const { reports, getPendingReports, getReportsByBarangay } = useReports();
 
   const userEmail = user?.email || "";
-  const userBarangay = getUserBarangay(userEmail);
-  const userCoordinates = isUserLoading ? { center: [14.8527, 120.816], zoom: 16 } : getMapCoordinatesForUser(userEmail);
 
-  const filteredReports = getReportsByBarangay(userBarangay);
+  // Fetch user barangay and coordinates from database
+  React.useEffect(() => {
+    const loadUserData = async () => {
+      if (userEmail && !isUserLoading) {
+        const barangay = await getUserBarangay(userEmail);
+        const coordinates = await getMapCoordinatesForUser(userEmail);
+        
+        setUserBarangay(barangay);
+        setUserCoordinates(coordinates || { center: [14.8527, 120.816], zoom: 16 });
+        
+        console.log("👤 Admin page - Current user:", user);
+        console.log("📧 Admin page - User email:", userEmail);
+        console.log("🏘️ Admin page - Mapped barangay:", barangay);
+        console.log("🎯 Admin page - User coordinates:", coordinates);
+      }
+    };
+    
+    loadUserData();
+  }, [user, userEmail, isUserLoading]);
+
+  // Calculate stats based on userBarangay - will recalculate when userBarangay changes
+  const filteredReports = React.useMemo(() => {
+    console.log("🔢 Calculating filteredReports - userBarangay:", userBarangay, "total reports:", reports.length);
+    if (!userBarangay) {
+      console.log("⏳ Barangay not loaded yet, returning empty array");
+      return [];
+    }
+    const filtered = getReportsByBarangay(userBarangay);
+    console.log("✅ Filtered reports for", userBarangay, ":", filtered.length);
+    return filtered;
+  }, [userBarangay, reports, getReportsByBarangay]);
+  
   const totalReports = filteredReports.length;
-  const pendingReports = getPendingReports(userBarangay).length;
-
-  console.log("👤 Admin page - Current user:", user);
-  console.log("📧 Admin page - User email:", userEmail);
-  console.log("🏘️ Admin page - Mapped barangay:", userBarangay);
-  console.log("🎯 Admin page - User coordinates:", userCoordinates);
-  console.log("🔄 Admin page - Is user loading:", isUserLoading);
+  const pendingReports = React.useMemo(() => {
+    if (!userBarangay) return 0;
+    const pending = getPendingReports(userBarangay).length;
+    console.log("📋 Pending reports for", userBarangay, ":", pending);
+    return pending;
+  }, [userBarangay, reports, getPendingReports]);
 
   React.useEffect(() => {
-    calculateHighRiskAreas();
+    if (userBarangay) {
+      calculateHighRiskAreas();
+    }
   }, [reports, userBarangay]); 
 
   const calculateHighRiskAreas = () => {
+    if (!userBarangay) {
+      console.log("⏳ Waiting for user barangay to load...");
+      return;
+    }
+    
     console.log("🔄 Calculating high-risk areas for dashboard...");
     console.log("📧 User barangay filter:", userBarangay);
     
@@ -143,7 +180,7 @@ export default function AdminDashboard() {
         <div className="mb-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
           <div className="text-2xl font-bold text-red-600 mb-1">Incident Distribution</div>
           <div className="text-xs text-gray-500 mb-4">Bubble size represents incident frequency, color indicates risk levels</div>
-          {isUserLoading ? (
+          {isUserLoading || !userBarangay || !userCoordinates ? (
             <div className="flex h-[500px] w-full items-center justify-center bg-gray-100 rounded-lg">
               <div className="text-center">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600 mx-auto mb-2"></div>
@@ -153,8 +190,8 @@ export default function AdminDashboard() {
           ) : (
             <CrimeMap 
               barangay={userBarangay}
-              center={userCoordinates.center}
-              zoom={userCoordinates.zoom}
+              center={userCoordinates?.center || [14.8527, 120.816]}
+              zoom={userCoordinates?.zoom || 14}
             />
           )}
         </div>
