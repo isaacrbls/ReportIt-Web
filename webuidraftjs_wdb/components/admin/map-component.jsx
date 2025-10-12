@@ -56,34 +56,19 @@ const createCustomIcon = (riskLevel) => {
 
 	const color = getMarkerColor(riskLevel);
 	
-	// FontAwesome map marker icon (fa-map-marker-alt / fa-location-dot) with HD outline
+	// Material UI Room icon - simple location pin
 	const markerSvg = `
-		<svg width="34" height="50" viewBox="-10 -5 404 522" xmlns="http://www.w3.org/2000/svg">
-			<defs>
-				<filter id="shadow-${riskLevel}" x="-50%" y="-50%" width="200%" height="200%">
-					<feGaussianBlur in="SourceAlpha" stdDeviation="1.5"/>
-					<feOffset dx="0" dy="1" result="offsetblur"/>
-					<feComponentTransfer>
-						<feFuncA type="linear" slope="0.25"/>
-					</feComponentTransfer>
-					<feMerge>
-						<feMergeNode/>
-						<feMergeNode in="SourceGraphic"/>
-					</feMerge>
-				</filter>
-			</defs>
-			<!-- Outline stroke -->
-			<path d="M384 192c0 87.4-117 243-168.3 307.2c-12.3 15.3-35.1 15.3-47.4 0C117 435 0 279.4 0 192C0 86 86 0 192 0S384 86 384 192z" 
+		<svg width="34" height="50" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+			<!-- White outline stroke -->
+			<path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" 
 				  fill="none"
 				  stroke="#ffffff"
-				  stroke-width="12"
+				  stroke-width="1.2"
 				  stroke-linejoin="round"
-				  stroke-linecap="round"
-				  paint-order="stroke"/>
-			<!-- Main color fill -->
-			<path d="M384 192c0 87.4-117 243-168.3 307.2c-12.3 15.3-35.1 15.3-47.4 0C117 435 0 279.4 0 192C0 86 86 0 192 0S384 86 384 192z" 
-				  fill="${color}"
-				  filter="url(#shadow-${riskLevel})"/>
+				  stroke-linecap="round"/>
+			<!-- Main pin shape -->
+			<path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" 
+				  fill="${color}"/>
 		</svg>
 	`;
 
@@ -91,11 +76,9 @@ const createCustomIcon = (riskLevel) => {
 
 	return new L.Icon({
 		iconUrl: iconUrl,
-		shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
 		iconSize: [34, 50],
 		iconAnchor: [17, 50],
 		popupAnchor: [0, -50],
-		shadowSize: [50, 50],
 	})
 }
 

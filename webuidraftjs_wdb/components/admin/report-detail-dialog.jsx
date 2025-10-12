@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react"
 import dynamic from "next/dynamic"
-import { Calendar, CheckCircle, Clock, FileText, ImageIcon, MapPin, Tag, XCircle, Edit, Trash2, Printer, Move } from "lucide-react"
+import { Calendar, CheckCircle, Clock, FileText, ImageIcon, MapPinned, Tag, XCircle, Edit, Trash2, Printer, Move } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -189,7 +189,7 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
     }
     return (
       <div className="text-gray-500 text-center">
-        <MapPin className="w-12 h-12 mx-auto mb-2 text-gray-400" />
+        <MapPinned className="w-12 h-12 mx-auto mb-2 text-gray-400" />
         <p>No location data available</p>
       </div>
     );
@@ -836,7 +836,7 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
               
               {}
               <div className="flex items-center gap-2 mb-4">
-                <MapPin className="w-5 h-5 text-[#F14B51]" />
+                <MapPinned className="w-5 h-5 text-[#F14B51]" />
                 {isEditMode ? (
                   <Input
                     value={editedReport.Barangay || ""}
@@ -1034,7 +1034,7 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
               {isEditMode && isEditingPin && !editedLocation && (
                 <div className="w-full mb-2 text-sm text-center text-gray-600 bg-blue-50 py-2 px-3 rounded-lg border border-blue-200">
                   <span className="font-medium text-blue-700 flex items-center justify-center gap-2">
-                    <MapPin className="w-4 h-4" />
+                    <MapPinned className="w-4 h-4" />
                     Click on the map to set the new incident location (Map Key: {mapKey})
                   </span>
                 </div>
