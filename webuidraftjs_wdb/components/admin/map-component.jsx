@@ -740,19 +740,29 @@ export default function MapComponent({
 				if (preloadedIncidents && preloadedIncidents.length > 0 && markersRef.current.length > 0) {
 					if (preloadedIncidents.length === 1) {
 						// Single report - center on the marker
-						const markerPosition = markersRef.current[0].marker.getLatLng();
-						mapInstance.setView(markerPosition, 17);
-						console.log("🎯 Centering map on single preloaded report:", markerPosition);
-						
-						// Open popup after a short delay to ensure map is ready
-						setTimeout(() => {
-							markersRef.current[0].marker.openPopup();
-						}, 300);
+						const firstMarkerData = markersRef.current[0];
+						if (firstMarkerData && firstMarkerData.marker) {
+							const markerPosition = firstMarkerData.marker.getLatLng();
+							mapInstance.setView(markerPosition, 17);
+							console.log("🎯 Centering map on single preloaded report:", markerPosition);
+							
+							// Open popup after a short delay to ensure map is ready (only if popups are enabled)
+							if (showPopups) {
+								setTimeout(() => {
+									if (markersRef.current[0] && markersRef.current[0].marker && mapInstance.hasLayer(markersRef.current[0].marker)) {
+										markersRef.current[0].marker.openPopup();
+									}
+								}, 300);
+							}
+						}
 					} else {
 						// Multiple reports - fit bounds to show all
-						const group = new L.featureGroup(markersRef.current.map(m => m.marker));
-						mapInstance.fitBounds(group.getBounds(), { padding: [20, 20] });
-						console.log("🎯 Fitting map bounds to show all", preloadedIncidents.length, "preloaded reports");
+						const validMarkers = markersRef.current.filter(m => m && m.marker);
+						if (validMarkers.length > 0) {
+							const group = new L.featureGroup(validMarkers.map(m => m.marker));
+							mapInstance.fitBounds(group.getBounds(), { padding: [20, 20] });
+							console.log("🎯 Fitting map bounds to show all", validMarkers.length, "preloaded reports");
+						}
 					}
 				}
 

@@ -37,6 +37,12 @@ export function UserDetailsDialog({ user, open, onOpenChange, onUpdate }) {
   const [currentUser, setCurrentUser] = useState(null);
   const [userReports, setUserReports] = useState([]);
   const [suspensionHistory, setSuspensionHistory] = useState([]);
+  const [reportStats, setReportStats] = useState({
+    total: 0,
+    verified: 0,
+    pending: 0,
+    rejected: 0
+  });
   const [loading, setLoading] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -68,57 +74,71 @@ export function UserDetailsDialog({ user, open, onOpenChange, onUpdate }) {
     try {
       console.log("📊 Fetching reports for user:", user.email);
       
-      // Fetch user's reports using email
+      // Fetch ALL user's reports using email
       const reportsRef = collection(db, "reports");
       
-      // Try with SubmittedByEmail field
+      // Try with SubmittedBy field first (email stored directly)
       let reportsQuery = query(
         reportsRef,
-        where("SubmittedByEmail", "==", user.email)
+        where("SubmittedBy", "==", user.email)
       );
       
       console.log("📊 Executing query for email:", user.email);
       let reportsSnapshot = await getDocs(reportsQuery);
       
-      console.log("📊 Reports found with SubmittedByEmail:", reportsSnapshot.size);
+      console.log("📊 Reports found with SubmittedBy:", reportsSnapshot.size);
       
-      // If no results, try with lowercase field name
+      // If no results, try with SubmittedByEmail field
+      if (reportsSnapshot.size === 0) {
+        console.log("📊 Trying with SubmittedByEmail field...");
+        reportsQuery = query(
+          reportsRef,
+          where("SubmittedByEmail", "==", user.email)
+        );
+        reportsSnapshot = await getDocs(reportsQuery);
+        console.log("📊 Reports found with SubmittedByEmail:", reportsSnapshot.size);
+      }
+      
+      // If still no results, try with lowercase field
       if (reportsSnapshot.size === 0) {
         console.log("📊 Trying with submittedByEmail (lowercase)...");
         reportsQuery = query(
           reportsRef,
           where("submittedByEmail", "==", user.email)
         );
-        reportsSnapshot = await getDocs(reportsQuery);
+        reportsSnapshot = await getDocs(reportsSnapshot);
         console.log("📊 Reports found with submittedByEmail:", reportsSnapshot.size);
       }
       
-      const reports = reportsSnapshot.docs.map(doc => {
+      const allReports = reportsSnapshot.docs.map(doc => {
         const data = doc.data();
-        console.log("📊 Report data:", {
-          id: doc.id,
-          Category: data.Category,
-          Status: data.Status,
-          SubmittedByEmail: data.SubmittedByEmail
-        });
         return {
           id: doc.id,
           ...data
         };
       });
       
-      // Sort reports by date in memory
-      reports.sort((a, b) => {
+      // Calculate statistics from ALL reports
+      const stats = {
+        total: allReports.length,
+        verified: allReports.filter(r => (r.Status || r.status)?.toLowerCase() === "verified").length,
+        pending: allReports.filter(r => (r.Status || r.status)?.toLowerCase() === "pending").length,
+        rejected: allReports.filter(r => (r.Status || r.status)?.toLowerCase() === "rejected").length
+      };
+      
+      setReportStats(stats);
+      console.log("📊 Report statistics:", stats);
+      
+      // Sort reports by date for display (most recent first)
+      allReports.sort((a, b) => {
         const dateA = a.createdAt?.toDate?.() || a.DateTime?.toDate?.() || new Date(0);
         const dateB = b.createdAt?.toDate?.() || b.DateTime?.toDate?.() || new Date(0);
         return dateB - dateA;
       });
       
-      // Limit to 10 most recent
-      const recentReports = reports.slice(0, 10);
-      
-      setUserReports(recentReports);
-      console.log("✅ User reports set:", recentReports.length);
+      // Show ALL reports in the reports tab
+      setUserReports(allReports);
+      console.log("✅ User reports set:", allReports.length, "Total:", allReports.length);
 
       // Fetch suspension history (handle potential errors)
       try {
@@ -251,7 +271,7 @@ export function UserDetailsDialog({ user, open, onOpenChange, onUpdate }) {
           <Tabs defaultValue="overview" className="w-full">
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="overview">Overview</TabsTrigger>
-              <TabsTrigger value="reports">Reports ({userReports.length})</TabsTrigger>
+              <TabsTrigger value="reports">Reports ({reportStats.total})</TabsTrigger>
             </TabsList>
 
             <TabsContent value="overview" className="space-y-3 mt-3">
@@ -409,24 +429,24 @@ export function UserDetailsDialog({ user, open, onOpenChange, onUpdate }) {
                 <CardContent>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="text-center p-3 bg-red-50 rounded-lg border border-red-200">
-                      <div className="text-xl font-bold text-red-600">{userReports.length}</div>
+                      <div className="text-xl font-bold text-red-600">{reportStats.total}</div>
                       <div className="text-xs text-muted-foreground">Total Reports</div>
                     </div>
                     <div className="text-center p-3 bg-green-50 rounded-lg border border-green-200">
                       <div className="text-xl font-bold text-green-600">
-                        {userReports.filter(r => (r.Status || r.status)?.toLowerCase() === "verified").length}
+                        {reportStats.verified}
                       </div>
                       <div className="text-xs text-muted-foreground">Verified Reports</div>
                     </div>
                     <div className="text-center p-3 bg-yellow-50 rounded-lg border border-yellow-200">
                       <div className="text-xl font-bold text-yellow-600">
-                        {userReports.filter(r => (r.Status || r.status)?.toLowerCase() === "pending").length}
+                        {reportStats.pending}
                       </div>
                       <div className="text-xs text-muted-foreground">Pending Reports</div>
                     </div>
                     <div className="text-center p-3 bg-red-50 rounded-lg border border-red-200">
                       <div className="text-xl font-bold text-red-600">
-                        {userReports.filter(r => (r.Status || r.status)?.toLowerCase() === "rejected").length}
+                        {reportStats.rejected}
                       </div>
                       <div className="text-xs text-muted-foreground">Rejected Reports</div>
                     </div>
@@ -452,10 +472,10 @@ export function UserDetailsDialog({ user, open, onOpenChange, onUpdate }) {
                 <CardHeader>
                   <CardTitle className="text-base flex items-center gap-2 text-red-600">
                     <FileText className="h-4 w-4" />
-                    Recent Reports
+                    All Reports
                   </CardTitle>
                   <CardDescription>
-                    Last {userReports.length} reports submitted by this user
+                    All {userReports.length} reports submitted by this user
                   </CardDescription>
                 </CardHeader>
                 <CardContent>

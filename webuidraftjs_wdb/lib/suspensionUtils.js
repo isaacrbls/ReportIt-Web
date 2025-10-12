@@ -52,13 +52,13 @@ export async function trackReportRejection(userEmail, reportId, rejectionReason,
     
     await addDoc(collection(db, SUSPENSION_CONSTANTS.COLLECTION_NAMES.REJECTION_HISTORY), rejectionData);
     
-    // Check if user should be suspended
+    // Check rejection count
     const rejectionCount = await getUserRejectionCount(userEmail);
     console.log(`🔢 User ${userEmail} now has ${rejectionCount} rejections`);
     
-    if (rejectionCount >= SUSPENSION_CONSTANTS.MAX_REJECTIONS) {
-      await suspendUser(userEmail, rejectionCount);
-    } else {
+    // Do NOT auto-suspend - let the admin decide via the modal
+    // Only send notification if under the limit
+    if (rejectionCount < SUSPENSION_CONSTANTS.MAX_REJECTIONS) {
       // Send rejection notification
       await sendNotification(userEmail, {
         type: 'REPORT_REJECTED',
@@ -124,8 +124,8 @@ export async function suspendUser(userEmail, rejectionCount) {
     // Create suspension record
     await setDoc(doc(db, SUSPENSION_CONSTANTS.COLLECTION_NAMES.USER_SUSPENSIONS, userEmail), suspensionData);
     
-    // Mark all rejections as processed
-    await markRejectionsAsProcessed(userEmail);
+    // Do NOT mark rejections as processed - keep the counter at 3
+    // This ensures the rejection count persists even after suspension
     
     // Send suspension notification
     await sendNotification(userEmail, {
@@ -135,7 +135,7 @@ export async function suspendUser(userEmail, rejectionCount) {
       suspensionEnd: Timestamp.fromDate(suspensionEnd)
     });
     
-    console.log(`✅ User ${userEmail} suspended until ${suspensionEnd.toLocaleDateString()}`);
+    console.log(`✅ User ${userEmail} suspended until ${suspensionEnd.toLocaleDateString()} - rejection counter kept at ${rejectionCount}`);
   } catch (error) {
     console.error("Error suspending user:", error);
     throw error;

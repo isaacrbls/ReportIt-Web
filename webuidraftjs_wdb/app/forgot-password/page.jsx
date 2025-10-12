@@ -120,7 +120,7 @@ export default function ForgotPasswordPage() {
               <div className="font-semibold mb-1">Need immediate assistance?</div>
               <div>Contact your IT department or system administrator directly at:</div>
               <div className="mt-2 font-mono text-gray-500">
-                admin-support@ReportIt.com
+                innovatex2025@gmail.com
               </div>
             </div>
           </form>

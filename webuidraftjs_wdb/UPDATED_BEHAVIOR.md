@@ -101,7 +101,7 @@ Old text:
 > "Note: If you choose "No", the rejection counter will be reset to 0."
 
 New text:
-> "Note: If you choose "Yes", the counter will reset to 0 after suspension. If you choose "No", the counter will stay at 3."
+>
 
 ## Button Labels Updated
 

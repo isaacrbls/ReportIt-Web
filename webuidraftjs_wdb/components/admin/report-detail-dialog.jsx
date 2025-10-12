@@ -15,7 +15,7 @@ import { updateReportStatus, formatReportForDisplay, deleteReport, updateReportD
 import { reverseGeocode } from "@/lib/mapUtils"
 import { getUserBarangay, USER_BARANGAY_MAP } from "@/lib/userMapping"
 import { useCurrentUser } from "@/hooks/use-current-user"
-import { trackReportRejection } from "@/lib/suspensionUtils"
+import { trackReportRejection, suspendUser } from "@/lib/suspensionUtils"
 import { archiveReport } from "@/lib/archiveUtils"
 import { useToast } from "@/hooks/use-toast"
 import { GeoPoint } from "firebase/firestore"
@@ -49,6 +49,8 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
   const [deletionReason, setDeletionReason] = useState("")
   const [resolvedAddress, setResolvedAddress] = useState("")
   const [submittedByDisplayName, setSubmittedByDisplayName] = useState("")
+  const [showSuspensionModal, setShowSuspensionModal] = useState(false)
+  const [pendingRejectionData, setPendingRejectionData] = useState(null)
   const { toast } = useToast()
 
   useEffect(() => {
@@ -157,18 +159,30 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
   }, [isEditMode, editedLocation, report?.Latitude, report?.Longitude]);
   
   const handleMapClick = (location) => {
+    console.log("Map clicked with location:", location, "isEditMode:", isEditMode, "isEditingPin:", isEditingPin);
     if (isEditMode && isEditingPin) {
       setEditedLocation(location)
+      console.log("Location updated to:", location);
+      // Force map to re-render with new location
+      setMapKey(prev => prev + 1)
     }
   }
   
-  const renderMapComponent = useMemo(() => {
+  // Don't use useMemo for the map component to avoid stale closure issues
+  const renderMapComponent = (() => {
     const addingIncidentProp = isEditMode && isEditingPin;
     const onMapClickProp = isEditMode && isEditingPin ? handleMapClick : undefined;
     
+    console.log("Rendering map with addingIncident:", addingIncidentProp, "onMapClick:", !!onMapClickProp, "isEditingPin:", isEditingPin, "reportLocation:", reportLocation);
+    
     if (reportLocation && reportLocation.length === 2 && reportLocation[0] && reportLocation[1]) {
-      // Prepare the report data for the map component
-      const reportForMap = [currentReportData || report];
+      // Prepare the report data for the map component with updated location
+      const baseReport = currentReportData || report;
+      const reportForMap = [{
+        ...baseReport,
+        Latitude: reportLocation[0],
+        Longitude: reportLocation[1]
+      }];
       
       return (
         <MapWithNoSSR
@@ -193,7 +207,7 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
         <p>No location data available</p>
       </div>
     );
-  }, [reportLocation, isEditMode, isEditingPin, mapKey, currentReportData, report, mapBarangay]);
+  })();
 
   useEffect(() => {
     if (isEditMode && (currentReportData || report)) {
@@ -320,13 +334,26 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
         
         if (userEmail) {
           try {
-            await trackReportRejection(
+            const rejectionCount = await trackReportRejection(
               userEmail, 
               report.id, 
               rejectionReason.trim(),
               currentUser?.email || 'Unknown Admin'
             );
-            console.log(`✅ Rejection tracked for user: ${userEmail}`);
+            console.log(`✅ Rejection tracked for user: ${userEmail}, count: ${rejectionCount}`);
+            
+            // If user has 3 or more rejections, show suspension modal
+            if (rejectionCount >= 3) {
+              console.log(`🚨 Showing suspension modal for user ${userEmail} with ${rejectionCount} rejections`);
+              setPendingRejectionData({
+                userEmail,
+                userName: submittedByDisplayName || userEmail,
+                rejectionCount
+              });
+              setShowSuspensionModal(true);
+              setIsRejecting(false);
+              return; // Don't close the dialog yet
+            }
           } catch (suspensionError) {
             console.error("Error tracking rejection for suspension:", suspensionError);
             // Continue with rejection even if suspension tracking fails
@@ -361,6 +388,42 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
       setIsRejecting(false)
     }
   }
+
+  const handleSuspendUser = async () => {
+    if (!pendingRejectionData) return;
+    
+    try {
+      await suspendUser(pendingRejectionData.userEmail, pendingRejectionData.rejectionCount);
+      
+      toast({
+        title: "User Suspended",
+        description: `${pendingRejectionData.userName} has been suspended for 2 weeks due to 3 rejected reports.`,
+      });
+      
+      setShowSuspensionModal(false);
+      setPendingRejectionData(null);
+      onReject?.(report.id);
+      onOpenChange(false);
+    } catch (error) {
+      toast({
+        title: "Suspension Failed",
+        description: `Failed to suspend user: ${error.message}`,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleSkipSuspension = () => {
+    toast({
+      title: "Report Rejected",
+      description: "The report has been rejected. User was not suspended.",
+    });
+    
+    setShowSuspensionModal(false);
+    setPendingRejectionData(null);
+    onReject?.(report.id);
+    onOpenChange(false);
+  };
 
   const handleDelete = () => {
     setDeletionReason("") // Reset to empty
@@ -1019,7 +1082,11 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
                 <div className="font-bold text-[#F14B51] text-xl text-center flex-1">Incident Location</div>
                 {isEditMode && (
                   <button
-                    onClick={() => setIsEditingPin(!isEditingPin)}
+                    onClick={() => {
+                      setIsEditingPin(!isEditingPin)
+                      // Force map refresh when toggling pin edit mode
+                      setMapKey(prev => prev + 1)
+                    }}
                     className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
                       isEditingPin 
                         ? 'bg-green-500 text-white hover:bg-green-600' 
@@ -1031,19 +1098,12 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
                   </button>
                 )}
               </div>
-              {isEditMode && isEditingPin && !editedLocation && (
+              {isEditMode && isEditingPin && (
                 <div className="w-full mb-2 text-sm text-center text-gray-600 bg-blue-50 py-2 px-3 rounded-lg border border-blue-200">
                   <span className="font-medium text-blue-700 flex items-center justify-center gap-2">
                     <MapPinned className="w-4 h-4" />
-                    Click on the map to set the new incident location (Map Key: {mapKey})
-                  </span>
-                </div>
-              )}
-              {isEditMode && isEditingPin && editedLocation && (
-                <div className="w-full mb-2 text-sm text-center text-green-600 bg-green-50 py-2 px-3 rounded-lg border border-green-200">
-                  <span className="font-medium flex items-center justify-center gap-2">
-                    <CheckCircle className="w-4 h-4" />
-                    Location updated to [{editedLocation[0].toFixed(6)}, {editedLocation[1].toFixed(6)}]! Click "Done Editing" to finish.
+                    Click on the map to update the incident location
+                    {editedLocation && ` - Current: [${editedLocation[0].toFixed(6)}, ${editedLocation[1].toFixed(6)}]`}
                   </span>
                 </div>
               )}
@@ -1130,6 +1190,55 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
                 className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
               >
                 Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Suspension Confirmation Modal */}
+      {showSuspensionModal && pendingRejectionData && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[150]"
+          onClick={() => {}}
+        >
+          <div 
+            className="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                <XCircle className="w-6 h-6 text-red-600" />
+              </div>
+              <h3 className="text-lg font-semibold text-red-600">Suspend User?</h3>
+            </div>
+            
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+              <p className="text-sm text-yellow-800 font-medium mb-2">
+                ⚠️ 3 Reports Rejected
+              </p>
+              <p className="text-sm text-gray-700">
+                User <strong>{pendingRejectionData.userName}</strong> has now received <strong>3 rejected reports</strong>.
+              </p>
+            </div>
+
+            <p className="text-gray-600 mb-6">
+              Would you like to suspend this user for <strong>2 weeks</strong>? 
+              They will not be able to submit reports during this time.
+            </p>
+
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={handleSkipSuspension}
+                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
+              >
+                No, Don't Suspend
+              </button>
+              <button
+                onClick={handleSuspendUser}
+                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
+              >
+                Yes, Suspend User
               </button>
             </div>
           </div>

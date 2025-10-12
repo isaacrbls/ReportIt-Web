@@ -1136,7 +1136,7 @@ export default function ReportsPageClient() {
                             <button
                               onClick={() => handleRecoverReport(report.id, report)}
                               disabled={recoveringReportId === report.id}
-                              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors text-sm font-medium"
+                              className="px-4 py-2 border border-red-400 text-red-500 rounded-md hover:bg-red-50 disabled:border-gray-400 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors font-medium"
                             >
                               {recoveringReportId === report.id ? 'Recovering...' : 'Recover Report'}
                             </button>
@@ -1380,11 +1380,6 @@ export default function ReportsPageClient() {
                   reached <span className="font-semibold text-red-600">3 rejected reports</span>.
                   <br /><br />
                   Do you want to suspend this user for 2 weeks?
-                  <br /><br />
-                  <span className="text-sm text-gray-500">
-                    Note: If you choose "Yes", the counter will reset to 0 after suspension. 
-                    If you choose "No", the counter will stay at 3.
-                  </span>
                 </>
               )}
             </DialogDescription>
