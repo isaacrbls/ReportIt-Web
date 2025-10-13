@@ -33,7 +33,7 @@ export async function getAllUsers() {
       ...doc.data()
     }));
   } catch (error) {
-    console.error("Error fetching users:", error);
+
     throw error;
   }
 }
@@ -54,7 +54,7 @@ export async function getUserById(userId) {
     }
     return null;
   } catch (error) {
-    console.error("Error fetching user:", error);
+
     throw error;
   }
 }
@@ -87,7 +87,7 @@ export async function suspendUser(userId, reason, durationDays = 14) {
 
     return true;
   } catch (error) {
-    console.error("Error suspending user:", error);
+
     throw error;
   }
 }
@@ -128,7 +128,7 @@ export async function unsuspendUser(userId) {
 
     return true;
   } catch (error) {
-    console.error("Error unsuspending user:", error);
+
     throw error;
   }
 }
@@ -149,7 +149,7 @@ export async function promoteToAdmin(userId) {
 
     return true;
   } catch (error) {
-    console.error("Error promoting user:", error);
+
     throw error;
   }
 }
@@ -170,7 +170,7 @@ export async function demoteFromAdmin(userId) {
 
     return true;
   } catch (error) {
-    console.error("Error demoting user:", error);
+
     throw error;
   }
 }
@@ -199,7 +199,7 @@ export async function getUserStats(userId) {
       totalSuspensions: suspensionsSnapshot.docs.length,
     };
   } catch (error) {
-    console.error("Error fetching user stats:", error);
+
     throw error;
   }
 }
@@ -218,7 +218,7 @@ export async function getSuspendedUsers() {
       ...doc.data()
     }));
   } catch (error) {
-    console.error("Error fetching suspended users:", error);
+
     throw error;
   }
 }
@@ -237,7 +237,7 @@ export async function getAdminUsers() {
       ...doc.data()
     }));
   } catch (error) {
-    console.error("Error fetching admin users:", error);
+
     throw error;
   }
 }
@@ -262,7 +262,7 @@ export async function searchUsers(searchTerm) {
       user.name?.toLowerCase().includes(lowerSearchTerm)
     );
   } catch (error) {
-    console.error("Error searching users:", error);
+
     throw error;
   }
 }
@@ -280,10 +280,10 @@ export async function updateUserProfile(userId, profileData) {
     };
 
     await update(userRef, updates);
-    console.log("✅ User profile updated successfully:", userId);
+
     return true;
   } catch (error) {
-    console.error("❌ Error updating user profile:", error);
+
     throw error;
   }
 }

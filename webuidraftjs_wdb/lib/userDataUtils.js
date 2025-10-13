@@ -18,31 +18,25 @@ const CACHE_EXPIRY = 5 * 60 * 1000; // 5 minutes
  */
 export async function getUserFullName(email) {
   if (!email) {
-    console.log('❌ getUserFullName: No email provided');
     return 'Unknown User';
   }
-  
-  console.log(`🔍 getUserFullName: Looking up user data for: ${email}`);
-  
+
   // Check cache first
   const cacheKey = email;
   const cachedData = userDataCache.get(cacheKey);
   if (cachedData && Date.now() - cachedData.timestamp < CACHE_EXPIRY) {
-    console.log(`📋 getUserFullName: Using cached data for ${email}: ${cachedData.fullName}`);
     return cachedData.fullName;
   }
 
   try {
     // Check if realtimeDb is available
     if (!realtimeDb) {
-      console.error('❌ getUserFullName: realtimeDb is not initialized');
       return email.split('@')[0];
     }
+
     // Get all users from Realtime Database and search for the matching email
-    console.log('📡 getUserFullName: Connecting to Realtime Database...');
     const usersRef = ref(realtimeDb, 'users');
     const snapshot = await get(usersRef);
-    console.log('📡 getUserFullName: Got snapshot, exists:', snapshot.exists());
     
     if (snapshot.exists()) {
       const allUsers = snapshot.val();
@@ -78,10 +72,9 @@ export async function getUserFullName(email) {
           timestamp: Date.now()
         });
         
-        console.log(`✅ Found user data for ${email}: ${fullName}`);
+
         return fullName;
       } else {
-        console.log(`❌ No user data found for email: ${email}`);
         // Fallback to username from email
         const fallbackName = email.split('@')[0];
         
@@ -94,7 +87,6 @@ export async function getUserFullName(email) {
         return fallbackName;
       }
     } else {
-      console.log(`❌ No users collection found in Realtime Database`);
       // Fallback to username from email
       const fallbackName = email.split('@')[0];
       
@@ -107,9 +99,6 @@ export async function getUserFullName(email) {
       return fallbackName;
     }
   } catch (error) {
-    console.error('❌ getUserFullName: Error fetching user data:', error);
-    console.error('❌ getUserFullName: Error details:', error.message);
-    
     // Fallback to username from email on error
     const fallbackName = email.split('@')[0];
     
@@ -150,7 +139,6 @@ export async function getUserData(email) {
       return null;
     }
   } catch (error) {
-    console.error('Error fetching user data:', error);
     return null;
   }
 }
@@ -188,23 +176,18 @@ export async function formatSubmittedBy(email) {
  */
 export async function getUserBarangayFromDB(email) {
   if (!email) {
-    console.log('❌ getUserBarangayFromDB: No email provided');
     return null;
   }
-  
-  console.log(`🔍 getUserBarangayFromDB: Looking up barangay for: ${email}`);
-  
+
   // Check cache first
   const cacheKey = `${email}_barangay`;
   const cachedData = userDataCache.get(cacheKey);
   if (cachedData && Date.now() - cachedData.timestamp < CACHE_EXPIRY) {
-    console.log(`📋 getUserBarangayFromDB: Using cached barangay for ${email}: ${cachedData.barangay}`);
     return cachedData.barangay;
   }
 
   try {
     if (!realtimeDb) {
-      console.error('❌ getUserBarangayFromDB: realtimeDb is not initialized');
       return null;
     }
 
@@ -238,19 +221,15 @@ export async function getUserBarangayFromDB(email) {
             timestamp: Date.now()
           });
           
-          console.log(`✅ Found barangay for ${email}: "${barangay}" (normalized from "${userData.barangay}")`);
           return barangay;
         }
       }
       
-      console.log(`❌ No user found with email: ${email}`);
       return null;
     } else {
-      console.log(`❌ No users collection found in Realtime Database`);
       return null;
     }
   } catch (error) {
-    console.error('❌ getUserBarangayFromDB: Error fetching user barangay:', error);
     return null;
   }
 }
@@ -262,23 +241,18 @@ export async function getUserBarangayFromDB(email) {
  */
 export async function getUserRoleFromDB(email) {
   if (!email) {
-    console.log('❌ getUserRoleFromDB: No email provided');
     return null;
   }
-  
-  console.log(`🔍 getUserRoleFromDB: Looking up role for: ${email}`);
-  
+
   // Check cache first
   const cacheKey = `${email}_role`;
   const cachedData = userDataCache.get(cacheKey);
   if (cachedData && Date.now() - cachedData.timestamp < CACHE_EXPIRY) {
-    console.log(`📋 getUserRoleFromDB: Using cached role for ${email}: ${cachedData.role}`);
     return cachedData.role;
   }
 
   try {
     if (!realtimeDb) {
-      console.error('❌ getUserRoleFromDB: realtimeDb is not initialized');
       return null;
     }
 
@@ -299,19 +273,15 @@ export async function getUserRoleFromDB(email) {
             timestamp: Date.now()
           });
           
-          console.log(`✅ Found role for ${email}: ${role}`);
           return role;
         }
       }
       
-      console.log(`❌ No user found with email: ${email}`);
       return null;
     } else {
-      console.log(`❌ No users collection found in Realtime Database`);
       return null;
     }
   } catch (error) {
-    console.error('❌ getUserRoleFromDB: Error fetching user role:', error);
     return null;
   }
 }
@@ -323,23 +293,18 @@ export async function getUserRoleFromDB(email) {
  */
 export async function getUserProfile(email) {
   if (!email) {
-    console.log('❌ getUserProfile: No email provided');
     return null;
   }
-  
-  console.log(`🔍 getUserProfile: Looking up profile for: ${email}`);
-  
+
   // Check cache first
   const cacheKey = `${email}_profile`;
   const cachedData = userDataCache.get(cacheKey);
   if (cachedData && Date.now() - cachedData.timestamp < CACHE_EXPIRY) {
-    console.log(`📋 getUserProfile: Using cached profile for ${email}`);
     return cachedData.profile;
   }
 
   try {
     if (!realtimeDb) {
-      console.error('❌ getUserProfile: realtimeDb is not initialized');
       return null;
     }
 
@@ -369,19 +334,15 @@ export async function getUserProfile(email) {
             timestamp: Date.now()
           });
           
-          console.log(`✅ Found profile for ${email}:`, profile);
           return profile;
         }
       }
       
-      console.log(`❌ No user found with email: ${email}`);
       return null;
     } else {
-      console.log(`❌ No users collection found in Realtime Database`);
       return null;
     }
   } catch (error) {
-    console.error('❌ getUserProfile: Error fetching user profile:', error);
     return null;
   }
 }

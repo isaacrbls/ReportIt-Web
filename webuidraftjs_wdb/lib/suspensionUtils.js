@@ -17,6 +17,7 @@ import {
   Timestamp 
 } from "firebase/firestore";
 import { db } from "@/firebase";
+import { resetUserRejectionCount } from "./reportUtils";
 
 // Constants
 export const SUSPENSION_CONSTANTS = {
@@ -38,8 +39,6 @@ export const SUSPENSION_CONSTANTS = {
  */
 export async function trackReportRejection(userEmail, reportId, rejectionReason, rejectedBy) {
   try {
-    console.log(`📝 Tracking rejection for user: ${userEmail}, report: ${reportId}`);
-    
     // Add to rejection history
     const rejectionData = {
       userEmail,
@@ -54,7 +53,6 @@ export async function trackReportRejection(userEmail, reportId, rejectionReason,
     
     // Check rejection count
     const rejectionCount = await getUserRejectionCount(userEmail);
-    console.log(`🔢 User ${userEmail} now has ${rejectionCount} rejections`);
     
     // Do NOT auto-suspend - let the admin decide via the modal
     // Only send notification if under the limit
@@ -71,7 +69,6 @@ export async function trackReportRejection(userEmail, reportId, rejectionReason,
     
     return rejectionCount;
   } catch (error) {
-    console.error("Error tracking report rejection:", error);
     throw error;
   }
 }
@@ -93,7 +90,6 @@ export async function getUserRejectionCount(userEmail) {
     const snapshot = await getDocs(q);
     return snapshot.size;
   } catch (error) {
-    console.error("Error getting user rejection count:", error);
     return 0;
   }
 }
@@ -105,8 +101,6 @@ export async function getUserRejectionCount(userEmail) {
  */
 export async function suspendUser(userEmail, rejectionCount) {
   try {
-    console.log(`🚫 Suspending user: ${userEmail} for ${SUSPENSION_CONSTANTS.SUSPENSION_DURATION_DAYS} days`);
-    
     const now = Timestamp.now();
     const suspensionEnd = new Date(now.toDate());
     suspensionEnd.setDate(suspensionEnd.getDate() + SUSPENSION_CONSTANTS.SUSPENSION_DURATION_DAYS);
@@ -124,8 +118,8 @@ export async function suspendUser(userEmail, rejectionCount) {
     // Create suspension record
     await setDoc(doc(db, SUSPENSION_CONSTANTS.COLLECTION_NAMES.USER_SUSPENSIONS, userEmail), suspensionData);
     
-    // Do NOT mark rejections as processed - keep the counter at 3
-    // This ensures the rejection count persists even after suspension
+    // Reset the rejectedReportCount in Realtime Database to 0
+    await resetUserRejectionCount(userEmail);
     
     // Send suspension notification
     await sendNotification(userEmail, {
@@ -134,10 +128,7 @@ export async function suspendUser(userEmail, rejectionCount) {
       message: `Your account has been suspended for ${SUSPENSION_CONSTANTS.SUSPENSION_DURATION_DAYS} days due to repeated false reports. You will be automatically reinstated on ${suspensionEnd.toLocaleDateString()}.`,
       suspensionEnd: Timestamp.fromDate(suspensionEnd)
     });
-    
-    console.log(`✅ User ${userEmail} suspended until ${suspensionEnd.toLocaleDateString()} - rejection counter kept at ${rejectionCount}`);
   } catch (error) {
-    console.error("Error suspending user:", error);
     throw error;
   }
 }
@@ -162,9 +153,8 @@ async function markRejectionsAsProcessed(userEmail) {
     });
     
     await Promise.all(batch);
-    console.log(`✅ Marked ${batch.length} rejections as processed for ${userEmail}`);
   } catch (error) {
-    console.error("Error marking rejections as processed:", error);
+    // Silent fail
   }
 }
 
@@ -196,7 +186,6 @@ export async function getUserSuspensionStatus(userEmail) {
     
     return suspensionData.isActive ? suspensionData : null;
   } catch (error) {
-    console.error("Error checking user suspension status:", error);
     return null;
   }
 }
@@ -207,8 +196,6 @@ export async function getUserSuspensionStatus(userEmail) {
  */
 export async function reinstateUser(userEmail) {
   try {
-    console.log(`🔄 Auto-reinstating user: ${userEmail}`);
-    
     const docRef = doc(db, SUSPENSION_CONSTANTS.COLLECTION_NAMES.USER_SUSPENSIONS, userEmail);
     await updateDoc(docRef, {
       isActive: false,
@@ -222,10 +209,7 @@ export async function reinstateUser(userEmail) {
       title: 'Account Reinstated',
       message: 'Your account has been automatically reinstated. You can now submit reports again. Please ensure all future reports are accurate to avoid future suspensions.'
     });
-    
-    console.log(`✅ User ${userEmail} reinstated successfully`);
   } catch (error) {
-    console.error("Error reinstating user:", error);
     throw error;
   }
 }
@@ -246,9 +230,8 @@ export async function sendNotification(userEmail, notificationData) {
     };
     
     await addDoc(collection(db, SUSPENSION_CONSTANTS.COLLECTION_NAMES.NOTIFICATIONS), notification);
-    console.log(`📬 Notification sent to ${userEmail}: ${notificationData.title}`);
   } catch (error) {
-    console.error("Error sending notification:", error);
+    // Silent fail
   }
 }
 
@@ -268,7 +251,6 @@ export async function getUserNotifications(userEmail) {
     const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
   } catch (error) {
-    console.error("Error getting user notifications:", error);
     return [];
   }
 }
@@ -279,8 +261,6 @@ export async function getUserNotifications(userEmail) {
  */
 export async function processExpiredSuspensions() {
   try {
-    console.log("🔄 Processing expired suspensions...");
-    
     const now = Timestamp.now();
     const q = query(
       collection(db, SUSPENSION_CONSTANTS.COLLECTION_NAMES.USER_SUSPENSIONS),
@@ -297,8 +277,7 @@ export async function processExpiredSuspensions() {
     });
     
     await Promise.all(reinstatePromises);
-    console.log(`✅ Processed ${reinstatePromises.length} expired suspensions`);
   } catch (error) {
-    console.error("Error processing expired suspensions:", error);
+    // Silent fail
   }
 }

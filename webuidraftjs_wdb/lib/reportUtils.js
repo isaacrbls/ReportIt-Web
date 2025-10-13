@@ -84,7 +84,6 @@ export async function updateReportStatus(reportId, status, rejectionReason = nul
     // Get the report to find the user email
     const reportSnap = await getDoc(docRef);
     if (!reportSnap.exists()) {
-      console.error("Report not found");
       return false;
     }
     
@@ -106,7 +105,6 @@ export async function updateReportStatus(reportId, status, rejectionReason = nul
     
     return true;
   } catch (error) {
-    console.error("Error updating report status:", error);
     return false;
   }
 }
@@ -137,14 +135,12 @@ async function incrementUserRejectionCount(userEmail) {
           updatedAt: new Date().toISOString(),
         });
         
-        console.log(`✅ User ${userEmail} rejection count updated: ${currentCount} → ${newCount}`);
         return newCount;
       }
     }
     
     return 0;
   } catch (error) {
-    console.error("Error incrementing rejection count:", error);
     return 0;
   }
 }
@@ -172,7 +168,6 @@ export async function getUserRejectionCount(userEmail) {
     
     return 0;
   } catch (error) {
-    console.error("Error getting rejection count:", error);
     return 0;
   }
 }
@@ -197,14 +192,12 @@ export async function resetUserRejectionCount(userEmail) {
           updatedAt: new Date().toISOString(),
         });
         
-        console.log(`✅ User ${userEmail} rejection count reset to 0`);
         return true;
       }
     }
     
     return false;
   } catch (error) {
-    console.error("Error resetting rejection count:", error);
     return false;
   }
 }
@@ -215,7 +208,6 @@ export async function deleteReport(reportId) {
     await deleteDoc(docRef);
     return true;
   } catch (error) {
-    console.error("Error deleting report:", error);
     return false;
   }
 }
@@ -226,7 +218,6 @@ export async function updateReportDetails(reportId, updates) {
     await updateDoc(docRef, updates);
     return true;
   } catch (error) {
-    console.error("Error updating report:", error);
     return false;
   }
 }

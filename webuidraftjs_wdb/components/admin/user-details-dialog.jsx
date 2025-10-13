@@ -72,8 +72,6 @@ export function UserDetailsDialog({ user, open, onOpenChange, onUpdate }) {
   const fetchUserData = async () => {
     setLoading(true);
     try {
-      console.log("📊 Fetching reports for user:", user.email);
-      
       // Fetch ALL user's reports using email
       const reportsRef = collection(db, "reports");
       
@@ -83,31 +81,24 @@ export function UserDetailsDialog({ user, open, onOpenChange, onUpdate }) {
         where("SubmittedBy", "==", user.email)
       );
       
-      console.log("📊 Executing query for email:", user.email);
       let reportsSnapshot = await getDocs(reportsQuery);
-      
-      console.log("📊 Reports found with SubmittedBy:", reportsSnapshot.size);
       
       // If no results, try with SubmittedByEmail field
       if (reportsSnapshot.size === 0) {
-        console.log("📊 Trying with SubmittedByEmail field...");
         reportsQuery = query(
           reportsRef,
           where("SubmittedByEmail", "==", user.email)
         );
         reportsSnapshot = await getDocs(reportsQuery);
-        console.log("📊 Reports found with SubmittedByEmail:", reportsSnapshot.size);
       }
       
       // If still no results, try with lowercase field
       if (reportsSnapshot.size === 0) {
-        console.log("📊 Trying with submittedByEmail (lowercase)...");
         reportsQuery = query(
           reportsRef,
           where("submittedByEmail", "==", user.email)
         );
-        reportsSnapshot = await getDocs(reportsSnapshot);
-        console.log("📊 Reports found with submittedByEmail:", reportsSnapshot.size);
+        reportsSnapshot = await getDocs(reportsQuery);
       }
       
       const allReports = reportsSnapshot.docs.map(doc => {
@@ -127,7 +118,6 @@ export function UserDetailsDialog({ user, open, onOpenChange, onUpdate }) {
       };
       
       setReportStats(stats);
-      console.log("📊 Report statistics:", stats);
       
       // Sort reports by date for display (most recent first)
       allReports.sort((a, b) => {
@@ -138,7 +128,6 @@ export function UserDetailsDialog({ user, open, onOpenChange, onUpdate }) {
       
       // Show ALL reports in the reports tab
       setUserReports(allReports);
-      console.log("✅ User reports set:", allReports.length, "Total:", allReports.length);
 
       // Fetch suspension history (handle potential errors)
       try {
@@ -154,13 +143,9 @@ export function UserDetailsDialog({ user, open, onOpenChange, onUpdate }) {
         }));
         setSuspensionHistory(suspensions);
       } catch (suspensionError) {
-        console.log("⚠️ Suspension history not available:", suspensionError.message);
         setSuspensionHistory([]);
       }
     } catch (error) {
-      console.error("❌ Error fetching user data:", error);
-      console.error("❌ Error details:", error.message);
-      console.error("❌ Error code:", error.code);
       // Still set empty array to avoid undefined errors
       setUserReports([]);
       setSuspensionHistory([]);
@@ -428,39 +413,33 @@ export function UserDetailsDialog({ user, open, onOpenChange, onUpdate }) {
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-2 gap-3">
-                    <div className="text-center p-3 bg-red-50 rounded-lg border border-red-200">
-                      <div className="text-xl font-bold text-red-600">{reportStats.total}</div>
-                      <div className="text-xs text-muted-foreground">Total Reports</div>
+                    <div className="text-center p-4 bg-red-50 rounded-lg border border-red-200 hover:shadow-md transition-shadow">
+                      <div className="text-2xl font-bold text-red-600">{reportStats.total}</div>
+                      <div className="text-xs text-muted-foreground mt-1">Total Reports</div>
                     </div>
-                    <div className="text-center p-3 bg-green-50 rounded-lg border border-green-200">
-                      <div className="text-xl font-bold text-green-600">
+                    <div className="text-center p-4 bg-green-50 rounded-lg border border-green-200 hover:shadow-md transition-shadow">
+                      <div className="text-2xl font-bold text-green-600">
                         {reportStats.verified}
                       </div>
-                      <div className="text-xs text-muted-foreground">Verified Reports</div>
+                      <div className="text-xs text-muted-foreground mt-1">Verified Reports</div>
                     </div>
-                    <div className="text-center p-3 bg-yellow-50 rounded-lg border border-yellow-200">
-                      <div className="text-xl font-bold text-yellow-600">
+                    <div className="text-center p-4 bg-yellow-50 rounded-lg border border-yellow-200 hover:shadow-md transition-shadow">
+                      <div className="text-2xl font-bold text-yellow-600">
                         {reportStats.pending}
                       </div>
-                      <div className="text-xs text-muted-foreground">Pending Reports</div>
+                      <div className="text-xs text-muted-foreground mt-1">Pending Reports</div>
                     </div>
-                    <div className="text-center p-3 bg-red-50 rounded-lg border border-red-200">
-                      <div className="text-xl font-bold text-red-600">
+                    <div className="text-center p-4 bg-rose-50 rounded-lg border border-rose-200 hover:shadow-md transition-shadow">
+                      <div className="text-2xl font-bold text-rose-600">
                         {reportStats.rejected}
                       </div>
-                      <div className="text-xs text-muted-foreground">Rejected Reports</div>
+                      <div className="text-xs text-muted-foreground mt-1">Rejected Reports</div>
                     </div>
-                    <div className="text-center p-3 bg-orange-50 rounded-lg border border-orange-200">
-                      <div className="text-xl font-bold text-orange-600">
+                    <div className="col-span-2 text-center p-4 bg-orange-50 rounded-lg border border-orange-200 hover:shadow-md transition-shadow">
+                      <div className="text-2xl font-bold text-orange-600">
                         {user.suspensionCount || 0}
                       </div>
-                      <div className="text-xs text-muted-foreground">Total Suspensions</div>
-                    </div>
-                    <div className="text-center p-3 bg-purple-50 rounded-lg border border-purple-200">
-                      <div className="text-xl font-bold text-purple-600">
-                        {user.rejectedReportCount || 0}
-                      </div>
-                      <div className="text-xs text-muted-foreground">Current Rejection Count</div>
+                      <div className="text-xs text-muted-foreground mt-1">Total Suspensions</div>
                     </div>
                   </div>
                 </CardContent>

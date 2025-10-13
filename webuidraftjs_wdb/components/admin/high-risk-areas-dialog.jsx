@@ -72,8 +72,6 @@ export const HighRiskAreasDialog = ({ open, onOpenChange, userBarangay }) => {
           else if (barangay.toLowerCase().includes('dakila')) barangay = 'Dakila';
           else if (barangay.toLowerCase().includes('pinagbakahan')) barangay = 'Pinagbakahan';
           else if (barangay.toLowerCase().includes('look')) barangay = 'Look 1st';
-          else if (barangay.toLowerCase().includes('longos')) barangay = 'Longos';
-          else if (barangay.toLowerCase().includes('tiaong')) barangay = 'Tiaong';
         }
 
         if (!barangay || barangay === '' || barangay.toLowerCase() === 'unknown') {
@@ -84,8 +82,6 @@ export const HighRiskAreasDialog = ({ open, onOpenChange, userBarangay }) => {
           else if (email.includes('dakila')) barangay = 'Dakila';
           else if (email.includes('pinagbakahan')) barangay = 'Pinagbakahan';
           else if (email.includes('look')) barangay = 'Look 1st';
-          else if (email.includes('longos')) barangay = 'Longos';
-          else if (email.includes('tiaong')) barangay = 'Tiaong';
           else {
             unknownCount++;
             barangay = 'Unknown'; 
