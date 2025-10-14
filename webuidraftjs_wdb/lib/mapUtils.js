@@ -100,22 +100,6 @@ export function getMapOptions(bounds, isReportDetail = false, isAddReport = fals
 // Cache for storing geocoded addresses to avoid repeated API calls
 const geocodeCache = new Map();
 
-// Local area mapping for Malolos (approximate coordinates to known areas)
-const localAreas = [
-  { lat: 14.8743, lng: 120.8264, name: "A. Mabini Street, North Highlands Subdivision" },
-  { lat: 14.8715, lng: 120.8207, name: "Dakila Village" },
-  { lat: 14.8701, lng: 120.8185, name: "Longos Central Area" },
-  { lat: 14.8692, lng: 120.8234, name: "Bulihan District" },
-  { lat: 14.8724, lng: 120.8176, name: "Mojon Heights" },
-  { lat: 14.8678, lng: 120.8198, name: "Pinagbakahan Area" },
-  { lat: 14.8756, lng: 120.8145, name: "Look 1st Subdivision" },
-  { lat: 14.8689, lng: 120.8267, name: "Tiaong Plaza Area" },
-  { lat: 14.8734, lng: 120.8298, name: "Guinhawa Subdivision" },
-  { lat: 14.8667, lng: 120.8223, name: "Babatnin District" },
-  { lat: 14.8745, lng: 120.8312, name: "Maunlad Homes" },
-  { lat: 14.8712, lng: 120.8289, name: "San Vicente Area" }
-];
-
 /**
  * Calculate distance between two coordinates using Haversine formula
  * @param {number} lat1 - Latitude 1
@@ -137,29 +121,13 @@ function calculateDistance(lat1, lng1, lat2, lng2) {
 }
 
 /**
- * Get the nearest local area name based on coordinates
+ * Get a generic area name based on coordinates
  * @param {number} lat - Latitude
  * @param {number} lng - Longitude
- * @returns {string} - Nearest local area name
+ * @returns {string} - Generic area name
  */
 function getNearestLocalArea(lat, lng) {
-  let nearest = null;
-  let minDistance = Infinity;
-  
-  for (const area of localAreas) {
-    const distance = calculateDistance(lat, lng, area.lat, area.lng);
-    if (distance < minDistance) {
-      minDistance = distance;
-      nearest = area;
-    }
-  }
-  
-  // If we found a nearby area (within 2km), use it
-  if (nearest && minDistance < 2) {
-    return nearest.name;
-  }
-  
-  // Otherwise, create a generic area name based on the general Malolos area
+  // Create a generic area name based on the general Malolos area
   if (lat >= 14.85 && lat <= 14.88 && lng >= 120.80 && lng <= 120.85) {
     return "Malolos City Area";
   } else if (lat >= 14.86 && lat <= 14.89 && lng >= 120.78 && lng <= 120.82) {
