@@ -461,7 +461,7 @@ export default function ReportsPageClient() {
           
           await update(userRef, {
             suspended: true,
-            suspensionReason: "3 reports rejected - Automatic suspension",
+            suspensionReason: "You have been blocked by the admin after three failed attempts.",
             suspensionDate: new Date().toISOString(),
             suspensionEndDate: suspensionEndDate.toISOString(),
             suspendedBy: "SYSTEM",

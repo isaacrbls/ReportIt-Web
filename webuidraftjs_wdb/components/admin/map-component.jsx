@@ -105,7 +105,6 @@ export default function MapComponent({
 	const [isMapReady, setIsMapReady] = useState(false)
 	const [mapError, setMapError] = useState(null)
 	const [clusters, setClusters] = useState([])
-	const cleanupTimeoutRef = useRef(null)
 
 	// Safe marker cleanup function
 	const safeCleanupMarkers = () => {
@@ -114,6 +113,7 @@ export default function MapComponent({
 				try {
 					// Check if marker is still on the map before removing
 					if (mapInstanceRef.current && mapInstanceRef.current.hasLayer(markerData.marker)) {
+						markerData.marker.off(); // Remove event listeners
 						mapInstanceRef.current.removeLayer(markerData.marker);
 					}
 				} catch (error) {
@@ -510,7 +510,8 @@ export default function MapComponent({
 			reverseGeocode(incident.location[0], incident.location[1])
 				.then(streetAddress => {
 					try {
-						if (streetAddress && streetAddress !== 'Unknown location' && marker) {
+						// Check if marker and map still exist before updating
+						if (streetAddress && streetAddress !== 'Unknown location' && marker && mapInstanceRef.current && mapInstanceRef.current.hasLayer(marker)) {
 							const updatedContent = popupContent.replace(
 								`<strong>Location:</strong> Loading address...`,
 								`<strong>Location:</strong> ${streetAddress}`
@@ -524,7 +525,8 @@ export default function MapComponent({
 				.catch(error => {
 					console.error('Failed to get street address:', error);
 					try {
-						if (marker) {
+						// Check if marker and map still exist before updating
+						if (marker && mapInstanceRef.current && mapInstanceRef.current.hasLayer(marker)) {
 							const fallbackContent = popupContent.replace(
 								`<strong>Location:</strong> Loading address...`,
 								`<strong>Location:</strong> ${incident.location[0].toFixed(4)}, ${incident.location[1].toFixed(4)}`
@@ -571,11 +573,6 @@ export default function MapComponent({
 
 	useEffect(() => {
 		
-		if (cleanupTimeoutRef.current) {
-			clearTimeout(cleanupTimeoutRef.current);
-			cleanupTimeoutRef.current = null;
-		}
-
 		if (!mapRef.current) {
 			console.log("⚠️ Map container not ready, skipping initialization");
 			return;
@@ -591,6 +588,43 @@ export default function MapComponent({
 			try {
 				// Clean up markers first before removing map
 				safeCleanupMarkers();
+				
+				// Clean up hotspots
+				hotspotsRef.current.forEach(hotspot => {
+					if (hotspot) {
+						try {
+							hotspot.remove();
+						} catch (error) {
+							console.warn("Warning removing hotspot during cleanup:", error);
+						}
+					}
+				});
+				hotspotsRef.current = [];
+				
+				// Clean up clusters
+				clustersRef.current.forEach(cluster => {
+					if (cluster) {
+						try {
+							cluster.remove();
+						} catch (error) {
+							console.warn("Warning removing cluster during cleanup:", error);
+						}
+					}
+				});
+				clustersRef.current = [];
+				
+				// Clean up new marker
+				if (newMarkerRef.current) {
+					try {
+						newMarkerRef.current.remove();
+					} catch (error) {
+						console.warn("Warning removing new marker during cleanup:", error);
+					}
+					newMarkerRef.current = null;
+				}
+				
+				// Remove all event listeners and remove map
+				mapInstanceRef.current.off();
 				mapInstanceRef.current.remove();
 			} catch (error) {
 				console.warn("Warning during map cleanup:", error);
@@ -710,21 +744,33 @@ export default function MapComponent({
 						// Asynchronously fetch street address and update popup
 						reverseGeocode(incident.location[0], incident.location[1])
 							.then(streetAddress => {
-								if (streetAddress && streetAddress !== 'Unknown location') {
-									const updatedContent = popupContent.replace(
-										`<strong>Location:</strong> Loading address...`,
-										`<strong>Location:</strong> ${streetAddress}`
-									);
-									marker.setPopupContent(updatedContent);
+								try {
+									// Check if marker and map still exist before updating
+									if (streetAddress && streetAddress !== 'Unknown location' && marker && mapInstanceRef.current && mapInstanceRef.current.hasLayer(marker)) {
+										const updatedContent = popupContent.replace(
+											`<strong>Location:</strong> Loading address...`,
+											`<strong>Location:</strong> ${streetAddress}`
+										);
+										marker.setPopupContent(updatedContent);
+									}
+								} catch (error) {
+									console.warn('Warning updating marker popup:', error);
 								}
 							})
 							.catch(error => {
 								console.error('Failed to get street address:', error);
-								const fallbackContent = popupContent.replace(
-									`<strong>Location:</strong> Loading address...`,
-									`<strong>Location:</strong> ${incident.location[0].toFixed(4)}, ${incident.location[1].toFixed(4)}`
-								);
-								marker.setPopupContent(fallbackContent);
+								try {
+									// Check if marker and map still exist before updating
+									if (marker && mapInstanceRef.current && mapInstanceRef.current.hasLayer(marker)) {
+										const fallbackContent = popupContent.replace(
+											`<strong>Location:</strong> Loading address...`,
+											`<strong>Location:</strong> ${incident.location[0].toFixed(4)}, ${incident.location[1].toFixed(4)}`
+										);
+										marker.setPopupContent(fallbackContent);
+									}
+								} catch (error) {
+									console.warn('Warning setting fallback popup content:', error);
+								}
 							});
 					}					if (showPopups && onMarkerClick) {
 						marker.on("click", () => {
@@ -819,21 +865,55 @@ export default function MapComponent({
 				return () => {
 					console.log("🧹 Cleaning up map instance and event listeners");
 					setIsMapReady(false);
+					window.removeEventListener("addIncident", handleAddIncident);
 
-					cleanupTimeoutRef.current = setTimeout(() => {
-						try {
-							// Clean up markers first before removing map
-							safeCleanupMarkers();
-							
-							if (mapInstanceRef.current) {
-								mapInstanceRef.current.remove()
-								mapInstanceRef.current = null
+					try {
+						// Clean up markers first before removing map
+						safeCleanupMarkers();
+						
+						// Clean up hotspots
+						hotspotsRef.current.forEach(hotspot => {
+							if (hotspot && mapInstanceRef.current && mapInstanceRef.current.hasLayer(hotspot)) {
+								try {
+									mapInstanceRef.current.removeLayer(hotspot);
+								} catch (error) {
+									console.warn("Warning removing hotspot:", error);
+								}
 							}
-						} catch (error) {
-							console.warn("Warning during map cleanup:", error);
+						});
+						hotspotsRef.current = [];
+						
+						// Clean up clusters
+						clustersRef.current.forEach(cluster => {
+							if (cluster && mapInstanceRef.current && mapInstanceRef.current.hasLayer(cluster)) {
+								try {
+									mapInstanceRef.current.removeLayer(cluster);
+								} catch (error) {
+									console.warn("Warning removing cluster:", error);
+								}
+							}
+						});
+						clustersRef.current = [];
+						
+						// Clean up new marker
+						if (newMarkerRef.current && mapInstanceRef.current && mapInstanceRef.current.hasLayer(newMarkerRef.current)) {
+							try {
+								mapInstanceRef.current.removeLayer(newMarkerRef.current);
+							} catch (error) {
+								console.warn("Warning removing new marker:", error);
+							}
 						}
-						window.removeEventListener("addIncident", handleAddIncident)
-					}, 100);
+						newMarkerRef.current = null;
+						
+						// Remove map instance
+						if (mapInstanceRef.current) {
+							mapInstanceRef.current.off();
+							mapInstanceRef.current.remove();
+							mapInstanceRef.current = null;
+						}
+					} catch (error) {
+						console.warn("Warning during map cleanup:", error);
+					}
 				};
 
 			} catch (error) {

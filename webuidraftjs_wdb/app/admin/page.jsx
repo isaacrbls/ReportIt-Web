@@ -4,6 +4,15 @@ import Link from "next/link";
 import { ShieldAlert, LayoutDashboard, BarChart2, FileText, LogOut } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { CrimeMap } from "@/components/admin/crime-map";
 import { RecentReports } from "@/components/admin/recent-reports";
 import { StatsCards } from "@/components/admin/stats-cards";
@@ -16,7 +25,7 @@ import React from "react";
 import Image from "next/image";
 import Sidebar from "@/components/admin/Sidebar";
 import { useCurrentUser } from "@/hooks/use-current-user";
-import { updateReportStatus } from "@/lib/reportUtils";
+import { updateReportStatus, getUserRejectionCount } from "@/lib/reportUtils";
 import { getMapCoordinatesForUser, getUserBarangay } from "@/lib/userMapping";
 import { useReports } from "@/contexts/ReportsContext";
 import { clusterIncidents } from "@/lib/clusterUtils";
@@ -29,6 +38,8 @@ export default function AdminDashboard() {
   const [isDialogOpen, setIsDialogOpen] = React.useState(false);
   const [userBarangay, setUserBarangay] = React.useState("");
   const [userCoordinates, setUserCoordinates] = React.useState({ center: [14.8527, 120.816], zoom: 16 });
+  const [showSuspensionModal, setShowSuspensionModal] = React.useState(false);
+  const [pendingSuspensionUser, setPendingSuspensionUser] = React.useState(null);
   const router = useRouter();
   const { user, isLoading: isUserLoading } = useCurrentUser();
   const { reports, getPendingReports, getReportsByBarangay, refreshData } = useReports();
@@ -155,11 +166,105 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleReject = async (id) => {
-    const success = await updateReportStatus(id, "Rejected");
-    if (success) {
-      console.log("Report rejected successfully");
+  const handleReject = async (id, reason) => {
+    try {
+      // Get the report to find the user email
+      const report = reports.find(r => r.id === id);
+      if (!report || !report.SubmittedByEmail) {
+        console.error("Report or user email not found");
+        const success = await updateReportStatus(id, "Rejected", reason);
+        if (success) {
+          console.log("Report rejected successfully");
+        }
+        return;
+      }
+
+      const userEmail = report.SubmittedByEmail;
       
+      // Update the report status (this will also increment the counter)
+      const success = await updateReportStatus(id, "Rejected", reason);
+      
+      if (success) {
+        console.log("Report rejected successfully");
+        
+        // Check the user's rejection count
+        const rejectionCount = await getUserRejectionCount(userEmail);
+        console.log(`User ${userEmail} now has ${rejectionCount} rejected reports`);
+        
+        // If count reaches 3, show suspension modal
+        if (rejectionCount >= 3) {
+          setPendingSuspensionUser({
+            email: userEmail,
+            rejectionCount: rejectionCount
+          });
+          setShowSuspensionModal(true);
+        }
+      }
+    } catch (error) {
+      console.error("Error in handleReject:", error);
+    }
+  };
+
+  const handleSuspendUser = async () => {
+    if (!pendingSuspensionUser) return;
+    
+    try {
+      const { email } = pendingSuspensionUser;
+      
+      // Find user in realtime database and suspend them
+      const { ref, get, update } = await import("firebase/database");
+      const { realtimeDb } = await import("@/firebase");
+      
+      const usersRef = ref(realtimeDb, 'users');
+      const usersSnapshot = await get(usersRef);
+      
+      if (usersSnapshot.exists()) {
+        const users = usersSnapshot.val();
+        const userId = Object.keys(users).find(id => users[id].email === email);
+        
+        if (userId) {
+          const userRef = ref(realtimeDb, `users/${userId}`);
+          const suspensionEndDate = new Date();
+          suspensionEndDate.setDate(suspensionEndDate.getDate() + 14); // 2 weeks
+          
+          const currentCount = users[userId].suspensionCount || 0;
+          
+          await update(userRef, {
+            suspended: true,
+            suspensionReason: "You have been blocked by the admin after three failed attempts.",
+            suspensionDate: new Date().toISOString(),
+            suspensionEndDate: suspensionEndDate.toISOString(),
+            suspendedBy: "SYSTEM",
+            suspensionCount: currentCount + 1,
+            rejectedReportCount: 0, // Reset counter after suspension
+            updatedAt: new Date().toISOString(),
+          });
+          
+          console.log(`✅ User ${email} suspended automatically`);
+        }
+      }
+      
+      setShowSuspensionModal(false);
+      setPendingSuspensionUser(null);
+    } catch (error) {
+      console.error("Error suspending user:", error);
+      alert("Failed to suspend user. Please try again.");
+    }
+  };
+
+  const handleCancelSuspension = async () => {
+    if (!pendingSuspensionUser) return;
+    
+    try {
+      // Do NOT reset the counter - keep it at 3
+      console.log(`⚠️ User ${pendingSuspensionUser.email} not suspended. Counter remains at ${pendingSuspensionUser.rejectionCount}`);
+      
+      setShowSuspensionModal(false);
+      setPendingSuspensionUser(null);
+    } catch (error) {
+      console.error("Error handling suspension cancellation:", error);
+      setShowSuspensionModal(false);
+      setPendingSuspensionUser(null);
     }
   };
 
@@ -267,6 +372,42 @@ export default function AdminDashboard() {
         onConfirm={handleLogout}
         onCancel={() => setShowLogoutModal(false)}
       />
+
+      {/* Suspension Confirmation Modal */}
+      <Dialog open={showSuspensionModal} onOpenChange={setShowSuspensionModal}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold text-red-600">
+              User Reached 3 Rejected Reports
+            </DialogTitle>
+            <DialogDescription className="text-gray-600 mt-2">
+              {pendingSuspensionUser && (
+                <>
+                  The user <span className="font-semibold">{pendingSuspensionUser.email}</span> has 
+                  reached <span className="font-semibold text-red-600">3 rejected reports</span>.
+                  <br /><br />
+                  Do you want to suspend this user for 2 weeks?
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-3 mt-4">
+            <Button
+              variant="outline"
+              onClick={handleCancelSuspension}
+              className="flex-1"
+            >
+              No, Don't Suspend
+            </Button>
+            <Button
+              onClick={handleSuspendUser}
+              className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+            >
+              Yes, Suspend User
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
