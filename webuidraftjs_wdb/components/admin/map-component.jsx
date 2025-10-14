@@ -105,19 +105,38 @@ export default function MapComponent({
 	const [isMapReady, setIsMapReady] = useState(false)
 	const [mapError, setMapError] = useState(null)
 	const [clusters, setClusters] = useState([])
+	const isUpdatingMarkersRef = useRef(false) // Track if markers are being updated
+	const updateTimeoutRef = useRef(null) // Track debounce timeout
 
 	// Safe marker cleanup function
 	const safeCleanupMarkers = () => {
 		markersRef.current.forEach(markerData => {
 			if (markerData && markerData.marker) {
 				try {
+					// Close popup first to avoid any popup-related errors
+					if (markerData.marker.getPopup && markerData.marker.getPopup()) {
+						markerData.marker.closePopup();
+						markerData.marker.unbindPopup();
+					}
+					
+					// Remove event listeners
+					markerData.marker.off();
+					
 					// Check if marker is still on the map before removing
 					if (mapInstanceRef.current && mapInstanceRef.current.hasLayer(markerData.marker)) {
-						markerData.marker.off(); // Remove event listeners
 						mapInstanceRef.current.removeLayer(markerData.marker);
 					}
+					
+					// Clear internal Leaflet references
+					if (markerData.marker._icon) {
+						markerData.marker._icon = null;
+					}
+					if (markerData.marker._shadow) {
+						markerData.marker._shadow = null;
+					}
 				} catch (error) {
-					console.warn('Warning during marker cleanup:', error);
+					// Silently handle cleanup errors to prevent breaking the map
+					console.warn('Warning during marker cleanup:', error.message);
 				}
 			}
 		});
@@ -465,107 +484,160 @@ export default function MapComponent({
 
 		if (!mapInstanceRef.current || incidents.length === 0) return;
 
-		// Clean up existing markers safely
-		safeCleanupMarkers();
-
-	console.log("Updating markers for", incidents.length, "incidents");
-		const newMarkers = [];
-		incidents.forEach((incident) => {
-			const marker = L.marker(incident.location, {
-				icon: createCustomIcon(incident.risk),
-			}).addTo(mapInstanceRef.current)
-
-			const popupContent = `
-				<div class="p-4 min-w-[220px]">
-					<h3 class="font-semibold text-lg mb-2 text-gray-800">${incident.title}</h3>
-					<p class="text-sm text-gray-600 mb-3">${incident.category}</p>
-					<p class="text-xs text-gray-600 mb-3">
-						${incident.date} at ${incident.time}
-					</p>
-					<div class="flex items-center gap-2 mb-3 flex-wrap">
-						<span class="px-2 py-1 rounded-md bg-${
-							incident.risk === "High" ? "red" : incident.risk === "Medium" ? "orange" : "green"
-						}-100 text-${
-							incident.risk === "High" ? "red" : incident.risk === "Medium" ? "orange" : "green"
-						}-700 text-xs font-medium border border-${
-							incident.risk === "High" ? "red" : incident.risk === "Medium" ? "orange" : "green"
-						}-300">${incident.risk} Risk</span>
-						<span class="px-2 py-1 rounded-md border text-xs font-medium ${
-							incident.status === "Verified" ? "bg-green-100 text-green-700 border-green-300" :
-							incident.status === "Pending" ? "bg-white text-black border-gray-300" :
-							"bg-red-100 text-red-700 border-red-300"
-						}">${incident.status}</span>
-						${incident.isSensitive ? '<span class="px-2 py-1 rounded-md bg-orange-100 text-orange-700 text-xs font-medium border border-orange-300">Sensitive</span>' : ''}
-					</div>
-					<p class="text-sm text-gray-700 mb-2">${incident.description}</p>
-					<div id="location-${incident.id}" class="text-xs text-gray-600 mt-2 pt-2 border-t border-gray-200">
-						<strong>Location:</strong> Loading address...
-					</div>
-				</div>
-			`
-
-			marker.bindPopup(popupContent)
-			
-			// Asynchronously fetch street address and update popup
-			reverseGeocode(incident.location[0], incident.location[1])
-				.then(streetAddress => {
-					try {
-						// Check if marker and map still exist before updating
-						if (streetAddress && streetAddress !== 'Unknown location' && marker && mapInstanceRef.current && mapInstanceRef.current.hasLayer(marker)) {
-							const updatedContent = popupContent.replace(
-								`<strong>Location:</strong> Loading address...`,
-								`<strong>Location:</strong> ${streetAddress}`
-							);
-							marker.setPopupContent(updatedContent);
-						}
-					} catch (error) {
-						console.warn('Warning updating marker popup:', error);
-					}
-				})
-				.catch(error => {
-					console.error('Failed to get street address:', error);
-					try {
-						// Check if marker and map still exist before updating
-						if (marker && mapInstanceRef.current && mapInstanceRef.current.hasLayer(marker)) {
-							const fallbackContent = popupContent.replace(
-								`<strong>Location:</strong> Loading address...`,
-								`<strong>Location:</strong> ${incident.location[0].toFixed(4)}, ${incident.location[1].toFixed(4)}`
-							);
-							marker.setPopupContent(fallbackContent);
-						}
-					} catch (error) {
-						console.warn('Warning setting fallback popup content:', error);
-					}
-				});
-			
-			try {
-				marker.on("click", () => {
-					if (onMarkerClick) {
-						onMarkerClick(incident)
-					}
-				})
-			} catch (error) {
-				console.warn('Warning setting marker click handler:', error);
-			}
-
-			if (marker) {
-				markersRef.current.push({ marker, incident })
-				newMarkers.push(marker);
-			}
-		});
-
-		// Auto-fit bounds for regular incidents (not preloaded) - skip when adding new incident
-		if (newMarkers.length > 0 && !propCenter && !addingIncident) {
-			if (newMarkers.length === 1) {
-				const markerPosition = newMarkers[0].getLatLng();
-				mapInstanceRef.current.setView(markerPosition, 17);
-				console.log("🎯 Centering map on single incident marker:", markerPosition);
-			} else {
-				const group = new L.featureGroup(newMarkers);
-				mapInstanceRef.current.fitBounds(group.getBounds(), { padding: [20, 20] });
-				console.log("🎯 Fitting map bounds to show all", newMarkers.length, "incident markers");
-			}
+		// Clear any pending updates
+		if (updateTimeoutRef.current) {
+			clearTimeout(updateTimeoutRef.current);
 		}
+
+		// Debounce the update to prevent rapid re-renders during deletions
+		updateTimeoutRef.current = setTimeout(() => {
+			// Skip if already updating
+			if (isUpdatingMarkersRef.current) {
+				console.log("⏭️ Skipping marker update - already in progress");
+				return;
+			}
+
+			isUpdatingMarkersRef.current = true;
+
+			try {
+				// Clean up existing markers safely
+				safeCleanupMarkers();
+
+				// Small delay to let Leaflet update its internal state after cleanup
+				setTimeout(() => {
+					console.log("Updating markers for", incidents.length, "incidents");
+					const newMarkers = [];
+					incidents.forEach((incident) => {
+						try {
+							const marker = L.marker(incident.location, {
+								icon: createCustomIcon(incident.risk),
+							}).addTo(mapInstanceRef.current)
+
+					const popupContent = `
+						<div class="p-4 min-w-[220px]">
+							<h3 class="font-semibold text-lg mb-2 text-gray-800">${incident.title}</h3>
+							<p class="text-sm text-gray-600 mb-3">${incident.category}</p>
+							<p class="text-xs text-gray-600 mb-3">
+								${incident.date} at ${incident.time}
+							</p>
+							<div class="flex items-center gap-2 mb-3 flex-wrap">
+								<span class="px-2 py-1 rounded-md bg-${
+									incident.risk === "High" ? "red" : incident.risk === "Medium" ? "orange" : "green"
+								}-100 text-${
+									incident.risk === "High" ? "red" : incident.risk === "Medium" ? "orange" : "green"
+								}-700 text-xs font-medium border border-${
+									incident.risk === "High" ? "red" : incident.risk === "Medium" ? "orange" : "green"
+								}-300">${incident.risk} Risk</span>
+								<span class="px-2 py-1 rounded-md border text-xs font-medium ${
+									incident.status === "Verified" ? "bg-green-100 text-green-700 border-green-300" :
+									incident.status === "Pending" ? "bg-white text-black border-gray-300" :
+									"bg-red-100 text-red-700 border-red-300"
+								}">${incident.status}</span>
+								${incident.isSensitive ? '<span class="px-2 py-1 rounded-md bg-orange-100 text-orange-700 text-xs font-medium border border-orange-300">Sensitive</span>' : ''}
+							</div>
+							<p class="text-sm text-gray-700 mb-2">${incident.description}</p>
+							<div id="location-${incident.id}" class="text-xs text-gray-600 mt-2 pt-2 border-t border-gray-200">
+								<strong>Location:</strong> Loading address...
+							</div>
+						</div>
+					`
+
+					marker.bindPopup(popupContent)
+					
+					// Asynchronously fetch street address and update popup
+					reverseGeocode(incident.location[0], incident.location[1])
+						.then(streetAddress => {
+							try {
+								// Check if marker and map still exist before updating
+								if (streetAddress && streetAddress !== 'Unknown location' && marker && mapInstanceRef.current && mapInstanceRef.current.hasLayer(marker)) {
+									const updatedContent = popupContent.replace(
+										`<strong>Location:</strong> Loading address...`,
+										`<strong>Location:</strong> ${streetAddress}`
+									);
+									marker.setPopupContent(updatedContent);
+								}
+							} catch (error) {
+								console.warn('Warning updating marker popup:', error.message);
+							}
+						})
+						.catch(error => {
+							console.error('Failed to get street address:', error);
+							try {
+								// Check if marker and map still exist before updating
+								if (marker && mapInstanceRef.current && mapInstanceRef.current.hasLayer(marker)) {
+									const fallbackContent = popupContent.replace(
+										`<strong>Location:</strong> Loading address...`,
+										`<strong>Location:</strong> ${incident.location[0].toFixed(4)}, ${incident.location[1].toFixed(4)}`
+									);
+									marker.setPopupContent(fallbackContent);
+								}
+							} catch (error) {
+								console.warn('Warning setting fallback popup content:', error.message);
+							}
+						});
+					
+					try {
+						marker.on("click", () => {
+							if (onMarkerClick) {
+								onMarkerClick(incident)
+							}
+						})
+					} catch (error) {
+						console.warn('Warning setting marker click handler:', error.message);
+					}
+
+					if (marker) {
+						markersRef.current.push({ marker, incident })
+						newMarkers.push(marker);
+					}
+				} catch (error) {
+					console.warn('Warning creating marker for incident:', incident.id, error.message);
+				}
+			});
+
+			// Auto-fit bounds for regular incidents (not preloaded) - skip when adding new incident
+			if (newMarkers.length > 0 && !propCenter && !addingIncident) {
+				try {
+					if (newMarkers.length === 1) {
+						// Verify marker is still valid before getting position
+						if (newMarkers[0] && mapInstanceRef.current.hasLayer(newMarkers[0])) {
+							const markerPosition = newMarkers[0].getLatLng();
+							mapInstanceRef.current.setView(markerPosition, 17);
+							console.log("🎯 Centering map on single incident marker:", markerPosition);
+						}
+					} else {
+						// Filter out any invalid markers before creating feature group
+						const validMarkers = newMarkers.filter(marker => 
+							marker && mapInstanceRef.current && mapInstanceRef.current.hasLayer(marker)
+						);
+						
+						if (validMarkers.length > 0) {
+							const group = new L.featureGroup(validMarkers);
+							mapInstanceRef.current.fitBounds(group.getBounds(), { padding: [20, 20] });
+							console.log("🎯 Fitting map bounds to show all", validMarkers.length, "incident markers");
+						}
+					}
+				} catch (error) {
+					console.warn('Warning fitting map bounds:', error.message);
+				}
+			}
+					
+			// Reset the updating flag after all operations complete
+			isUpdatingMarkersRef.current = false;
+				}, 50); // Small delay to let Leaflet update its internal state
+			} catch (error) {
+				console.error('Error updating map markers:', error.message);
+				// Map will remain functional even if marker update fails
+				isUpdatingMarkersRef.current = false;
+			}
+		}, 100); // Debounce delay - wait for rapid changes to settle
+
+		// Cleanup timeout on unmount or when dependencies change
+		return () => {
+			if (updateTimeoutRef.current) {
+				clearTimeout(updateTimeoutRef.current);
+			}
+		};
 	}, [incidents, preloadedIncidents, addingIncident]);
 	const markersRef = useRef([])
 	const hotspotsRef = useRef([])

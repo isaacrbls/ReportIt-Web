@@ -27,15 +27,15 @@ export const BARANGAY_COORDINATES = {
     zoom: 16
   },
   "Dakila": {
-    center: [14.8555, 120.8186],
+    center: [14.851228, 120.836773],
     zoom: 16
   },
   "Mojon": {
-    center: [14.8617, 120.8118],
+    center: [14.866605, 120.820589],
     zoom: 16
   },
   "Look 1st": {
-    center: [14.8657, 120.8154],
+    center: [14.882806, 120.808643],
     zoom: 16
   },
 };

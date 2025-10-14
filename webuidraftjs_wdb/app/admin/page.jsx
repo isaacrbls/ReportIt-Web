@@ -256,8 +256,30 @@ export default function AdminDashboard() {
     if (!pendingSuspensionUser) return;
     
     try {
-      // Do NOT reset the counter - keep it at 3
-      console.log(`⚠️ User ${pendingSuspensionUser.email} not suspended. Counter remains at ${pendingSuspensionUser.rejectionCount}`);
+      const { email } = pendingSuspensionUser;
+      
+      // Find user in realtime database and reset their rejection count
+      const { ref, get, update } = await import("firebase/database");
+      const { realtimeDb } = await import("@/firebase");
+      
+      const usersRef = ref(realtimeDb, 'users');
+      const usersSnapshot = await get(usersRef);
+      
+      if (usersSnapshot.exists()) {
+        const users = usersSnapshot.val();
+        const userId = Object.keys(users).find(id => users[id].email === email);
+        
+        if (userId) {
+          const userRef = ref(realtimeDb, `users/${userId}`);
+          
+          await update(userRef, {
+            rejectedReportCount: 0, // Reset counter when admin chooses not to suspend
+            updatedAt: new Date().toISOString(),
+          });
+          
+          console.log(`✅ User ${email} rejection count reset to 0 (not suspended)`);
+        }
+      }
       
       setShowSuspensionModal(false);
       setPendingSuspensionUser(null);

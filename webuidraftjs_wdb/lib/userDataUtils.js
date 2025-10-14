@@ -162,7 +162,9 @@ export async function formatSubmittedBy(email) {
   const barangayMatch = email.match(/^test([a-zA-Z0-9\s]+)@example\.com$/);
   if (barangayMatch) {
     const barangayName = barangayMatch[1];
-    return `Barangay ${barangayName} Admin`;
+    // Capitalize first letter of barangay name
+    const capitalizedBarangay = barangayName.charAt(0).toUpperCase() + barangayName.slice(1).toLowerCase();
+    return `Barangay ${capitalizedBarangay} Admin`;
   }
   
   // For regular users, get their full name from Realtime Database
