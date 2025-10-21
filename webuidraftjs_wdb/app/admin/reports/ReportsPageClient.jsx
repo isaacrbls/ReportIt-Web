@@ -298,7 +298,6 @@ export default function ReportsPageClient() {
       const matchesSearch = !searchTerm || (
         report?.id?.toString?.().toLowerCase?.().includes(searchTerm) ||
         report?.IncidentType?.toString?.().toLowerCase?.().includes(searchTerm) ||
-        report?.Title?.toString?.().toLowerCase?.().includes(searchTerm) ||
         report?.Description?.toString?.().toLowerCase?.().includes(searchTerm) ||
         report?.Barangay?.toString?.().toLowerCase?.().includes(searchTerm) ||
         report?.ml_predicted_category?.toString?.().toLowerCase?.().includes(searchTerm)
@@ -765,7 +764,7 @@ export default function ReportsPageClient() {
                   <h1 class="report-title">INCIDENT REPORT</h1>
                   
                   <div class="report-section">
-                    <h2 class="report-subtitle">${report.IncidentType || report.Title || 'Untitled Report'}</h2>
+                    <h2 class="report-subtitle">${report.IncidentType || report.incident_type || 'Uncategorized Report'}</h2>
                   </div>
                   
                   <div class="report-grid">
@@ -1029,7 +1028,7 @@ export default function ReportsPageClient() {
                   <Search className="w-5 h-5 text-gray-400 mr-3" />
                   <input
                     type="text"
-                    placeholder="Search by incident type, title, description, location, or admin name..."
+                    placeholder="Search by incident type, description, location, or admin name..."
                     className="flex-1 outline-none bg-transparent text-base placeholder-gray-400"
                     value={archiveSearch}
                     onChange={(e) => {
@@ -1062,7 +1061,6 @@ export default function ReportsPageClient() {
                         if (!searchTerm) return true;
                         return (
                           report?.IncidentType?.toLowerCase?.().includes(searchTerm) ||
-                          report?.Title?.toLowerCase?.().includes(searchTerm) ||
                           report?.Description?.toLowerCase?.().includes(searchTerm) ||
                           report?.Barangay?.toLowerCase?.().includes(searchTerm) ||
                           report?.deletedBy?.toLowerCase?.().includes(searchTerm)
@@ -1084,19 +1082,9 @@ export default function ReportsPageClient() {
                               <div className="flex items-center gap-2 mb-1">
                                 <span className="inline-block w-2 h-2 bg-red-500 rounded-full"></span>
                                 <h3 className="font-bold text-lg text-gray-900">
-                                  {report.Title || report.IncidentType || 'Unknown Report'}
+                                  {report.IncidentType || report.incident_type || 'Uncategorized Report'}
                                 </h3>
                               </div>
-                              {report.Title && report.IncidentType && (
-                                <div className="text-sm text-gray-600 mb-2 pl-4">
-                                  <span className="font-medium">Type:</span> {report.IncidentType}
-                                </div>
-                              )}
-                              {!report.Title && report.IncidentType && (
-                                <div className="text-sm text-gray-600 mb-2 pl-4">
-                                  <span className="font-medium">Type:</span> {report.IncidentType}
-                                </div>
-                              )}
                             </div>
                             <div className="text-right ml-4">
                               <div className="text-xs text-gray-400 mb-1">Archived</div>

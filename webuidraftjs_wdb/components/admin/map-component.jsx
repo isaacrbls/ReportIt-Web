@@ -323,7 +323,7 @@ export default function MapComponent({
 					const incident = {
 						id: doc.id,
 						location: [data.Latitude, data.Longitude],
-						title: data.Title || data.IncidentType || "Incident",
+						title: data.IncidentType || data.incident_type || "Uncategorized",
 						description: data.Description || "No description available",
 						category: data.IncidentType || "Other",
 						risk: determineRiskLevel(data.IncidentType),
@@ -450,7 +450,7 @@ export default function MapComponent({
 			const formattedIncidents = preloadedIncidents.map(report => ({
 				id: report.id,
 				location: [report.Latitude, report.Longitude],
-				title: report.Title || report.IncidentType || "Incident",
+				title: report.IncidentType || report.incident_type || "Uncategorized",
 				description: report.Description || "No description available",
 				category: report.IncidentType || "Other",
 				risk: determineRiskLevel(report.IncidentType),
@@ -516,7 +516,6 @@ export default function MapComponent({
 					const popupContent = `
 						<div class="p-4 min-w-[220px]">
 							<h3 class="font-semibold text-lg mb-2 text-gray-800">${incident.title}</h3>
-							<p class="text-sm text-gray-600 mb-3">${incident.category}</p>
 							<p class="text-xs text-gray-600 mb-3">
 								${incident.date} at ${incident.time}
 							</p>
@@ -760,7 +759,7 @@ export default function MapComponent({
 					incidentsToRender = preloadedIncidents.map(report => ({
 						id: report.id,
 						location: [report.Latitude, report.Longitude],
-						title: report.Title || report.IncidentType || "Incident",
+						title: report.IncidentType || report.incident_type || "Uncategorized",
 						description: report.Description || "No description available",
 						category: report.IncidentType || "Other",
 						risk: determineRiskLevel(report.IncidentType),
@@ -785,7 +784,6 @@ export default function MapComponent({
 						const popupContent = `
 							<div class="p-4 min-w-[220px]">
 								<h3 class="font-semibold text-lg mb-2 text-gray-800">${incident.title}</h3>
-								<p class="text-sm text-gray-600 mb-3">${incident.category}</p>
 								<p class="text-xs text-gray-600 mb-3">
 									${incident.date} at ${incident.time}
 								</p>

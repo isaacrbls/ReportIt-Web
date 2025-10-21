@@ -501,11 +501,6 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
     setIsSaving(true)
     setError("")
 
-    if (!editedReport.Title?.trim()) {
-      setError("Title is required")
-      setIsSaving(false)
-      return
-    }
     if (!editedReport.IncidentType?.trim()) {
       setError("Incident type is required")
       setIsSaving(false)
@@ -836,23 +831,14 @@ export function ReportDetailDialog({ report, open, onOpenChange, onVerify, onRej
                 </div>
               )}
               
-              {}
+              {/* Report Header - Show Incident Type as Title */}
               <div className="mb-4">
-                {isEditMode ? (
-                  <Input
-                    value={editedReport.Title || ""}
-                    onChange={(e) => setEditedReport({...editedReport, Title: e.target.value})}
-                    placeholder="Enter title of report"
-                    className={`flex-1 ${!editedReport.Title?.trim() && error ? 'border-red-500 focus:ring-red-500' : ''}`}
-                  />
-                ) : (
-                  <div className="text-2xl font-bold text-gray-800 mb-3">
-                    {(currentReportData || report)?.Title || formattedReport?.title}
-                  </div>
-                )}
+                <div className="text-2xl font-bold text-red-600 mb-3">
+                  {isEditMode ? editedReport.IncidentType : ((currentReportData || report)?.IncidentType || (currentReportData || report)?.incident_type || 'Uncategorized')}
+                </div>
               </div>
 
-              {}
+              {/* Incident Type Selector (in edit mode only) */}
               <div className="flex items-center gap-2 mb-4">
                 <Tag className="w-5 h-5 text-[#F14B51]" />
                 {isEditMode ? (

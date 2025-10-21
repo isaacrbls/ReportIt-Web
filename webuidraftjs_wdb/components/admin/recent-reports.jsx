@@ -343,7 +343,7 @@ export function RecentReports({
 						<CardHeader className="flex flex-row items-start justify-between p-0 pb-2">
 							<div className="flex-1 flex flex-row items-center gap-3">
 								<CardTitle className="text-xl md:text-2xl font-bold text-red-600 flex items-center gap-3">
-									{report.Title || report.IncidentType || <span className="text-gray-400">Untitled</span>}
+									{report.IncidentType || report.incident_type || <span className="text-gray-400">Uncategorized</span>}
 									{report.Status && (
 										<span className={`ml-2 px-3 py-1 rounded-lg border text-xs font-medium ${report.Status.toLowerCase() === 'verified' ? 'bg-green-100 text-green-600 border-green-400' : report.Status.toLowerCase() === 'rejected' ? 'bg-red-100 text-red-600 border-red-400' : 'bg-white text-black border-black'}`}>
 											{report.Status.charAt(0).toUpperCase() + report.Status.slice(1)}

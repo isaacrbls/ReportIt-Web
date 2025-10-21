@@ -19,7 +19,6 @@ const MapWithNoSSR = dynamic(() => import("./map-component"), {
 });
 
 export default function AddReportDialog({ open, onClose, barangay, categories = [] }) {
-  const [title, setTitle] = useState("");
   const [incidentType, setIncidentType] = useState("");
   const [description, setDescription] = useState("");
   const [mediaFile, setMediaFile] = useState(null);
@@ -104,12 +103,8 @@ export default function AddReportDialog({ open, onClose, barangay, categories = 
   const handleSubmit = async () => {
     setError("");
     setUploadFailed(false);
-    if (!title.trim()) {
-      setError("Please enter the title of the report.");
-      return;
-    }
     if (!incidentType.trim()) {
-      setError("Please enter the type of incident.");
+      setError("Please enter a description first to predict the incident type.");
       return;
     }
     if (!description.trim()) {
@@ -145,7 +140,7 @@ export default function AddReportDialog({ open, onClose, barangay, categories = 
       
       // Report data
       const reportData = {
-        title: title.trim(),
+        title: incidentType.trim(),
         incidentType: incidentType.trim(),
         description: description.trim(),
         barangay: barangay || "",
@@ -173,7 +168,6 @@ export default function AddReportDialog({ open, onClose, barangay, categories = 
       await createReport(reportData, true); // enableDual = true
       console.log("✅ Report saved successfully via hybrid context!");
 
-      setTitle("");
       setIncidentType("");
       setDescription("");
       setMediaFile(null);
@@ -210,15 +204,7 @@ export default function AddReportDialog({ open, onClose, barangay, categories = 
             ×
           </button>
           <DialogTitle className="text-red-500 text-2xl font-bold mb-4 pr-8">Detail of report</DialogTitle>
-          <div className="mb-4">
-            <label className="block text-sm font-medium mb-1">Title of report</label>
-            <input
-              className="w-full border rounded-lg px-4 py-2 focus:outline-none"
-              value={title}
-              onChange={e => setTitle(e.target.value)}
-              placeholder="Enter title of report"
-            />
-          </div>
+          
           <div className="mb-4">
             <label className="block text-sm font-medium mb-1">Type of incident</label>
             <select
