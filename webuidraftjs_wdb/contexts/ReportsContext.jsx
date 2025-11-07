@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
 import { db } from '@/firebase';
+import { calculateHotspotsFromReports } from '@/lib/hotspotUtils';
 
 const ReportsContext = createContext();
 
@@ -70,61 +71,32 @@ export const ReportsProvider = ({ children }) => {
     };
   }, []);
 
-  const calculateBarangayHotspots = (targetBarangay) => {
-    if (!targetBarangay || !reports.length) return [];
-
-    const cacheKey = `${targetBarangay}_${reports.length}_${reports.filter(r => r.Status === "Verified").length}`;
+  /**
+   * Calculate hotspots based on the ReportIt Mobile algorithm
+   * @param {string} targetBarangay - Optional barangay filter (null = all barangays)
+   * @param {number} daysWindow - Number of days to look back (default: 30)
+   * @returns {Array} Array of hotspot objects
+   */
+  const calculateHotspots = useCallback((targetBarangay = null, daysWindow = 30) => {
+    // Create cache key
+    const cacheKey = `${targetBarangay || 'all'}_${daysWindow}_${reports.length}_${reports.filter(r => r.Status === "Verified").length}`;
     if (hotspotsCache.has(cacheKey)) {
-      console.log('🔥 ReportsProvider: Using cached hotspots for', targetBarangay);
+      console.log('🔥 Using cached hotspots for', targetBarangay || 'all barangays');
       return hotspotsCache.get(cacheKey);
     }
-    
-    const barangayReports = reports.filter(r => r.Barangay === targetBarangay && r.Status === "Verified");
 
-    const gridSize = 0.001; 
-    const locations = {};
-    
-    barangayReports.forEach(report => {
-      if (report.Latitude && report.Longitude) {
-        
-        const gridLat = Math.floor(report.Latitude / gridSize) * gridSize;
-        const gridLng = Math.floor(report.Longitude / gridSize) * gridSize;
-        const key = `${gridLat.toFixed(3)}_${gridLng.toFixed(3)}`;
-        
-        if (!locations[key]) {
-          locations[key] = {
-            lat: gridLat + (gridSize / 2), 
-            lng: gridLng + (gridSize / 2),
-            incidents: [],
-            count: 0
-          };
-        }
-        
-        locations[key].incidents.push(report);
-        locations[key].count++;
-      }
+    // Use utility function for calculation
+    const calculatedHotspots = calculateHotspotsFromReports(reports, {
+      targetBarangay,
+      daysWindow
     });
 
-    const hotspotThreshold = 2; 
-    const calculatedHotspots = Object.values(locations)
-      .filter(location => location.count >= hotspotThreshold)
-      .map(location => ({
-        lat: location.lat,
-        lng: location.lng,
-        incidentCount: location.count,
-        riskLevel: location.count >= 5 ? 'high' : location.count >= 3 ? 'medium' : 'low',
-        incidents: location.incidents,
-        
-        radius: Math.max(50, Math.min(Math.sqrt(location.count) * 60, 150)) 
-      }))
-      .sort((a, b) => b.incidentCount - a.incidentCount); 
-
-    console.log('🔥 ReportsProvider: Calculated hotspots for', targetBarangay, ':', calculatedHotspots.length);
-
+    // Cache the results
     setHotspotsCache(prevCache => {
       const newCache = new Map(prevCache);
       newCache.set(cacheKey, calculatedHotspots);
       
+      // Keep cache size manageable (max 10 entries)
       if (newCache.size > 10) {
         const firstKey = newCache.keys().next().value;
         newCache.delete(firstKey);
@@ -133,7 +105,16 @@ export const ReportsProvider = ({ children }) => {
     });
     
     return calculatedHotspots;
-  };
+  }, [reports, hotspotsCache]);
+
+  /**
+   * Legacy method for backward compatibility
+   * Calculates hotspots for a specific barangay
+   */
+  const calculateBarangayHotspots = useCallback((targetBarangay) => {
+    if (!targetBarangay) return [];
+    return calculateHotspots(targetBarangay, 30);
+  }, [calculateHotspots]);
 
   const getReportsByBarangay = (barangay) => {
     if (!barangay || barangay === 'All') return reports;
@@ -167,17 +148,22 @@ export const ReportsProvider = ({ children }) => {
   }, []);
 
   const value = {
-    
+    // Reports data
     reports,
     isLoading,
     error,
 
+    // Hotspot calculation methods
+    calculateHotspots,
     calculateBarangayHotspots,
+    
+    // Report filtering methods
     getReportsByBarangay,
     getVerifiedReports,
     getPendingReports,
     refreshData,
 
+    // Aggregate counts
     totalReports: reports.length,
     verifiedReportsCount: reports.filter(r => r.Status === "Verified").length,
     pendingReportsCount: reports.filter(r => (r.Status ?? "").toLowerCase() === "pending").length,

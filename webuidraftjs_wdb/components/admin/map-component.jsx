@@ -8,6 +8,7 @@ import { getMapConfig, getMapOptions, reverseGeocode, filterExpiredMarkers } fro
 import { getMapCoordinatesForBarangay } from "@/lib/userMapping"
 import { useCurrentUser } from "@/hooks/use-current-user"
 import { clusterIncidents } from "@/lib/clusterUtils"
+import { getHotspotColor, formatHotspotForDisplay, HOTSPOT_CONFIG } from "@/lib/hotspotUtils"
 
 let leafletCSSLoaded = false;
 const loadLeafletCSS = () => {
@@ -149,7 +150,7 @@ export default function MapComponent({
 		}
 
 		try {
-			
+			// Clean up existing hotspot circles
 			hotspotsRef.current.forEach(circle => {
 				if (circle) {
 					try {
@@ -162,48 +163,81 @@ export default function MapComponent({
 			hotspotsRef.current = [];
 
 			console.log("🔥 Rendering", hotspotsToRender.length, "hotspots to map");
-			hotspotsToRender.forEach((hotspot, index) => {
-				const color = hotspot.riskLevel === 'high' ? '#ef4444' :     
-							  hotspot.riskLevel === 'medium' ? '#f97316' :   
-							  '#22c55e';                                     
-				
-				console.log(`🎯 Hotspot ${index + 1}: ${hotspot.incidentCount} incidents, ${hotspot.radius}m radius, ${hotspot.riskLevel} risk at [${hotspot.lat.toFixed(4)}, ${hotspot.lng.toFixed(4)}]`);
 			
+			hotspotsToRender.forEach((hotspot, index) => {
+				// Get color using utility function
+				const color = getHotspotColor(hotspot.riskLevel);
+				
+				// Format hotspot data for display
+				const displayData = formatHotspotForDisplay(hotspot);
+				
+				console.log(`${displayData.emoji} Hotspot ${index + 1}: ${hotspot.incidentCount} incidents, ${displayData.radius}m radius, ${hotspot.riskLevel} risk at [${hotspot.lat.toFixed(4)}, ${hotspot.lng.toFixed(4)}]`);
+			
+				// Create circle overlay with updated styling
 				const circle = L.circle([hotspot.lat, hotspot.lng], {
 					color: color,
 					fillColor: color,
-					fillOpacity: 0.25,
+					fillOpacity: HOTSPOT_CONFIG.OPACITY,
 					radius: hotspot.radius,
-					weight: 2,
+					weight: HOTSPOT_CONFIG.BORDER_WEIGHT,
 					opacity: 0.8,
 				}).addTo(mapInstanceRef.current);
 
+				// Enhanced popup content
 				const popupContent = `
-					<div class="p-3">
-						<h3 class="font-medium text-sm mb-2">Crime Hotspot</h3>
-						<div class="space-y-1">
-							<p class="text-xs text-gray-600">
-								Risk Level: <span class="font-medium ${
-									hotspot.riskLevel === 'high' ? 'text-red-600' :
-									hotspot.riskLevel === 'medium' ? 'text-orange-600' : 'text-green-600'
-								}">${hotspot.riskLevel.charAt(0).toUpperCase() + hotspot.riskLevel.slice(1)}</span>
-							</p>
-							<p class="text-xs text-gray-600">
-								${hotspot.incidentCount} incidents in ${hotspot.radius}m radius
-							</p>
-							<p class="text-xs text-gray-500">
-								${hotspot.lat.toFixed(4)}, ${hotspot.lng.toFixed(4)}
-							</p>
-							<p class="text-xs text-gray-500 mt-2">
-								Based on verified reports within 100m grid
-							</p>
+					<div class="p-3 min-w-[200px]">
+						<div class="flex items-center gap-2 mb-2">
+							<span class="text-lg">${displayData.emoji}</span>
+							<h3 class="font-semibold text-sm">Crime Hotspot</h3>
+						</div>
+						<div class="space-y-1.5">
+							<div class="flex items-center justify-between">
+								<span class="text-xs text-gray-600">Risk Level:</span>
+								<span class="font-medium text-xs ${displayData.colorClass}">
+									${displayData.riskLevelDisplay}
+								</span>
+							</div>
+							<div class="flex items-center justify-between">
+								<span class="text-xs text-gray-600">Incidents:</span>
+								<span class="font-semibold text-xs">${displayData.incidentCount}</span>
+							</div>
+							<div class="flex items-center justify-between">
+								<span class="text-xs text-gray-600">Radius:</span>
+								<span class="text-xs">${displayData.radius}m</span>
+							</div>
+							${displayData.barangay !== 'Unknown' ? `
+								<div class="flex items-center justify-between">
+									<span class="text-xs text-gray-600">Barangay:</span>
+									<span class="text-xs font-medium">${displayData.barangay}</span>
+								</div>
+							` : ''}
+							<div class="pt-2 mt-2 border-t border-gray-200">
+								<p class="text-xs text-gray-500">
+									📍 ${displayData.location}
+								</p>
+								<p class="text-xs text-gray-400 mt-1">
+									⏰ Based on verified reports within 30 days
+								</p>
+							</div>
+							${hotspot.riskLevel === 'high' ? `
+								<div class="mt-2 p-2 bg-red-50 rounded-md">
+									<p class="text-xs text-red-700 font-medium">
+										⚠️ High-risk area - Exercise caution
+									</p>
+								</div>
+							` : ''}
 						</div>
 					</div>
 				`;
 
-				circle.bindPopup(popupContent);
+				circle.bindPopup(popupContent, {
+					maxWidth: 300,
+					className: 'hotspot-popup'
+				});
+				
 				hotspotsRef.current.push(circle);
 			});
+			
 			return true;
 		} catch (error) {
 			console.error("❌ Error rendering hotspots to map:", error);
