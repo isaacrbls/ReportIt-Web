@@ -13,6 +13,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
 
+// Disable static generation for this page since it requires client-side APIs
+export const dynamic = 'force-dynamic'
+
 /**
  * Hotspot Demo Page
  * Demonstrates the complete hotspot functionality
