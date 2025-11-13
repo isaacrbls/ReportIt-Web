@@ -3,7 +3,8 @@
 import { useState, useEffect } from "react"
 import { useReports } from "@/contexts/ReportsContext"
 import { useCurrentUser } from "@/hooks/use-current-user"
-import MapComponent from "@/components/admin/map-component"
+import dynamic from 'next/dynamic'
+const MapComponent = dynamic(() => import('@/components/admin/map-component'), { ssr: false })
 import HotspotStats from "@/components/admin/hotspot-stats"
 import HotspotLegend, { InlineHotspotLegend } from "@/components/admin/hotspot-legend"
 import HotspotDebugPanel from "@/components/admin/hotspot-debug-panel"
