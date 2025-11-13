@@ -4,7 +4,6 @@ import { useState, useEffect } from "react"
 import { useReports } from "@/contexts/ReportsContext"
 import { useCurrentUser } from "@/hooks/use-current-user"
 import dynamic from 'next/dynamic'
-const MapComponent = dynamic(() => import('@/components/admin/map-component'), { ssr: false })
 import HotspotStats from "@/components/admin/hotspot-stats"
 import HotspotLegend, { InlineHotspotLegend } from "@/components/admin/hotspot-legend"
 import HotspotDebugPanel from "@/components/admin/hotspot-debug-panel"
@@ -14,8 +13,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
 
+// Load MapComponent dynamically to avoid server-side Leaflet import
+const MapComponent = dynamic(() => import('@/components/admin/map-component'), { ssr: false })
+
 // Disable static generation for this page since it requires client-side APIs
-export const dynamic = 'force-dynamic'
+export const dynamicParams = true
+export const revalidate = 0
 
 /**
  * Hotspot Demo Page
