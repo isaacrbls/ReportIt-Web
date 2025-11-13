@@ -134,9 +134,14 @@ export function CrimeDistributionChart({ timePeriod = "all", sortBy = "count", s
         console.log("CrimeChart - User email:", userEmail, "Barangay:", barangay);
       }
 
+      // Filter by barangay
       let filteredReports = barangay === 'All' || !barangay ? reportsData : 
                            reportsData.filter(r => r.Barangay === barangay);
       
+      // Filter only verified reports
+      filteredReports = filteredReports.filter(r => r.Status === 'Verified' || r.status === 'Verified');
+      
+      // Filter by time period
       filteredReports = filterReportsByTimePeriod(filteredReports, timePeriod);
       
       console.log("CrimeChart - Time period:", timePeriod);
@@ -196,25 +201,33 @@ export function CrimeDistributionChart({ timePeriod = "all", sortBy = "count", s
           });
         }
         
+        // Pink/Red shades from darkest to lightest (darkest = most incidents)
         const redShades = [
-          "#dc2626",
-          "#ef4444",
-          "#f87171",
-          "#fca5a5",
-          "#fecaca",
-          "#fee2e2",
-          "#fef2f2",
-          "#7f1d1d",
-          "#991b1d",
-          "#b91c1c"
+          "#FF0A54",  // Deep Pink/Red (most incidents)
+          "#FF477E",  // Bright Pink
+          "#FF5C8A",  // Pink
+          "#FF7096",  // Light Pink
+          "#FF85A1",  // Lighter Pink
+          "#FF99AC",  // Very Light Pink
+          "#FBB1BD",  // Pale Pink
+          "#F9BEC7",  // Lighter Pale Pink
+          "#F7CAD0",  // Very Pale Pink
+          "#FAE0E4"   // Lightest Pink (least incidents)
         ];
 
         const total = filteredReports.length;
-        const chartData = sortedIncidents.map(([type, count], index) => ({
+        // Sort incidents by count to assign colors (highest count gets darkest red)
+        const sortedByCount = sortedIncidents.slice().sort((a, b) => b[1] - a[1]);
+        const colorMap = {};
+        sortedByCount.forEach(([type], index) => {
+          colorMap[type] = redShades[index % redShades.length];
+        });
+
+        const chartData = sortedIncidents.map(([type, count]) => ({
           name: type,
           value: parseFloat(((count / total) * 100).toFixed(1)),
           count: count,
-          color: redShades[index % redShades.length]
+          color: colorMap[type]
         }));
 
         console.log("CrimeChart - Chart data:", chartData);
