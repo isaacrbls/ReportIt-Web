@@ -16,10 +16,6 @@ import { Label } from "@/components/ui/label"
 // Load MapComponent dynamically to avoid server-side Leaflet import
 const MapComponent = dynamic(() => import('@/components/admin/map-component'), { ssr: false })
 
-// Disable static generation for this page since it requires client-side APIs
-export const dynamicParams = true
-export const revalidate = 0
-
 /**
  * Hotspot Demo Page
  * Demonstrates the complete hotspot functionality
