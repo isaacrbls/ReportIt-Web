@@ -1,0 +1,83 @@
+Test Case ID,Test Scenario,Expected Outcome,Preconditions
+LP-001,"Click ""Book Now"" on homepage",Redirects to login form,"Public landing page available; unauthenticated user"
+LP-002,View public crime statistics without login,"System displays limited public statistics and prompts to login for full access","Application running; database contains reports"
+LP-003,Access reports list without authentication,"System redirects to login page with ""Authentication required"" message",User not logged in
+LP-004,Navigate to different sections from homepage,"All navigation links work correctly (About, Contact, Features)",Homepage fully loaded
+LP-005,Test responsive design on mobile viewport,"Layout adapts correctly; all elements visible and functional",Browser with mobile viewport simulation
+AUTH-010,"Enter valid registered email/password and login","User redirected to main screen (app/dashboard); JWT token stored","User account exists in database; user not currently logged in"
+AUTH-021,Valid username/password/confirm; proceed registration,"Navigates to personal info form; registration flow enabled","Registration page loaded; validation rules active"
+AUTH-022,Submit complete registration form with all required fields,"Account created successfully; user receives confirmation; auto-login or redirect to login page","Registration flow started; valid email not already registered"
+AUTH-023,Attempt registration with existing email,"System shows error: ""Email already registered. Please login or use different email""",Database contains user with same email
+AUTH-024,Submit registration with mismatched passwords,"Form validation error: ""Passwords do not match""",Registration form open
+AUTH-025,Submit registration with weak password,"Validation error: ""Password must be at least 8 characters with uppercase, lowercase, and number""",Registration form open
+AUTH-026,Leave required fields blank during registration,Form shows validation errors for each empty required field,Registration form open
+AUTH-030,Login with valid credentials,"User authenticated; JWT token generated; redirected to dashboard","Valid user exists; correct credentials provided"
+AUTH-031,Login with invalid email,"Error message: ""Invalid email or password"" displayed",Login page loaded
+AUTH-032,Login with invalid password,"Error message: ""Invalid email or password"" displayed",Valid email but wrong password
+AUTH-033,Login with empty email field,"Validation error: ""Email is required""",Login form rendered
+AUTH-034,Login with empty password field,"Validation error: ""Password is required""",Login form rendered
+AUTH-035,Test "Remember Me" functionality,User session persists after browser close/reopen,"Login page with ""Remember Me"" checkbox"
+AUTH-040,"Click ""Forgot Password"" link",Navigates to password reset request page,Login page displayed
+AUTH-041,Submit valid email for password reset,"System sends reset email; confirmation message displayed","User exists with provided email; email service configured"
+AUTH-042,Submit non-existent email for reset,"Error: ""No account found with this email address""",Password reset form open
+AUTH-043,Click password reset link from email,Opens password reset form with valid token,"Reset email received; token not expired"
+AUTH-044,Submit new password with valid token,"Password updated successfully; can login with new password",Reset form open with valid token
+AUTH-045,Attempt to use expired reset token,"Error: ""Reset link expired. Please request a new one""",Token older than expiration time
+AUTH-050,View current user profile,"Display user info (email, name, barangay, role)",User authenticated
+AUTH-051,Update user profile information,"Changes saved; confirmation message displayed","User logged in; profile page open"
+AUTH-052,Change password from profile,Password updated; requires re-authentication,"User authenticated; in profile settings"
+REP-001,Create new report with all required fields,"Report created with status ""Pending""; success message; report ID generated","User authenticated; create report form open"
+REP-002,"Create report with title, description, location, and incident type","Report saved to database; ML categorization triggered; assigned to appropriate barangay","User logged in; valid data provided"
+REP-003,Upload image attachment with report,"Image stored; thumbnail generated; linked to report","Report form open; valid image file selected (JPG/PNG)"
+REP-004,Submit report without required title,"Validation error: ""Title is required""",Create report form displayed
+REP-005,Submit report without description,"Validation error: ""Description is required""",Create report form open
+REP-006,Submit report with invalid coordinates,Validation error or defaults to text address,Location input active
+REP-007,Create report with file exceeding size limit,"Error: ""File size exceeds 5MB limit""",File upload field active
+REP-008,Create report as admin with auto-verified status,"Report created with status ""Verified""; verified_by set to admin user; verified_at timestamp set",Admin user logged in
+REP-020,View list of all reports,"Displays paginated list with: ID, title, status, incident type, location, date",User authenticated
+REP-021,Click on specific report to view details,"Opens detail view showing: full description, images, location map, status, timestamps, action history","Report exists; user has view permission"
+REP-022,Filter reports by barangay,List updates to show only reports matching selected barangay,"Reports exist; filter component active"
+REP-023,Filter reports by status (Pending/Verified/Resolved/Rejected),Displays only reports with selected status,Multiple reports with different statuses exist
+REP-024,Filter reports by incident type,Shows reports matching selected category,Reports with various incident types exist
+REP-025,Search reports by keyword,Results show reports containing keyword in title or description,"Search feature available; reports exist"
+REP-026,View reports on map visualization,Map displays markers for each report at correct coordinates,Reports with location data exist
+REP-027,Non-admin user views reports outside their barangay,System filters to show only user's barangay reports or public reports,"Regular user logged in; barangay assigned"
+REP-040,Edit report title and description,"Changes saved; updated_at timestamp updated; maintains report ID","User has edit permission; report exists"
+REP-041,Update report location/coordinates,"Location updated; map marker moves to new position","Edit mode active; report exists"
+REP-042,Change report incident type,"Category updated; may trigger ML re-categorization","User has permission; report in editable status"
+REP-043,Admin updates report status from Pending to Verified,"Status changed to ""Verified""; verified_by and verified_at fields populated; action logged","Admin user; report exists with Pending status"
+REP-044,Update report status to Resolved,"Status changed; action logged with timestamp and admin user","Report verified; admin has permission"
+REP-045,Attempt to edit verified report as regular user,"Error: ""You do not have permission to edit verified reports""","Regular user; report status is Verified"
+REP-046,Add notes/comments to report action history,Note saved with timestamp and user; visible in action history,Report detail view open
+REP-060,Admin deletes report with confirmation,"Report removed from database; success message; redirects to reports list","Admin logged in; report exists"
+REP-061,Attempt to delete report without admin permission,"Error: ""Access denied. Only administrators can delete reports""","Non-admin user; report exists"
+REP-062,Cancel delete operation,"Report remains unchanged; stays on current page",Delete confirmation dialog open
+REP-063,Soft delete report (archive),"Report marked as deleted but remains in database; not visible in normal list","Admin user; soft delete feature enabled"
+ADM-001,Admin views all registered users,"Displays list with: user ID, email, name, barangay, role, registration date, status","Admin authenticated; accessing user management"
+ADM-002,Admin suspends user account,"User status changed to ""Suspended""; cannot login; message: ""Account suspended""","Admin user; target user active"
+ADM-003,Admin reactivates suspended account,"User status changed to ""Active""; can login again","Admin user; target user suspended"
+ADM-004,Admin changes user role,User role updated; permissions changed accordingly,"Admin user; role change form"
+ADM-005,Admin assigns user to different barangay,User's barangay updated; sees reports for new barangay,"Admin user; valid barangay selected"
+ADM-020,Admin verifies pending report,"Status: Pending → Verified; verified_by and verified_at set; action logged","Admin user; pending report exists"
+ADM-021,Admin rejects report with reason,"Status: Pending → Rejected; rejection note saved; notification sent to reporter","Admin user; report pending"
+ADM-022,Admin marks report as resolved,"Status: Verified → Resolved; resolution notes saved; timestamp recorded","Admin user; verified report exists"
+ADM-023,Bulk verify multiple reports,"All selected reports verified; batch action logged","Admin user; multiple pending reports selected"
+ADM-024,Admin views report action history,"Timeline showing: creation, status changes, verifications, edits with user and timestamp",Report exists with multiple actions
+ANL-001,View total reports count,Displays accurate count of all reports in system,Reports exist in database
+ANL-002,View reports by status (dashboard cards),"Shows counts: Pending, Verified, Resolved, Rejected","Dashboard loaded; reports with various statuses"
+ANL-003,View incident type distribution chart,Pie/bar chart showing percentage of each incident category,Reports with incident types exist
+ANL-004,View reports by barangay chart,Bar chart with counts per barangay,Reports from multiple barangays exist
+ANL-005,View trend chart (reports over time),Line graph showing report count by day/week/month,Historical report data exists
+ANL-006,Filter analytics by date range,Charts update to show data for selected period,Date range picker functional
+ANL-007,View hotspot/high-risk areas on map,Heatmap showing concentration of incidents,"Location data exists; map component loaded"
+ANL-008,Export analytics report as PDF/CSV,File downloads with current analytics data,"Analytics page open; export button available"
+ML-001,"View ML model metrics (accuracy, status)","Displays: model accuracy (e.g., 84.7%), categories count, last updated date, health status","ML model loaded; metrics endpoint accessible"
+ML-002,Process report with ML categorization,"Report analyzed; predicted category and confidence assigned; feature vector generated","Report created; ML service running"
+ML-003,View confidence distribution (high/medium/low),"Chart shows: high (≥80%), medium (50-79%), low (<50%) confidence reports",ML-processed reports exist
+ML-004,Batch process unprocessed reports,"All pending reports analyzed; ML fields populated; success count reported",Unprocessed reports exist
+ML-005,ML assigns high priority to critical incidents,"Reports with categories like ""Assault"", ""Missing Person"" marked as high priority/risk","ML model configured; critical incident reported"
+ML-006,View duplicate detection results,"System identifies similar reports; shows similarity score","Duplicate checking enabled; similar reports exist"
+CAT-001,Admin creates new incident category,"Category added to database; available in report form dropdowns","Admin authenticated; category management open"
+CAT-002,Admin edits existing category name,"Category name updated; existing reports maintain link","Admin user; category exists"
+CAT-003,Admin deactivates category,"Category marked inactive; not shown in report creation; existing reports unaffected","Admin user; category has is_active flag"
+CAT-004,View all active categories,List displays all categories with is_active=True,Categories exist in database
